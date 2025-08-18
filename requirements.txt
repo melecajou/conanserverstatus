@@ -1,2 +1,3 @@
 discord.py
 aiomcrcon
+Babel

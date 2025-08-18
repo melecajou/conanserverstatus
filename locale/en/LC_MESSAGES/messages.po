@@ -1,0 +1,95 @@
+# English translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-08-18 10:43-0300\n"
+"PO-Revision-Date: 2025-08-18 10:43-0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.10.3\n"
+
+#: conan_server_status.py:71
+msgid "O servidor está operando normalmente."
+msgstr "The server is operating normally."
+
+#: conan_server_status.py:77
+msgid "Jogadores Online ({count})"
+msgstr "Online Players ({count})"
+
+#: conan_server_status.py:79
+msgid "Jogadores Online (0)"
+msgstr "Online Players (0)"
+
+#: conan_server_status.py:79
+msgid "Ninguém está jogando no momento."
+msgstr "No one is playing at the moment."
+
+#: conan_server_status.py:81
+msgid "Status atualizado"
+msgstr "Status updated"
+
+#: conan_server_status.py:86
+msgid "Tentativa {attempt}/{max_retries} de conexão RCON falhou: {error}"
+msgstr "RCON connection attempt {attempt}/{max_retries} failed: {error}"
+
+#: conan_server_status.py:93
+msgid "Todas as tentativas de conexão RCON falharam."
+msgstr "All RCON connection attempts have failed."
+
+#: conan_server_status.py:96
+msgid ""
+"Não foi possível conectar ao servidor. Pode estar desligado ou "
+"reiniciando."
+msgstr "Could not connect to the server. It may be offline or restarting."
+
+#: conan_server_status.py:99
+msgid "Verifique o console ou contate um administrador."
+msgstr "Check the console or contact an administrator."
+
+#: conan_server_status.py:112
+msgid "Canal com ID {channel_id} para '{server_name}' não encontrado."
+msgstr "Channel with ID {channel_id} for '{server_name}' not found."
+
+#: conan_server_status.py:124
+msgid ""
+"Nova mensagem de status criada para '{server_name}' no canal "
+"{channel_name}."
+msgstr "New status message created for '{server_name}' in channel {channel_name}."
+
+#: conan_server_status.py:126
+msgid "Mensagem para '{server_name}' não encontrada. Criando uma nova."
+msgstr "Message for '{server_name}' not found. Creating a new one."
+
+#: conan_server_status.py:130
+msgid "Erro ao atualizar status para '{server_name}': {error}"
+msgstr "Error updating status for '{server_name}': {error}"
+
+#: conan_server_status.py:136
+msgid "Bot conectado como {username}"
+msgstr "Bot connected as {username}"
+
+#: conan_server_status.py:144
+msgid "Mensagem encontrada para '{server_name}' no canal {channel_name}."
+msgstr "Message found for '{server_name}' in channel {channel_name}."
+
+#: conan_server_status.py:148
+msgid "Tarefa de atualização de status iniciada."
+msgstr "Status update task started."
+
+#: conan_server_status.py:162
+msgid "Comando em tempo de recarga. Tente novamente em {seconds:.1f} segundos."
+msgstr "Command on cooldown. Try again in {seconds:.1f} seconds."
+
+#: conan_server_status.py:171
+msgid "Erro fatal ao iniciar o bot: {error}"
+msgstr "Fatal error starting the bot: {error}"

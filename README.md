@@ -10,6 +10,16 @@ Este bot para Discord monitora o status de um ou mais servidores Conan Exiles e 
 - Fornece um comando de barra (`/status`) para verificação manual.
 - Robusto, com tratamento de erros e tentativas de reconexão.
 
+## Idiomas (Internationalization)
+
+O bot suporta múltiplos idiomas. As traduções são gerenciadas pelo sistema `gettext`.
+
+**Idiomas Suportados:**
+- `en`: Inglês
+- `pt_BR`: Português do Brasil
+
+Você pode definir o idioma desejado no arquivo `config.py`.
+
 ## Pré-requisitos
 
 - Python 3.8 ou superior
@@ -54,6 +64,7 @@ nano config.py
 ```
 
 Dentro de `config.py`, você precisará preencher:
+- `LANGUAGE`: O idioma que o bot usará. O padrão é `'en'`. Mude para `'pt_BR'` para português.
 - `STATUS_BOT_TOKEN`: O token do seu bot do Discord. **Mantenha isso em segredo!**
 - `SERVERS`: Uma lista com os dados de cada servidor que você quer monitorar (IP, porta RCON, senha RCON e ID do canal de status).
 

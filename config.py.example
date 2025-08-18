@@ -1,3 +1,6 @@
+# Idioma do bot. Opções: 'en' para Inglês, 'pt_BR' para Português do Brasil.
+LANGUAGE = "en"
+
 # Token do seu Bot do Discord.
 # NUNCA compartilhe ou envie este token para repositórios públicos.
 STATUS_BOT_TOKEN = "SEU_TOKEN_AQUI"
