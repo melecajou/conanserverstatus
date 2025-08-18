@@ -1,108 +1,108 @@
-# Bot de Status para Servidores Conan Exiles
+# Conan Exiles Server Status Bot
 
-Este bot para Discord monitora o status de um ou mais servidores Conan Exiles e exibe as informações em um canal específico, atualizando-as periodicamente.
+This Discord bot monitors the status of one or more Conan Exiles servers and displays the information in a specific channel, updating it periodically.
 
-## Funcionalidades
+## Features
 
-- Monitora múltiplos servidores simultaneamente.
-- Exibe o status (Online/Offline) e a lista de jogadores conectados.
-- Atualiza automaticamente a mensagem de status em um intervalo configurável.
-- Fornece um comando de barra (`/status`) para verificação manual.
-- Robusto, com tratamento de erros e tentativas de reconexão.
+- Monitors multiple servers simultaneously.
+- Displays status (Online/Offline) and the list of connected players.
+- Automatically updates the status message at a configurable interval.
+- Provides a slash command (`/status`) for manual checking.
+- Robust, with error handling and reconnection attempts.
 
-## Idiomas (Internationalization)
+## Languages (Internationalization)
 
-O bot suporta múltiplos idiomas. As traduções são gerenciadas pelo sistema `gettext`.
+The bot supports multiple languages. Translations are managed by the `gettext` system.
 
-**Idiomas Suportados:**
-- `en`: Inglês
-- `pt_BR`: Português do Brasil
+**Supported Languages:**
+- `en`: English
+- `pt_BR`: Brazilian Portuguese
 
-Você pode definir o idioma desejado no arquivo `config.py`.
+You can set the desired language in the `config.py` file.
 
-## Pré-requisitos
+## Prerequisites
 
-- Python 3.8 ou superior
+- Python 3.8 or higher
 - Git
-- Um servidor com acesso à internet para hospedar o bot.
+- A server with internet access to host the bot.
 
-## Instalação
+## Installation
 
-Siga os passos abaixo para configurar o bot no seu servidor.
+Follow the steps below to set up the bot on your server.
 
-**1. Clonar o Repositório**
+**1. Clone the Repository**
 
 ```bash
 git clone https://github.com/melecajou/conanserverstatus.git
 cd conanserverstatus
 ```
 
-**2. Criar um Ambiente Virtual (Recomendado)**
+**2. Create a Virtual Environment (Recommended)**
 
-É uma boa prática isolar as dependências do projeto.
+It is good practice to isolate project dependencies.
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-**3. Instalar as Dependências**
+**3. Install Dependencies**
 
-Instale as bibliotecas Python necessárias.
+Install the required Python libraries.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**4. Configurar o Bot**
+**4. Configure the Bot**
 
-Copie o arquivo de exemplo e preencha com suas informações.
+Copy the example file and fill in your information.
 
 ```bash
 cp config.py.example config.py
 nano config.py
 ```
 
-Dentro de `config.py`, você precisará preencher:
-- `LANGUAGE`: O idioma que o bot usará. O padrão é `'en'`. Mude para `'pt_BR'` para português.
-- `STATUS_BOT_TOKEN`: O token do seu bot do Discord. **Mantenha isso em segredo!**
-- `SERVERS`: Uma lista com os dados de cada servidor que você quer monitorar (IP, porta RCON, senha RCON e ID do canal de status).
+Inside `config.py`, you will need to fill in:
+- `LANGUAGE`: The language the bot will use. The default is `'en'`. Change to `'pt_BR'` for Portuguese.
+- `STATUS_BOT_TOKEN`: Your Discord bot token. **Keep this secret!**
+- `SERVERS`: A list with the data for each server you want to monitor (IP, RCON port, RCON password, and status channel ID).
 
-## Executando o Bot
+## Running the Bot
 
-**Para testar (execução manual):**
+**For testing (manual execution):**
 
-Você pode iniciar o bot diretamente no seu terminal. Pressione `CTRL+C` para parar.
+You can start the bot directly in your terminal. Press `CTRL+C` to stop.
 
 ```bash
 python conan_server_status.py
 ```
 
-**Para produção (usando systemd):**
+**For production (using systemd):**
 
-Para garantir que o bot rode continuamente em segundo plano e reinicie com o servidor, vamos criar um serviço `systemd`.
+To ensure the bot runs continuously in the background and restarts with the server, let's create a `systemd` service.
 
-**a. Crie o arquivo de serviço:**
+**a. Create the service file:**
 
 ```bash
 sudo nano /etc/systemd/system/conan_status_bot.service
 ```
 
-**b. Cole o seguinte conteúdo no arquivo.**
+**b. Paste the following content into the file.**
 
-**Importante:** Ajuste os caminhos em `WorkingDirectory` e `ExecStart` para corresponder à localização onde você clonou o repositório.
+**Important:** Adjust the paths in `WorkingDirectory` and `ExecStart` to match the location where you cloned the repository.
 
 ```ini
 [Unit]
-Description=Bot de Status para Servidores Conan Exiles
+Description=Conan Exiles Server Status Bot
 After=network.target
 
 [Service]
-User=seu_usuario          # <-- TROQUE PELO SEU NOME DE USUÁRIO (ex: steam)
-Group=seu_grupo         # <-- TROQUE PELO SEU GRUPO (ex: steam)
+User=your_user          # <-- CHANGE TO YOUR USERNAME (e.g., steam)
+Group=your_group         # <-- CHANGE TO YOUR GROUP (e.g., steam)
 
-WorkingDirectory=/home/seu_usuario/bots/ConanServerStatus  # <-- AJUSTE O CAMINHO
-ExecStart=/home/seu_usuario/bots/ConanServerStatus/venv/bin/python conan_server_status.py # <-- AJUSTE O CAMINHO
+WorkingDirectory=/home/your_user/bots/ConanServerStatus  # <-- ADJUST THE PATH
+ExecStart=/home/your_user/bots/ConanServerStatus/venv/bin/python conan_server_status.py # <-- ADJUST THE PATH
 
 Restart=always
 RestartSec=5
@@ -111,21 +111,21 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-**c. Habilite e inicie o serviço:**
+**c. Enable and start the service:**
 
 ```bash
-sudo systemctl daemon-reload         # Recarrega o systemd para ler o novo arquivo
-sudo systemctl enable conan_status_bot.service # Habilita o bot para iniciar com o sistema
-sudo systemctl start conan_status_bot.service  # Inicia o bot imediatamente
+sudo systemctl daemon-reload         # Reload systemd to read the new file
+sudo systemctl enable conan_status_bot.service # Enable the bot to start with the system
+sudo systemctl start conan_status_bot.service  # Start the bot immediately
 ```
 
-**d. Verifique o status do serviço:**
+**d. Check the service status:**
 
 ```bash
 sudo systemctl status conan_status_bot.service
 ```
 
-## Uso no Discord
+## Discord Usage
 
-- O bot manterá uma mensagem de status sempre atualizada no canal que você configurou em `config.py`.
-- Qualquer membro do servidor pode usar o comando `/status` para receber uma atualização imediata de todos os servidores monitorados.
+- The bot will keep an always-updated status message in the channel you configured in `config.py`.
+- Any server member can use the `/status` command to get an immediate update for all monitored servers.

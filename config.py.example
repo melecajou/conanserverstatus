@@ -1,25 +1,25 @@
-# Idioma do bot. Opções: 'en' para Inglês, 'pt_BR' para Português do Brasil.
+# Bot language. Options: 'en' for English, 'pt_BR' for Brazilian Portuguese.
 LANGUAGE = "en"
 
-# Token do seu Bot do Discord.
-# NUNCA compartilhe ou envie este token para repositórios públicos.
-STATUS_BOT_TOKEN = "SEU_TOKEN_AQUI"
+# Your Discord Bot's Token.
+# NEVER share or commit this token to public repositories.
+STATUS_BOT_TOKEN = "YOUR_TOKEN_HERE"
 
-# Lista de servidores para monitorar.
-# Você pode adicionar quantos servidores quiser, basta copiar o bloco de dicionário.
+# List of servers to monitor.
+# You can add as many servers as you want, just copy the dictionary block.
 SERVERS = [
         {
-            "NAME": "Nome do Servidor 1",         # Nome de exibição para o servidor.
-            "SERVER_IP" : "127.0.0.1",            # IP do servidor Conan Exiles.
-            "RCON_PORT" : 25575,                  # Porta RCON do servidor.
-            "RCON_PASS" : "SUA_SENHA_RCON_AQUI",  # Senha RCON do servidor.
-            "STATUS_CHANNEL_ID" : 123456789012345678 # ID do canal do Discord para postar o status.
+            "NAME": "Server Name 1",         # Display name for the server.
+            "SERVER_IP" : "127.0.0.1",            # IP of the Conan Exiles server.
+            "RCON_PORT" : 25575,                  # RCON port of the server.
+            "RCON_PASS" : "YOUR_RCON_PASSWORD_HERE",  # RCON password of the server.
+            "STATUS_CHANNEL_ID" : 123456789012345678 # Discord channel ID to post the status.
         },
         {
-            "NAME": "Nome do Servidor 2",
+            "NAME": "Server Name 2",
             "SERVER_IP": "127.0.0.1",
             "RCON_PORT": 25576,
-            "RCON_PASS": "SUA_OUTRA_SENHA_RCON",
+            "RCON_PASS": "YOUR_OTHER_RCON_PASSWORD",
             "STATUS_CHANNEL_ID": 987654321098765432
         }
 ]
