@@ -87,7 +87,7 @@ async def get_server_status_embed(server_config: dict) -> discord.Embed:
             if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay_seconds)
         finally:
-            await client.close()
+            await client.close() 
     
     # If all attempts fail
     logging.error(f"[{server_name}] " + _("All RCON connection attempts have failed."))
