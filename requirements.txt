@@ -1,3 +1,14 @@
-discord.py
-aiomcrcon
-Babel
+aio-mc-rcon==3.4.1
+aiohappyeyeballs==2.6.1
+aiohttp==3.12.14
+aiosignal==1.4.0
+attrs==25.3.0
+discord.py==2.5.2
+frozenlist==1.7.0
+git-filter-repo==2.47.0
+idna==3.10
+mcrcon==0.7.0
+multidict==6.6.3
+propcache==0.3.2
+typing_extensions==4.14.1
+yarl==1.20.1

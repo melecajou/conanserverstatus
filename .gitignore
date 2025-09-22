@@ -1,5 +1,17 @@
+# Local configuration - DO NOT COMMIT
 config.py
-__pycache__/
+
+# Compiled localization files
 *.mo
 messages.pot
 babel.cfg
+
+# Python cache
+__pycache__/
+
+# Data and Logs
+data/
+logs/
+
+# Backup files
+*.bak
