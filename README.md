@@ -7,10 +7,10 @@ This Discord bot monitors the status of one or more Conan Exiles servers and dis
 - Monitors multiple servers simultaneously.
 - Displays status (Online/Offline) and the list of connected players.
 - **Displays the in-game level for each online player.**
-- **Fully configurable playtime reward system:**
-    - Can be enabled or disabled.
+- **Per-server configurable playtime reward system:**
+    - Can be enabled, disabled, or configured independently for each server.
     - Rewards players with a chosen item and quantity.
-    - Reward interval (playtime required) is configurable.
+    - Reward interval (playtime required) is configurable for each server.
 - Automatically updates the status message every minute.
 - Logs all player rewards to a local `logs/rewards.log` file.
 - Robust, with RCON connection error handling and retry attempts.
@@ -65,8 +65,14 @@ nano config.py
 Inside `config.py`, you will need to fill in:
 - `LANGUAGE`: The language the bot will use (`'en'` or `'pt_BR'`).
 - `STATUS_BOT_TOKEN`: Your Discord bot token. **Keep this secret!**
-- `REWARD_CONFIG`: A block of settings to control the reward system. You can enable/disable it, set the item, quantity, and playtime required. See `config.py.example` for details.
-- `SERVERS`: A list with the data for each server you want to monitor (IP, RCON port, RCON password, status channel ID, and the optional path to the game's database).
+- `SERVERS`: A list where each entry contains the configuration for a server you want to monitor. This includes:
+    - `NAME`: Display name for the server.
+    - `SERVER_IP`: IP of the Conan Exiles server.
+    - `RCON_PORT`: RCON port of the server.
+    - `RCON_PASS`: RCON password of the server.
+    - `STATUS_CHANNEL_ID`: Discord channel ID to post the status.
+    - `DB_PATH`: (Optional) Absolute path to the `game.db` file to show player levels.
+    - `REWARD_CONFIG`: (Optional) A block of settings to control the reward system *for this specific server*. You can enable/disable it, set the item, quantity, and required playtime.
 
 ## Running the Bot
 

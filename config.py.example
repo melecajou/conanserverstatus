@@ -5,16 +5,6 @@ LANGUAGE = "en"
 # NEVER share or commit this token to public repositories.
 STATUS_BOT_TOKEN = "YOUR_TOKEN_HERE"
 
-# --- Playtime Reward Configuration ---
-# This entire block is optional. If you don't want the reward system, you can
-# either set ENABLED to False or delete the whole REWARD_CONFIG block.
-REWARD_CONFIG = {
-    "ENABLED": True,  # Set to True to enable, False to disable.
-    "REWARD_INTERVAL_MINUTES": 120,  # Minutes a player must be online to receive a reward.
-    "REWARD_ITEM_ID": 12345,  # Item ID to be given as a reward.
-    "REWARD_QUANTITY": 10,  # How many of the item to give.
-}
-
 # List of servers to monitor.
 # You can add as many servers as you want, just copy the dictionary block.
 SERVERS = [
@@ -24,7 +14,16 @@ SERVERS = [
             "RCON_PORT" : 25575,                  # RCON port of the server.
             "RCON_PASS" : "YOUR_RCON_PASSWORD_HERE",  # RCON password of the server.
             "STATUS_CHANNEL_ID" : 123456789012345678, # Discord channel ID to post the status.
-            "DB_PATH": "" # Optional: Absolute path to the game.db file for this server to show player levels. e.g., "/path/to/server/ConanSandbox/Saved/game.db"
+            "DB_PATH": "", # Optional: Absolute path to the game.db file for this server to show player levels. e.g., "/path/to/server/ConanSandbox/Saved/game.db"
+            # --- Playtime Reward Configuration (Server-specific) ---
+            # This block is optional. If you don't want rewards for this specific server,
+            # you can set "ENABLED" to False or remove the "REWARD_CONFIG" block entirely.
+            "REWARD_CONFIG": {
+                "ENABLED": True,
+                "REWARD_INTERVAL_MINUTES": 120,
+                "REWARD_ITEM_ID": 12345,
+                "REWARD_QUANTITY": 10
+            }
         },
         {
             "NAME": "Server Name 2",
@@ -32,6 +31,11 @@ SERVERS = [
             "RCON_PORT": 25576,
             "RCON_PASS": "YOUR_OTHER_RCON_PASSWORD",
             "STATUS_CHANNEL_ID": 987654321098765432,
-            "DB_PATH": ""
+            "DB_PATH": "",
+            # Rewards are disabled for this server as an example.
+            # You can enable it by adding a REWARD_CONFIG block like the one for "Server Name 1".
+            "REWARD_CONFIG": {
+                "ENABLED": False
+            }
         }
 ]

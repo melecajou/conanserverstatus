@@ -111,7 +111,7 @@ async def track_and_reward_players(server_conf: dict, player_lines: List[str], r
     Tracks player online time and issues rewards based on settings in config.py.
     This system can be enabled/disabled and the reward interval is configurable.
     """
-    reward_config = getattr(config, 'REWARD_CONFIG', {})
+    reward_config = server_conf.get('REWARD_CONFIG', {})
     if not reward_config.get('ENABLED', False):
         return
 
