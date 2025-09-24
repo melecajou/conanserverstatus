@@ -14,7 +14,7 @@ SERVERS = [
             "RCON_PORT" : 25575,                  # RCON port of the server.
             "RCON_PASS" : "YOUR_RCON_PASSWORD_HERE",  # RCON password of the server.
             "STATUS_CHANNEL_ID" : 123456789012345678, # Discord channel ID to post the status.
-            "DB_PATH": "", # Optional: Absolute path to the game.db file for this server to show player levels. e.g., "/path/to/server/ConanSandbox/Saved/game.db"
+            "DB_PATH": "", # Optional: Absolute path to the game.db file for this server to show player levels. e.g., "/path/to/server/ConanSandbox/Saved/game.db",
             # --- Playtime Reward Configuration (Server-specific) ---
             # This block is optional. If you don't want rewards for this specific server,
             # you can set "ENABLED" to False or remove the "REWARD_CONFIG" block entirely.
