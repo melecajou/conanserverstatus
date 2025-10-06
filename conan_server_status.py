@@ -13,8 +13,10 @@ import gettext
 import logging
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
+import shutil
 
 import discord
 from discord.ext import commands, tasks
@@ -35,14 +37,14 @@ except FileNotFoundError:
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] - %(message)s')
 
 # --- DATABASE SETUP ---
-PLAYER_TRACKER_DB = "data/playertracker.db"
+DEFAULT_PLAYER_TRACKER_DB = "data/playertracker.db"
 
-def initialize_player_tracker_db():
-    """Creates the player tracker database (data/playertracker.db) and table if they don't exist."""
+def initialize_player_tracker_db(db_path: str):
+    """Creates a player tracker database and table if they don't exist."""
     try:
         # Ensure the data directory exists
-        os.makedirs(os.path.dirname(PLAYER_TRACKER_DB), exist_ok=True)
-        con = sqlite3.connect(PLAYER_TRACKER_DB)
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        con = sqlite3.connect(db_path)
         cur = con.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS player_time (
@@ -55,15 +57,16 @@ def initialize_player_tracker_db():
         """)
         con.commit()
         con.close()
-        logging.info(_("Player tracker database '{db}' initialized successfully.").format(db=PLAYER_TRACKER_DB))
+        logging.info(_("Player tracker database '{db}' initialized successfully.").format(db=db_path))
     except Exception as e:
-        logging.critical(_("Failed to initialize player tracker database: {error}").format(error=e))
+        logging.critical(_("Failed to initialize player tracker database '{db}': {error}").format(db=db_path, error=e))
 
 # --- BOT SETUP ---
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='/', intents=intents)
 status_messages: Dict[int, discord.Message] = {}
+building_report_messages: Dict[int, discord.Message] = {}
 
 
 # --- CORE FUNCTIONS ---
@@ -84,9 +87,22 @@ def get_player_level(db_path: str, char_name: str) -> int:
         logging.error(_("Could not read player level from {db}: {error}").format(db=db_path, error=e))
     return 0
 
-def log_reward_to_file(server_name: str, player_name: str, online_minutes: int, item_id: str, quantity: int):
-    """Appends a record of a player reward to 'logs/rewards.log'."""
-    log_file = "logs/rewards.log"
+def get_player_online_time(db_path: str, platform_id: str, server_name: str) -> int:
+    """Queries the player tracker database to get the online time of a player."""
+    try:
+        con = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
+        cur = con.cursor()
+        cur.execute("SELECT online_minutes FROM player_time WHERE platform_id = ? AND server_name = ?", (platform_id, server_name))
+        result = cur.fetchone()
+        con.close()
+        if result:
+            return result[0]
+    except Exception as e:
+        logging.error(_("Could not read player online time from {db}: {error}").format(db=db_path, error=e))
+    return 0
+
+def log_reward_to_file(log_file: str, server_name: str, player_name: str, online_minutes: int, item_id: str, quantity: int):
+    """Appends a record of a player reward to the specified log file."""
     try:
         # Ensure the logs directory exists
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
@@ -139,8 +155,11 @@ async def track_and_reward_players(server_conf: dict, player_lines: List[str], r
     if not online_players:
         return
 
+    db_path = server_conf.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
+    log_file_path = server_conf.get("LOG_FILE", "logs/rewards.log")
+
     try:
-        con = sqlite3.connect(PLAYER_TRACKER_DB)
+        con = sqlite3.connect(db_path)
         cur = con.cursor()
 
         for player in online_players:
@@ -176,6 +195,7 @@ async def track_and_reward_players(server_conf: dict, player_lines: List[str], r
                     
                     # Log the reward to the text file
                     log_reward_to_file(
+                        log_file_path,
                         server_name,
                         player['char_name'],
                         online_minutes,
@@ -193,13 +213,14 @@ async def track_and_reward_players(server_conf: dict, player_lines: List[str], r
         con.close()
 
     except Exception as e:
-        logging.error(_("An error occurred during player time tracking and reward for server '{server}': {error}").format(server=server_name, error=e))
+        logging.error(_("An error occurred in track_and_reward_players for server '{server}': {error}").format(server=server_name, error=e))
 
 
 async def get_server_status_embed(server_config: dict, rcon_client: Client) -> Optional[discord.Embed]:
     """Generates a Discord Embed with the status of a specific server."""
     server_name = server_config["NAME"]
-    db_path = server_config.get("DB_PATH")
+    game_db_path = server_config.get("DB_PATH")
+    player_db_path = server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
 
     try:
         response, _unused = await rcon_client.send_cmd("ListPlayers")
@@ -209,7 +230,16 @@ async def get_server_status_embed(server_config: dict, rcon_client: Client) -> O
         await track_and_reward_players(server_config, player_lines, rcon_client)
         # ---
 
-        player_char_names = [line.split('|')[1].strip() for line in player_lines if line.strip()]
+        online_players = []
+        for line in player_lines:
+            if not line.strip():
+                continue
+            parts = line.split('|')
+            if len(parts) > 4:
+                online_players.append({
+                    "char_name": parts[1].strip(),
+                    "platform_id": parts[4].strip()
+                })
 
         embed = discord.Embed(
             title=f"✅ {server_name}",
@@ -217,15 +247,21 @@ async def get_server_status_embed(server_config: dict, rcon_client: Client) -> O
             color=discord.Color.green()
         )
 
-        if player_char_names:
+        if online_players:
             player_details = []
-            for name in player_char_names:
-                level = get_player_level(db_path, name)
+            for player in online_players:
+                level = get_player_level(game_db_path, player["char_name"])
+                online_minutes = get_player_online_time(player_db_path, player["platform_id"], server_name)
+                hours, minutes = divmod(online_minutes, 60)
+                playtime_str = f"{hours}h {minutes}m"
+                
+                detail_line = f"• {player['char_name']}"
                 if level > 0:
-                    player_details.append(f"• {name} ({level})")
-                else:
-                    player_details.append(f"• {name}")
-            embed.add_field(name=_("Online Players ({count})").format(count=len(player_char_names)), value="\n".join(player_details), inline=False)
+                    detail_line += f" ({level})"
+                detail_line += f" - {playtime_str}"
+                player_details.append(detail_line)
+
+            embed.add_field(name=_("Online Players ({count})").format(count=len(online_players)), value="\n".join(player_details), inline=False)
         else:
             embed.add_field(name=_("Online Players (0)"), value=_("No one is playing at the moment."), inline=False)
 
@@ -314,7 +350,9 @@ async def update_all_statuses_task():
 @bot.event
 async def on_ready():
     logging.info(_('Bot connected as {username}').format(username=bot.user))
-    initialize_player_tracker_db()
+    db_paths = {server.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB) for server in config.SERVERS}
+    for db_path in db_paths:
+        initialize_player_tracker_db(db_path)
     
     for server_conf in config.SERVERS:
         channel_id = server_conf["STATUS_CHANNEL_ID"]
@@ -342,6 +380,184 @@ async def server_status_command(ctx: commands.Context):
 async def on_command_error(ctx: commands.Context, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(_("Command on cooldown. Try again in {seconds:.1f} seconds.").format(seconds=error.retry_after), delete_after=5, ephemeral=True)
+
+
+# --- ANNOUNCEMENT TASK ---
+announcements_sent_today = {}
+
+@tasks.loop(minutes=1)
+async def announcement_task():
+    """Checks for and sends scheduled announcements for each server."""
+    for server_conf in config.SERVERS:
+        ann_config = server_conf.get("ANNOUNCEMENTS")
+        if not ann_config or not ann_config.get("ENABLED"):
+            continue
+
+        try:
+            tz_str = ann_config.get("TIMEZONE", "UTC")
+            now = datetime.now(ZoneInfo(tz_str))
+            today = now.date()
+            current_day_name = now.strftime('%A')
+            
+            channel_id = ann_config.get("CHANNEL_ID")
+            if not channel_id:
+                continue
+
+            for schedule_item in ann_config.get("SCHEDULE", []):
+                if schedule_item.get("DAY") == current_day_name and schedule_item.get("HOUR") == now.hour:
+                    
+                    # Use a unique key for each server's daily announcement
+                    announcement_key = (server_conf["NAME"], schedule_item["DAY"])
+                    
+                    if announcements_sent_today.get(announcement_key) != today:
+                        channel = bot.get_channel(channel_id)
+                        if channel:
+                            message = schedule_item.get("MESSAGE", "Scheduled announcement.")
+                            await channel.send(message)
+                            logging.info(f"Sent announcement for '{server_conf['NAME']}' to channel {channel_id}.")
+                            announcements_sent_today[announcement_key] = today
+                        else:
+                            logging.error(f"Could not find announcement channel with ID {channel_id} for server '{server_conf['NAME']}'.")
+
+        except Exception as e:
+            logging.error(f"Error in announcement task for server '{server_conf['NAME']}': {e}")
+
+@announcement_task.before_loop
+async def before_announcement_task():
+    await bot.wait_until_ready()
+
+
+@bot.event
+async def on_ready():
+    logging.info(_('Bot connected as {username}').format(username=bot.user))
+    db_paths = {server.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB) for server in config.SERVERS}
+    for db_path in db_paths:
+        initialize_player_tracker_db(db_path)
+    
+    for server_conf in config.SERVERS:
+        channel_id = server_conf["STATUS_CHANNEL_ID"]
+        channel = bot.get_channel(channel_id)
+        if channel:
+            async for msg in channel.history(limit=50):
+                if msg.author.id == bot.user.id:
+                    status_messages[channel_id] = msg
+                    break
+    
+    if not update_all_statuses_task.is_running():
+        update_all_statuses_task.start()
+        logging.info(_("Status update and reward task started."))
+    
+    if not announcement_task.is_running():
+        announcement_task.start()
+        logging.info(_("Announcement task started."))
+
+    if not update_building_report_task.is_running():
+        update_building_report_task.start()
+        logging.info(_("Building report task started."))
+
+
+@tasks.loop(hours=1)
+async def update_building_report_task():
+    """Generates and posts a report of building pieces for configured servers."""
+    for server_conf in config.SERVERS:
+        watcher_config = server_conf.get("BUILDING_WATCHER")
+        if not watcher_config or not watcher_config.get("ENABLED"):
+            continue
+
+        channel_id = watcher_config.get("CHANNEL_ID")
+        sql_path = watcher_config.get("SQL_PATH")
+        db_backup_path = watcher_config.get("DB_BACKUP_PATH")
+        build_limit = watcher_config.get("BUILD_LIMIT", 99999)
+
+        if not all([channel_id, sql_path, db_backup_path]):
+            logging.error(f"Building Watcher for '{server_conf["NAME"]}' is missing required configuration.")
+            continue
+
+        temp_db_path = os.path.join(os.path.dirname(db_backup_path), "temp_building_db.db")
+        
+        results = []
+        try:
+            # 1. Copy DB
+            shutil.copy2(db_backup_path, temp_db_path)
+
+            # 2. Read SQL and connect to temp DB
+            with open(sql_path, 'r') as f:
+                sql_script = f.read()
+            
+            # Separate CREATE VIEW from SELECT
+            parts = [part.strip() for part in sql_script.split(';') if part.strip()]
+            create_view_sql = parts[0] + ';' + parts[1] # DROP and CREATE
+            select_sql = parts[2]
+
+            con = sqlite3.connect(temp_db_path)
+            cur = con.cursor()
+
+            # 3. Execute SQL parts
+            cur.executescript(create_view_sql)
+            cur.execute(select_sql)
+            results = cur.fetchall()
+            con.close()
+
+        except Exception as e:
+            logging.error(f"Failed to generate building report for '{server_conf["NAME"]}'. Exception: {e}", exc_info=True)
+        finally:
+            # 4. Clean up temp DB
+            if os.path.exists(temp_db_path):
+                os.remove(temp_db_path)
+
+        # 5. Format and post embed
+        embed = discord.Embed(
+            title=f"Relatório de Construções - {server_conf['NAME']}",
+            color=discord.Color.blue()
+        )
+
+        if not results:
+            embed.description = "Nenhuma construção encontrada no momento."
+        else:
+            description_lines = []
+            for i, (owner, pieces) in enumerate(results, 1):
+                owner_name = owner if owner else "(Sem Dono)"
+                line = f"**{i}.** {owner_name}: `{pieces}` peças"
+                if pieces > build_limit:
+                    line += f" ⚠️ (Acima do limite de {build_limit})"
+                description_lines.append(line)
+            
+            # Discord embed description limit is 4096 chars
+            full_description = "\n".join(description_lines)
+            if len(full_description) > 4096:
+                full_description = full_description[:4090] + "\n..."
+            embed.description = full_description
+
+        embed.set_footer(text="Atualizado")
+        embed.timestamp = discord.utils.utcnow()
+
+        try:
+            channel = bot.get_channel(channel_id)
+            if not channel:
+                logging.error(f"Building report channel {channel_id} not found.")
+                continue
+
+            report_message = building_report_messages.get(channel_id)
+            if report_message:
+                await report_message.edit(embed=embed)
+            else:
+                # Find old message or send new one
+                async for msg in channel.history(limit=50):
+                    if msg.author.id == bot.user.id and msg.embeds and msg.embeds[0].title.startswith("Relatório de Construções"):
+                        building_report_messages[channel_id] = msg
+                        await msg.edit(embed=embed)
+                        break
+                else: # If no previous message was found
+                    new_msg = await channel.send(embed=embed)
+                    building_report_messages[channel_id] = new_msg
+
+        except Exception as e:
+            logging.error(f"Failed to post building report for '{server_conf["NAME"]}': {e}")
+
+
+@update_building_report_task.before_loop
+async def before_building_report_task():
+    await bot.wait_until_ready()
 
 
 # --- INITIALIZATION ---

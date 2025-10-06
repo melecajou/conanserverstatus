@@ -1,17 +1,18 @@
-# Local configuration - DO NOT COMMIT
+# Sensitive configuration
 config.py
-
-# Compiled localization files
-*.mo
-messages.pot
-babel.cfg
 
 # Python cache
 __pycache__/
+*.pyc
 
-# Data and Logs
-data/
-logs/
+# Databases
+*.db
+*.db-journal
 
-# Backup files
+# Logs
+logs/*.log
+!logs/.gitkeep
+
+# Temporary files
 *.bak
+temp_db_copy.db

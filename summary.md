@@ -2,38 +2,27 @@
 
 This document summarizes the recent changes and development process for the Conan Server Status bot.
 
-## Phase 1: Displaying Player Level
+## Phase 1-3: Initial Features & Hardening
 
-The initial request was to enhance the bot's status message to include the level of each online player. This involved inspecting the game database to find the `characters` table and modifying the script to query a player's level by their `char_name` and display it in the status embed.
+The initial phases focused on creating a robust bot that could monitor server status, display player levels, and implement a configurable playtime reward system. This included adding RCON stability, extensive configuration options, and organizing the project structure.
 
-## Phase 2: Playtime Reward System
+## Phase 4: Advanced Automation and Reporting
 
-The next goal was to implement a system to track player playtime and reward them.
+This phase focused on adding powerful, automated features to assist with server management and player communication.
 
-1.  **Design:** A new database (`playertracker.db`) was created to persistently store player online time.
-2.  **RCON Command Testing:** We determined that the temporary "Idx" from the `ListPlayers` command was the correct identifier for spawning items.
-3.  **Implementation & Debugging:** The system was built to track minutes played and issue rewards. A critical `TypeError` was found and fixed, which was caused by a variable shadowing the global `_()` translation function.
+1.  **Data Isolation for PvP Server**: To prepare for a server wipe and separate operations, the bot was modified to allow per-server database and log file paths. The PvP server was configured to use its own `playertracker_pvp.db` and `rewards_pvp.log`, completely isolating its data from the other servers.
 
-## Phase 3: Hardening and Reorganization
+2.  **Scheduled Announcements**: A new task was created to send automated, scheduled messages to Discord. This feature is fully configurable on a per-server basis via the `ANNOUNCEMENTS` block in `config.py`, allowing for unique messages, channels, and schedules for each server.
 
-Following the initial implementation, several improvements were made to enhance stability, configurability, and project organization.
+3.  **Player Playtime Display**: The main status embed was enhanced to show the total playtime for each currently online player (e.g., "2h 15m"), pulling data from the existing player tracking database.
 
-1.  **RCON Stability:** To fix intermittent RCON connection failures, a retry mechanism was added. The bot now attempts to connect up to three times before marking a server as offline, making it much more resilient to transient network issues.
+4.  **Automated Building Watcher**: A major new feature was added to help enforce server building limits.
+    *   **Safe Database Querying**: After extensive debugging, a process was established to safely query building data. The task creates a temporary copy of the game database backup to avoid any risk to the live server and to allow for write operations like creating a `VIEW`.
+    *   **SQL Script**: A SQL script (`buildings.sql`) was developed to query the game database and aggregate the number of building pieces per owner.
+    *   **Automated Hourly Reports**: A new background task runs every hour to execute the SQL script and post a formatted report to a dedicated Discord channel. The report lists all owners and their piece counts, and automatically flags any that are over the configured build limit.
 
-2.  **Reward System Enhancements:**
-    *   **Reward Logging:** A new function was added to log every reward transaction to a text file (`logs/rewards.log`), including timestamp, player name, server, total playtime, and the reward given.
-    *   **Full Configurability:** The reward system was made fully configurable through the `config.py` file. The hardcoded reward interval was removed, and now the entire feature (enabling/disabling, reward item, quantity, and playtime interval) is controlled via the `REWARD_CONFIG` settings block.
-
-3.  **Project Organization:**
-    *   The project directory was restructured for clarity and to follow standard practices.
-    *   New directories (`data/`, `logs/`, `scripts/`) were created to separate the database, logs, and utility scripts from the main application code.
-    *   Redundant `.bak` files were removed.
-    *   The `.gitignore` file was updated to exclude the new data and log directories, keeping the repository clean.
+5.  **Systemd and Pathing Fixes**: During the implementation of the Building Watcher, a critical `FileNotFoundError` was diagnosed. The issue was traced to the bot using relative paths while being run as a `systemd` service. The fix was to update all relevant paths in `config.py` to be absolute, ensuring the bot can locate its files regardless of its working directory.
 
 ## Current Status
 
-The bot is now in a robust and stable state.
-*   It displays server status, player names, and their current levels.
-*   It features a fully configurable and switchable playtime reward system.
-*   It logs all rewards to a file for administrative review.
-*   It has a clean, organized project structure.
+The bot is now a multi-functional server assistant with advanced automation capabilities. It provides not only live status but also automated reports and announcements, all of which are highly configurable on a per-server basis.
