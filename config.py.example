@@ -1,5 +1,5 @@
 # Bot language. Options: 'en' for English, 'pt_BR' for Brazilian Portuguese.
-LANGUAGE = "en"
+LANGUAGE = "pt_BR"
 
 # Your Discord Bot's Token.
 # NEVER share or commit this token to public repositories.
@@ -9,33 +9,69 @@ STATUS_BOT_TOKEN = "YOUR_TOKEN_HERE"
 # You can add as many servers as you want, just copy the dictionary block.
 SERVERS = [
         {
-            "NAME": "Server Name 1",         # Display name for the server.
-            "SERVER_IP" : "127.0.0.1",            # IP of the Conan Exiles server.
-            "RCON_PORT" : 25575,                  # RCON port of the server.
-            "RCON_PASS" : "YOUR_RCON_PASSWORD_HERE",  # RCON password of the server.
-            "STATUS_CHANNEL_ID" : 123456789012345678, # Discord channel ID to post the status.
-            "DB_PATH": "", # Optional: Absolute path to the game.db file for this server to show player levels. e.g., "/path/to/server/ConanSandbox/Saved/game.db",
-            # --- Playtime Reward Configuration (Server-specific) ---
-            # This block is optional. If you don't want rewards for this specific server,
-            # you can set "ENABLED" to False or remove the "REWARD_CONFIG" block entirely.
+            "NAME": "My Server 1 (Exiles)",
+            "SERVER_IP" : "127.0.0.1",
+            "RCON_PORT" : 25575,
+            "RCON_PASS" : "YOUR_RCON_PASSWORD_HERE",
+            "STATUS_CHANNEL_ID" : 123456789012345678,
+            "DB_PATH": "/path/to/your/server1/ConanSandbox/Saved/game.db",
+
+            # Optional: Per-server database and log files.
+            # "PLAYER_DB_PATH": "data/playertracker_server1.db",
+            # "LOG_FILE": "logs/rewards_server1.log",
+
             "REWARD_CONFIG": {
                 "ENABLED": True,
                 "REWARD_INTERVAL_MINUTES": 120,
-                "REWARD_ITEM_ID": 12345,
-                "REWARD_QUANTITY": 10
+                "REWARD_ITEM_ID": 10000000,
+                "REWARD_QUANTITY": 1
             }
         },
         {
-            "NAME": "Server Name 2",
+            "NAME": "My Server 2 (Siptah)", 
             "SERVER_IP": "127.0.0.1",
             "RCON_PORT": 25576,
             "RCON_PASS": "YOUR_OTHER_RCON_PASSWORD",
             "STATUS_CHANNEL_ID": 987654321098765432,
-            "DB_PATH": "",
-            # Rewards are disabled for this server as an example.
-            # You can enable it by adding a REWARD_CONFIG block like the one for "Server Name 1".
+            "DB_PATH": "/path/to/your/server2/ConanSandbox/Saved/dlc_siptah.db",
             "REWARD_CONFIG": {
                 "ENABLED": False
+            }
+        },
+        {
+            "NAME": "My Server 3 (PvP)",
+            "SERVER_IP": "127.0.0.1",
+            "RCON_PORT": 25577,
+            "RCON_PASS": "YOUR_PVP_RCON_PASSWORD",
+            "STATUS_CHANNEL_ID": 112233445566778899,
+            "DB_PATH": "/path/to/your/pvp_server/ConanSandbox/Saved/game.db",
+            
+            # --- Advanced Features Example ---
+
+            "ANNOUNCEMENTS": {
+                "ENABLED": True,
+                "CHANNEL_ID": 112233445566778899,
+                "TIMEZONE": "America/Sao_Paulo", # Example: America/New_York, Europe/London
+                "SCHEDULE": [
+                    {
+                        "DAY": "Wednesday", # Options: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
+                        "HOUR": 19, # 0-23
+                        "MESSAGE": "📢 Double XP is now active on the PvP server!"
+                    },
+                    {
+                        "DAY": "Sunday",
+                        "HOUR": 0,
+                        "MESSAGE": "📢 Double Farm rates are now active on the PvP server!"
+                    }
+                ]
+            },
+
+            "BUILDING_WATCHER": {
+                "ENABLED": True,
+                "CHANNEL_ID": 223344556677889900,
+                "SQL_PATH": "/home/steam/bots/ConanServerStatus/sql/buildings.sql", # Must be an absolute path
+                "DB_BACKUP_PATH": "/path/to/your/pvp_server/ConanSandbox/Saved/game_backup_1.db", # Must be an absolute path to a backup
+                "BUILD_LIMIT": 2000
             }
         }
 ]
