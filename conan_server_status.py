@@ -300,6 +300,10 @@ async def attempt_rcon_connection(server_conf: dict) -> Optional[Client]:
 async def update_all_statuses_task():
     """Main task that runs every minute to update server statuses and track players."""
     for server_conf in config.SERVERS:
+        # Skip disabled servers
+        if not server_conf.get("ENABLED", True):
+            continue
+
         channel_id = server_conf["STATUS_CHANNEL_ID"]
         channel = bot.get_channel(channel_id)
         if not channel:
@@ -473,37 +477,19 @@ async def update_building_report_task():
             logging.error(f"Building Watcher for '{server_conf["NAME"]}' is missing required configuration.")
             continue
 
-        temp_db_path = os.path.join(os.path.dirname(db_backup_path), "temp_building_db.db")
-        
         results = []
         try:
-            # 1. Copy DB
-            shutil.copy2(db_backup_path, temp_db_path)
-
-            # 2. Read SQL and connect to temp DB
             with open(sql_path, 'r') as f:
                 sql_script = f.read()
-            
-            # Separate CREATE VIEW from SELECT
-            parts = [part.strip() for part in sql_script.split(';') if part.strip()]
-            create_view_sql = parts[0] + ';' + parts[1] # DROP and CREATE
-            select_sql = parts[2]
 
-            con = sqlite3.connect(temp_db_path)
-            cur = con.cursor()
-
-            # 3. Execute SQL parts
-            cur.executescript(create_view_sql)
-            cur.execute(select_sql)
-            results = cur.fetchall()
-            con.close()
+            # Connect directly to the backup in read-only mode
+            with sqlite3.connect(f'file:{db_backup_path}?mode=ro', uri=True) as con:
+                cur = con.cursor()
+                cur.execute(sql_script)
+                results = cur.fetchall()
 
         except Exception as e:
             logging.error(f"Failed to generate building report for '{server_conf["NAME"]}'. Exception: {e}", exc_info=True)
-        finally:
-            # 4. Clean up temp DB
-            if os.path.exists(temp_db_path):
-                os.remove(temp_db_path)
 
         # 5. Format and post embed
         embed = discord.Embed(

@@ -19,7 +19,7 @@ This phase focused on adding powerful, automated features to assist with server 
 4.  **Automated Building Watcher**: A major new feature was added to help enforce server building limits.
     *   **Safe Database Querying**: After extensive debugging, a process was established to safely query building data. The task creates a temporary copy of the game database backup to avoid any risk to the live server and to allow for write operations like creating a `VIEW`.
     *   **SQL Script**: A SQL script (`buildings.sql`) was developed to query the game database and aggregate the number of building pieces per owner.
-    *   **Automated Hourly Reports**: A new background task runs every hour to execute the SQL script and post a formatted report to a dedicated Discord channel. The report lists all owners and their piece counts, and automatically flags any that are over the configured build limit.
+    *   **Automated Hourly Reports**: A new background task runs every hour to execute the SQL script and post a formatted report to a dedicated Discord channel. The report lists all owners and their piece counts, and automatically flags any that are over the configured build limit. An attempt to add a feature to ignore specific owners was reverted to prioritize data integrity and ensure a complete and correct report is always generated.
 
 5.  **Systemd and Pathing Fixes**: During the implementation of the Building Watcher, a critical `FileNotFoundError` was diagnosed. The issue was traced to the bot using relative paths while being run as a `systemd` service. The fix was to update all relevant paths in `config.py` to be absolute, ensuring the bot can locate its files regardless of its working directory.
 
