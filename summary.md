@@ -23,6 +23,6 @@ This phase focused on adding powerful, automated features to assist with server 
 
 5.  **Systemd and Pathing Fixes**: During the implementation of the Building Watcher, a critical `FileNotFoundError` was diagnosed. The issue was traced to the bot using relative paths while being run as a `systemd` service. The fix was to update all relevant paths in `config.py` to be absolute, ensuring the bot can locate its files regardless of its working directory.
 
-## Current Status
+## Phase 5: System Status Display
 
-The bot is now a multi-functional server assistant with advanced automation capabilities. It provides not only live status but also automated reports and announcements, all of which are highly configurable on a per-server basis.
+A feature was added to parse the server's `ConanSandbox.log` file in real-time. The bot now extracts key performance metrics (Uptime, Server FPS, Memory, CPU) and displays them directly in the main status embed, providing an at-a-glance overview of the server's health. This involved adding a new `LOG_PATH` configuration and implementing robust log parsing with regex, including a significant debugging effort to resolve variable shadowing and other intermittent errors.

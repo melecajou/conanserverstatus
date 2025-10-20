@@ -15,6 +15,7 @@ SERVERS = [
             "RCON_PASS" : "YOUR_RCON_PASSWORD_HERE",
             "STATUS_CHANNEL_ID" : 123456789012345678,
             "DB_PATH": "/path/to/your/server1/ConanSandbox/Saved/game.db",
+            "LOG_PATH": "", # Optional: Absolute path to the ConanSandbox.log file for this server to show system stats. e.g., "/path/to/server/ConanSandbox/Saved/Logs/ConanSandbox.log",
 
             # Optional: Per-server database and log files.
             # "PLAYER_DB_PATH": "data/playertracker_server1.db",
