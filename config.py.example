@@ -34,7 +34,8 @@ SERVERS = [
             "RCON_PORT": 25576,
             "RCON_PASS": "YOUR_OTHER_RCON_PASSWORD",
             "STATUS_CHANNEL_ID": 987654321098765432,
-            "DB_PATH": "/path/to/your/server2/ConanSandbox/Saved/dlc_siptah.db",
+            "DB_PATH": "", # Optional: Absolute path to the game.db file for this server to show player levels. e.g., "/path/to/server/ConanSandbox/Saved/game.db",
+            # "LOG_PATH": "", # Optional: Absolute path to the ConanSandbox.log file for this server to show system stats. e.g., "/path/to/server/ConanSandbox/Saved/Logs/ConanSandbox.log",
             "REWARD_CONFIG": {
                 "ENABLED": False
             }

@@ -223,6 +223,7 @@ async def get_server_status_embed(server_config: dict, rcon_client: Client) -> O
     game_db_path = server_config.get("DB_PATH")
     player_db_path = server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
     log_path = server_config.get("LOG_PATH")
+    uptime_str, server_fps_str, memory_str, cpu_str, players_str, game_version = None, None, None, None, None, None
 
     try:
         # --- RCON Player List ---
@@ -237,7 +238,7 @@ async def get_server_status_embed(server_config: dict, rcon_client: Client) -> O
         if log_path and os.path.exists(log_path):
             try:
                 with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    log_lines = f.readlines()[-300:]
+                    log_lines = f.readlines()[-500:]
                     log_content = "".join(log_lines)
 
                     # Regex to find the last status report
@@ -252,9 +253,11 @@ async def get_server_status_embed(server_config: dict, rcon_client: Client) -> O
                         minutes, _remainder = divmod(remainder, 60)
                         uptime_str = f"{days}d {hours}h {minutes}m"
                         
-                        # Memory
-                        memory_b = int(last_report[1])
-                        memory_str = f"{memory_b / (1024**3):.2f} GB"
+                    # Regex for memory
+                    memory_reports = re.findall(r"LogMemory: Process Physical Memory: ([\d\.]+) MB used", log_content)
+                    if memory_reports:
+                        memory_mb = float(memory_reports[-1])
+                        memory_str = f"{memory_mb / 1024:.2f} GB"
 
                         # CPU
                         cpu_str = f"{float(last_report[2]):.1f}%"
