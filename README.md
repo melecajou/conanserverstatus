@@ -6,7 +6,7 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 
 - **Multi-Server Monitoring**: Tracks multiple servers simultaneously, each with its own configuration.
 - **Live Player Status**: Displays an auto-updating list of online players, including their in-game level and total playtime on the server.
-- **Live System Stats (Experimental)**: Extracts and displays live server performance metrics (Uptime, Server FPS, Memory Usage) directly in the status embed. (Note: This feature is currently disabled by default).
+- **Live System Stats**: Extracts and displays live server performance metrics (Uptime, Server FPS, Memory Usage, CPU) directly in the status embed.
 - **Configurable Playtime Rewards**: A per-server reward system that can be enabled or disabled. You can configure the playtime interval, reward item, and quantity for each server independently.
 - **Scheduled Announcements**: A per-server announcement system to post messages to a specific channel on a schedule (e.g., "Double XP enabled!"). You can configure the day, time, message, and timezone for each server.
 - **Automated Building Reports**: An hourly task that queries a backup of the game database to generate a report of building piece counts for all players and clans. It highlights those who are over a configurable limit, helping to enforce server rules safely.

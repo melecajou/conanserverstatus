@@ -217,13 +217,51 @@ async def track_and_reward_players(server_conf: dict, player_lines: List[str], r
         logging.error(_("An error occurred in track_and_reward_players for server '{server}': {error}").format(server=server_name, error=e))
 
 
+def parse_server_log(log_path: str) -> Dict[str, str]:
+    """Parses the server log file to extract system stats."""
+    stats = {}
+    if not log_path or not os.path.exists(log_path):
+        return stats
+
+    try:
+        with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()[-500:]
+            log_content = "".join(lines)
+
+            # Uptime, CPU, Players, FPS from LogServerStats
+            status_reports = re.findall(r"LogServerStats: Status report\. Uptime=(\d+).*? Mem=\d+:\d+:(\d+):\d+.*? CPU=([\d\.]+).*? Players=(\d+).*? FPS=([\d\.]+)", log_content)
+            if status_reports:
+                last_report = status_reports[-1]
+                uptime_seconds = int(last_report[0])
+                days, rem = divmod(uptime_seconds, 86400)
+                hours, rem = divmod(rem, 3600)
+                minutes, _ = divmod(rem, 60)
+                stats['uptime'] = f"{days}d {hours}h {minutes}m"
+                
+                memory_b = int(last_report[1])
+                stats['memory'] = f"{memory_b / (1024**3):.2f} GB"
+
+                stats['cpu'] = f"{float(last_report[2]):.1f}%"
+                stats['players'] = last_report[3]
+                stats['fps'] = f"{float(last_report[4]):.1f}"
+
+            # Game Version from LogInit
+            version_match = re.search(r"LogInit: Engine Version: (.*?)$", log_content, re.MULTILINE)
+            if version_match:
+                stats['version'] = version_match.group(1).strip()
+
+    except Exception as e:
+        logging.warning(f"Could not parse log file {log_path}: {e}")
+    
+    return stats
+
+
 async def get_server_status_embed(server_config: dict, rcon_client: Client) -> Optional[discord.Embed]:
     """Generates a Discord Embed with the status of a specific server."""
     server_name = server_config["NAME"]
     game_db_path = server_config.get("DB_PATH")
     player_db_path = server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
     log_path = server_config.get("LOG_PATH")
-    uptime_str, server_fps_str, memory_str, cpu_str, players_str, game_version = None, None, None, None, None, None
 
     try:
         # --- RCON Player List ---
@@ -234,53 +272,7 @@ async def get_server_status_embed(server_config: dict, rcon_client: Client) -> O
         await track_and_reward_players(server_config, player_lines, rcon_client)
 
         # --- Log Parsing ---
-        uptime_str, server_fps_str, memory_str, game_version = None, None, None, None
-        if log_path and os.path.exists(log_path):
-            try:
-                with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    log_lines = f.readlines()[-500:]
-                    log_content = "".join(log_lines)
-
-                    # Regex to find the last status report
-                    status_reports = re.findall(r"LogServerStats: Status report\. Uptime=(\d+) Mem=(\d+):.*? CPU=([\d\.]+):.*? Players=(\d+) FPS=([\d\.]+):.*?", log_content)
-                    if status_reports:
-                        last_report = status_reports[-1]
-                        
-                        # Uptime
-                        uptime_seconds = int(last_report[0])
-                        days, remainder = divmod(uptime_seconds, 86400)
-                        hours, remainder = divmod(remainder, 3600)
-                        minutes, _remainder = divmod(remainder, 60)
-                        uptime_str = f"{days}d {hours}h {minutes}m"
-                        
-                    # Regex for memory
-                    memory_reports = re.findall(r"LogMemory: Process Physical Memory: ([\d\.]+) MB used", log_content)
-                    if memory_reports:
-                        memory_mb = float(memory_reports[-1])
-                        memory_str = f"{memory_mb / 1024:.2f} GB"
-
-                        # CPU
-                        cpu_str = f"{float(last_report[2]):.1f}%"
-
-                        # Players
-                        players_str = last_report[3]
-
-                        # FPS
-                        server_fps_str = f"{float(last_report[4]):.1f}"
-
-                    # Regex for memory
-                    memory_reports = re.findall(r"LogMemory: Process Physical Memory: ([\d\.]+) MB used", log_content)
-                    if memory_reports:
-                        memory_mb = float(memory_reports[-1])
-                        memory_str = f"{memory_mb / 1024:.2f} GB"
-
-                    # Regex for game version
-                    version_match = re.search(r"LogInit: Engine Version: (.*?)$", log_content, re.MULTILINE)
-                    if version_match:
-                        game_version = version_match.group(1).strip()
-
-            except Exception as e:
-                logging.warning(f"Could not parse log file {log_path}: {e}")
+        system_stats = parse_server_log(log_path)
 
         # --- Embed Creation ---
         online_players = []
@@ -320,21 +312,22 @@ async def get_server_status_embed(server_config: dict, rcon_client: Client) -> O
             embed.add_field(name=_("Online Players (0)"), value=_("No one is playing at the moment."), inline=False)
 
         # --- System Info Fields ---
-        if uptime_str:
-            embed.add_field(name=_("Uptime"), value=uptime_str, inline=True)
-        if server_fps_str:
-            embed.add_field(name=_("Server FPS"), value=server_fps_str, inline=True)
-        if memory_str:
-            embed.add_field(name=_("Memory"), value=memory_str, inline=True)
-        if cpu_str:
-            embed.add_field(name=_("CPU"), value=cpu_str, inline=True)
-        if players_str:
-            embed.add_field(name=_("Players"), value=players_str, inline=True)
+        if system_stats.get('uptime'):
+            embed.add_field(name=_("Uptime"), value=system_stats['uptime'], inline=True)
+        if system_stats.get('fps'):
+            embed.add_field(name=_("Server FPS"), value=system_stats['fps'], inline=True)
+        if system_stats.get('memory'):
+            embed.add_field(name=_("Memory"), value=system_stats['memory'], inline=True)
+        if system_stats.get('cpu'):
+            embed.add_field(name=_("CPU"), value=system_stats['cpu'], inline=True)
+        # Use the player count from RCON as it's more reliable
+        # if system_stats.get('players'):
+        #     embed.add_field(name=_("Players"), value=system_stats['players'], inline=True)
 
         # --- Footer ---
         footer_text = _("Status updated")
-        if game_version:
-            footer_text += f" | Version: {game_version}"
+        if system_stats.get('version'):
+            footer_text += f" | Version: {system_stats['version']}"
         embed.set_footer(text=footer_text)
         embed.timestamp = discord.utils.utcnow()
         return embed

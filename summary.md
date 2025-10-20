@@ -25,4 +25,4 @@ This phase focused on adding powerful, automated features to assist with server 
 
 ## Phase 5: System Status Display
 
-A feature was added to parse the server's `ConanSandbox.log` file in real-time. The bot now extracts key performance metrics (Uptime, Server FPS, Memory, CPU) and displays them directly in the main status embed, providing an at-a-glance overview of the server's health. This involved adding a new `LOG_PATH` configuration and implementing robust log parsing with regex, including a significant debugging effort to resolve variable shadowing and other intermittent errors.
+A feature was added to parse the server's `ConanSandbox.log` file in real-time. The bot now extracts key performance metrics (Uptime, Server FPS, Memory, CPU) and displays them directly in the main status embed, providing an at-a-glance overview of the server's health. This involved adding a new `LOG_PATH` configuration, implementing robust log parsing with regex, and a significant debugging effort to resolve intermittent errors and variable shadowing. The new UI elements were also fully internationalized.

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-18 10:55-0300\n"
+"POT-Creation-Date: 2025-10-20 07:20-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,75 +17,141 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.10.3\n"
 
-#: conan_server_status.py:71
+#: conan_server_status.py:61
+msgid "Player tracker database '{db}' initialized successfully."
+msgstr ""
+
+#: conan_server_status.py:63
+msgid "Failed to initialize player tracker database '{db}': {error}"
+msgstr ""
+
+#: conan_server_status.py:88
+msgid "Could not read player level from {db}: {error}"
+msgstr ""
+
+#: conan_server_status.py:102
+msgid "Could not read player online time from {db}: {error}"
+msgstr ""
+
+#: conan_server_status.py:187
+msgid ""
+"Player {player} on server '{server}' reached a new reward milestone at "
+"{hours:.1f} hours. Issuing reward."
+msgstr ""
+
+#: conan_server_status.py:195
+msgid ""
+"Reward command '{cmd}' for player {player} on server '{server}' executed."
+" Response: {resp}"
+msgstr ""
+
+#: conan_server_status.py:211
+msgid ""
+"Failed to send reward RCON command for player {player} on server "
+"'{server}': {error}"
+msgstr ""
+
+#: conan_server_status.py:217
+msgid ""
+"An error occurred in track_and_reward_players for server '{server}': "
+"{error}"
+msgstr ""
+
+#: conan_server_status.py:291
 msgid "The server is operating normally."
 msgstr ""
 
-#: conan_server_status.py:77
+#: conan_server_status.py:310
 msgid "Online Players ({count})"
 msgstr ""
 
-#: conan_server_status.py:79
+#: conan_server_status.py:312
 msgid "Online Players (0)"
 msgstr ""
 
-#: conan_server_status.py:79
+#: conan_server_status.py:312
 msgid "No one is playing at the moment."
 msgstr ""
 
-#: conan_server_status.py:81
+#: conan_server_status.py:316
+msgid "Uptime"
+msgstr ""
+
+#: conan_server_status.py:318
+msgid "Server FPS"
+msgstr ""
+
+#: conan_server_status.py:320
+msgid "Memory"
+msgstr ""
+
+#: conan_server_status.py:322
+msgid "CPU"
+msgstr ""
+
+#: conan_server_status.py:328
 msgid "Status updated"
 msgstr ""
 
-#: conan_server_status.py:86
-msgid "RCON connection attempt {attempt}/{max_retries} failed: {error}"
+#: conan_server_status.py:336
+msgid "Failed to generate server status embed for '{server}': {error}"
 msgstr ""
 
-#: conan_server_status.py:93
-msgid "All RCON connection attempts have failed."
+#: conan_server_status.py:348
+msgid "[{server}] RCON connection successful on attempt {attempt}/3."
 msgstr ""
 
-#: conan_server_status.py:96
-msgid "Could not connect to the server. It may be offline or restarting."
+#: conan_server_status.py:352
+msgid "[{server}] RCON connection attempt {attempt}/3 failed: {error}"
 msgstr ""
 
-#: conan_server_status.py:99
-msgid "Check the console or contact an administrator."
-msgstr ""
-
-#: conan_server_status.py:112
+#: conan_server_status.py:373
 msgid "Channel with ID {channel_id} for '{server_name}' not found."
 msgstr ""
 
-#: conan_server_status.py:124
-msgid "New status message created for '{server_name}' in channel {channel_name}."
+#: conan_server_status.py:391
+msgid "Could not connect to the server. It may be offline or restarting."
 msgstr ""
 
-#: conan_server_status.py:126
-msgid "Message for '{server_name}' not found. Creating a new one."
+#: conan_server_status.py:394
+msgid "Check the console or contact an administrator."
 msgstr ""
 
-#: conan_server_status.py:130
-msgid "Error updating status for '{server_name}': {error}"
+#: conan_server_status.py:408
+msgid "Message for '{server}' not found. Creating a new one."
 msgstr ""
 
-#: conan_server_status.py:136
+#: conan_server_status.py:412
+msgid "Error updating status message for '{server}': {error}"
+msgstr ""
+
+#: conan_server_status.py:419 conan_server_status.py:499
 msgid "Bot connected as {username}"
 msgstr ""
 
-#: conan_server_status.py:144
-msgid "Found message for '{server_name}' in channel {channel_name}."
+#: conan_server_status.py:435 conan_server_status.py:515
+msgid "Status update and reward task started."
 msgstr ""
 
-#: conan_server_status.py:148
-msgid "Status update task started."
+#: conan_server_status.py:443
+msgid ""
+"This command is being reworked. The bot updates automatically every "
+"minute."
 msgstr ""
 
-#: conan_server_status.py:162
+#: conan_server_status.py:449
 msgid "Command on cooldown. Try again in {seconds:.1f} seconds."
 msgstr ""
 
-#: conan_server_status.py:171
+#: conan_server_status.py:519
+msgid "Announcement task started."
+msgstr ""
+
+#: conan_server_status.py:523
+msgid "Building report task started."
+msgstr ""
+
+#: conan_server_status.py:617
 msgid "Fatal error starting the bot: {error}"
 msgstr ""
 
