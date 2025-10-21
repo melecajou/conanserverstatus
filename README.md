@@ -18,7 +18,7 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - `data/`: Contains the SQLite databases for player time tracking.
 - `logs/`: Contains reward log files.
 - `locale/`: Contains language translation files.
-- `conan_server_status.py`: The main bot application.
+bot.py: The main bot application.
 - `config.py`: The main configuration file. **This should not be committed to version control.**
 - `config.py.example`: A template for `config.py`.
 - `buildings.sql`: The SQL script used by the Building Watcher feature.
@@ -70,7 +70,7 @@ After=network.target
 [Service]
 User=steam
 WorkingDirectory=/home/steam/bots/ConanServerStatus
-ExecStart=/home/steam/bots/ConanServerStatus/venv/bin/python conan_server_status.py
+ExecStart=/home/steam/bots/ConanServerStatus/venv/bin/python bot.py
 
 Restart=always
 RestartSec=5
