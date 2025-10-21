@@ -6,9 +6,9 @@ from typing import Dict, List, Optional
 from aiomcrcon import Client
 
 import config
-from database import get_batch_player_levels, get_batch_online_times, DEFAULT_PLAYER_TRACKER_DB
-from log_parser import parse_server_log
-from rcon import attempt_rcon_connection
+from utils.database import get_batch_player_levels, get_batch_online_times, DEFAULT_PLAYER_TRACKER_DB
+from utils.log_parser import parse_server_log
+from utils.rcon import attempt_rcon_connection
 
 class StatusCog(commands.Cog, name="Status"):
     """Handles the live status updates for all servers."""

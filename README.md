@@ -27,9 +27,7 @@ The bot is organized into a modular, cog-based architecture for better maintaina
     - `registration.py`: Manages player registration and account linking.
     - `rewards.py`: Tracks player playtime and issues rewards.
     - `status.py`: Manages live server status updates.
-- `database.py`: Handles SQLite database interactions for player tracking and game data.
-- `log_parser.py`: Contains logic for parsing Conan Exiles server log files to extract system statistics.
-- `rcon.py`: Provides RCON connection utilities with retry mechanisms.
+- `utils/`: Contains shared utility modules like database interactions, RCON communication, and log parsing.
 - `data/`: Contains the SQLite databases for player time tracking.
 - `logs/`: Contains reward log files.
 - `locale/`: Contains language translation files.

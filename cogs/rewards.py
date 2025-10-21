@@ -1,5 +1,5 @@
 import config
-from database import DEFAULT_PLAYER_TRACKER_DB
+from utils.database import DEFAULT_PLAYER_TRACKER_DB
 from discord.ext import commands
 import logging
 import sqlite3

@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 import config
-from database import DEFAULT_PLAYER_TRACKER_DB
+from utils.database import DEFAULT_PLAYER_TRACKER_DB
 
 class AdminCog(commands.Cog, name="Admin"):
     """Admin commands for managing players."""

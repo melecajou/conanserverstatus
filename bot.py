@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 
 import config
-from database import initialize_player_tracker_db, DEFAULT_PLAYER_TRACKER_DB
+from utils.database import initialize_player_tracker_db, DEFAULT_PLAYER_TRACKER_DB
 
 # --- INTERNATIONALIZATION (i18n) SETUP ---
 lang = getattr(config, 'LANGUAGE', 'en')
