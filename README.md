@@ -7,21 +7,37 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **Multi-Server Monitoring**: Tracks multiple servers simultaneously, each with its own configuration.
 - **Live Player Status**: Displays an auto-updating list of online players, including their in-game level and total playtime on the server.
 - **Live System Stats**: Extracts and displays live server performance metrics (Uptime, Server FPS, Memory Usage, CPU) directly in the status embed.
-- **Configurable Playtime Rewards**: A per-server reward system that can be enabled or disabled. You can configure the playtime interval, reward item, and quantity for each server independently.
+- **Configurable Playtime Rewards**: A per-server reward system that can be enabled or disabled. You can configure the playtime interval, reward item, and quantity for each server independently, with support for VIP-specific reward intervals.
 - **Scheduled Announcements**: A per-server announcement system to post messages to a specific channel on a schedule (e.g., "Double XP enabled!"). You can configure the day, time, message, and timezone for each server.
 - **Automated Building Reports**: An hourly task that queries a backup of the game database to generate a report of building piece counts for all players and clans. It highlights those who are over a configurable limit, helping to enforce server rules safely.
+- **Player Registration and Account Linking**: Allows players to link their in-game character to their Discord account, enabling personalized features like rewards and admin commands.
+- **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members, which can influence reward intervals.
 - **Isolated Data Paths**: Each server can be configured to use its own separate database and log file, preventing data mix-ups and allowing for independent operation.
 - **Robust and Resilient**: Features RCON connection error handling with automatic retry attempts.
 
 ## Project Structure
 
+The bot is organized into a modular, cog-based architecture for better maintainability and extensibility.
+
+- `bot.py`: The main entry point of the bot, responsible for initialization, loading cogs, and database setup.
+- `cogs/`: This directory contains individual cogs, each encapsulating specific features:
+    - `admin.py`: Provides administrative commands (e.g., setting VIP levels).
+    - `announcements.py`: Manages scheduled announcements.
+    - `building.py`: Handles automated building reports.
+    - `registration.py`: Manages player registration and account linking.
+    - `rewards.py`: Tracks player playtime and issues rewards.
+    - `status.py`: Manages live server status updates.
+- `database.py`: Handles SQLite database interactions for player tracking and game data.
+- `log_parser.py`: Contains logic for parsing Conan Exiles server log files to extract system statistics.
+- `rcon.py`: Provides RCON connection utilities with retry mechanisms.
 - `data/`: Contains the SQLite databases for player time tracking.
 - `logs/`: Contains reward log files.
 - `locale/`: Contains language translation files.
-bot.py: The main bot application.
 - `config.py`: The main configuration file. **This should not be committed to version control.**
 - `config.py.example`: A template for `config.py`.
 - `buildings.sql`: The SQL script used by the Building Watcher feature.
+- `i18n_setup.py`: Utility for internationalization setup.
+- `scripts/`: Contains utility scripts for RCON diagnosis and testing.
 
 ## Installation
 
