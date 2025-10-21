@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-10-20 07:20-0300\n"
-"PO-Revision-Date: 2025-08-18 10:43-0300\n"
+"POT-Creation-Date: 2025-10-21 14:32-0300\n"
+"PO-Revision-Date: 2025-10-21 14:32-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
 "Language-Team: pt_BR <LL@li.org>\n"
@@ -18,134 +18,146 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.10.3\n"
 
+#: bot.py:42 conan_server_status.py:419 conan_server_status.py:499
+msgid "Bot connected as {username}"
+msgstr "Bot conectado como {username}"
+
+#: bot.py:56
+msgid "All cogs loaded and tasks started."
+msgstr "Todos os cogs foram carregados e as tarefas iniciadas."
+
+#: bot.py:64 conan_server_status.py:617
+msgid "Fatal error starting the bot: {error}"
+msgstr "Erro fatal ao iniciar o bot: {error}"
+
 #: conan_server_status.py:61
 msgid "Player tracker database '{db}' initialized successfully."
-msgstr ""
+msgstr "Banco de dados de rastreamento de jogadores '{db}' inicializado com sucesso."
 
 #: conan_server_status.py:63
 msgid "Failed to initialize player tracker database '{db}': {error}"
-msgstr ""
+msgstr "Falha ao inicializar o banco de dados de rastreamento de jogadores '{db}': {error}"
 
 #: conan_server_status.py:88
 msgid "Could not read player level from {db}: {error}"
-msgstr ""
+msgstr "Não foi possível ler o nível do jogador de {db}: {error}"
 
 #: conan_server_status.py:102
 msgid "Could not read player online time from {db}: {error}"
-msgstr ""
+msgstr "Não foi possível ler o tempo online do jogador de {db}: {error}"
 
 #: conan_server_status.py:187
 msgid ""
 "Player {player} on server '{server}' reached a new reward milestone at "
 "{hours:.1f} hours. Issuing reward."
 msgstr ""
+"O jogador {player} no servidor '{server}' atingiu um novo marco de recompensa em "
+"{hours:.1f} horas. Emitindo recompensa."
 
 #: conan_server_status.py:195
 msgid ""
-"Reward command '{cmd}' for player {player} on server '{server}' executed."
-" Response: {resp}"
+"Reward command '{cmd}' for player {player} on server '{server}' executed." " Response: {resp}"
 msgstr ""
+"Comando de recompensa '{cmd}' para o jogador {player} no servidor '{server}' executado. "
+"Resposta: {resp}"
 
 #: conan_server_status.py:211
 msgid ""
 "Failed to send reward RCON command for player {player} on server "
 "'{server}': {error}"
 msgstr ""
+"Falha ao enviar comando RCON de recompensa para o jogador {player} no servidor "
+"'{server}': {error}"
 
 #: conan_server_status.py:217
 msgid ""
 "An error occurred in track_and_reward_players for server '{server}': "
 "{error}"
 msgstr ""
+"Ocorreu um erro em track_and_reward_players para o servidor '{server}': "
+"{error}"
 
-#: conan_server_status.py:291
+#: cogs/status.py:106 conan_server_status.py:291
 msgid "The server is operating normally."
 msgstr "O servidor está operando normalmente."
 
-#: conan_server_status.py:310
+#: cogs/status.py:125 conan_server_status.py:310
 msgid "Online Players ({count})"
 msgstr "Jogadores Online ({count})"
 
-#: conan_server_status.py:312
+#: cogs/status.py:127 conan_server_status.py:312
 msgid "Online Players (0)"
 msgstr "Jogadores Online (0)"
 
-#: conan_server_status.py:312
+#: cogs/status.py:127 conan_server_status.py:312
 msgid "No one is playing at the moment."
 msgstr "Ninguém está jogando no momento."
 
-#: conan_server_status.py:316
+#: cogs/status.py:130 conan_server_status.py:316
 msgid "Uptime"
 msgstr "Tempo de Atividade"
 
-#: conan_server_status.py:318
+#: cogs/status.py:132 conan_server_status.py:318
 msgid "Server FPS"
 msgstr "FPS do Servidor"
 
-#: conan_server_status.py:320
+#: cogs/status.py:134 conan_server_status.py:320
 msgid "Memory"
 msgstr "Memória"
 
-#: conan_server_status.py:322
+#: cogs/status.py:136 conan_server_status.py:322
 msgid "CPU"
 msgstr "CPU"
 
-#: conan_server_status.py:328
+#: cogs/status.py:138 conan_server_status.py:328
 msgid "Status updated"
 msgstr "Status atualizado"
 
 #: conan_server_status.py:336
-#, fuzzy
 msgid "Failed to generate server status embed for '{server}': {error}"
-msgstr "Erro ao atualizar status para '{server_name}': {error}"
+msgstr "Falha ao gerar embed de status do servidor para '{server}': {error}"
 
-#: conan_server_status.py:348
+#: conan_server_status.py:348 rcon.py:16
 msgid "[{server}] RCON connection successful on attempt {attempt}/3."
-msgstr ""
+msgstr "[{server}] Conexão RCON bem-sucedida na tentativa {attempt}/3."
 
-#: conan_server_status.py:352
-#, fuzzy
+#: conan_server_status.py:352 rcon.py:20
 msgid "[{server}] RCON connection attempt {attempt}/3 failed: {error}"
-msgstr "Tentativa de conexão RCON {attempt}/{max_retries} falhou: {error}"
+msgstr "[{server}] Tentativa de conexão RCON {attempt}/3 falhou: {error}"
 
 #: conan_server_status.py:373
 msgid "Channel with ID {channel_id} for '{server_name}' not found."
 msgstr "Canal com ID {channel_id} para '{server_name}' não encontrado."
 
-#: conan_server_status.py:391
+#: cogs/status.py:146 conan_server_status.py:391
 msgid "Could not connect to the server. It may be offline or restarting."
 msgstr ""
 "Não foi possível conectar ao servidor. Pode estar desligado ou "
 "reiniciando."
 
-#: conan_server_status.py:394
+#: cogs/status.py:147 conan_server_status.py:394
 msgid "Check the console or contact an administrator."
 msgstr "Verifique o console ou contate um administrador."
 
 #: conan_server_status.py:408
-#, fuzzy
 msgid "Message for '{server}' not found. Creating a new one."
-msgstr "Mensagem para '{server_name}' não encontrada. Criando uma nova."
+msgstr "Mensagem para '{server}' não encontrada. Criando uma nova."
 
 #: conan_server_status.py:412
-#, fuzzy
 msgid "Error updating status message for '{server}': {error}"
-msgstr "Erro ao atualizar status para '{server_name}': {error}"
-
-#: conan_server_status.py:419 conan_server_status.py:499
-msgid "Bot connected as {username}"
-msgstr "Bot conectado como {username}"
+msgstr "Erro ao atualizar mensagem de status para '{server}': {error}"
 
 #: conan_server_status.py:435 conan_server_status.py:515
-#, fuzzy
 msgid "Status update and reward task started."
-msgstr "Tarefa de atualização de status iniciada."
+msgstr "Tarefa de atualização de status e recompensa iniciada."
 
 #: conan_server_status.py:443
 msgid ""
 "This command is being reworked. The bot updates automatically every "
 "minute."
 msgstr ""
+"Este comando está sendo reformulado. O bot atualiza automaticamente a cada "
+"minuto."
 
 #: conan_server_status.py:449
 msgid "Command on cooldown. Try again in {seconds:.1f} seconds."
@@ -153,26 +165,124 @@ msgstr "Comando em tempo de recarga. Tente novamente em {seconds:.1f} segundos."
 
 #: conan_server_status.py:519
 msgid "Announcement task started."
-msgstr ""
+msgstr "Tarefa de anúncio iniciada."
 
 #: conan_server_status.py:523
 msgid "Building report task started."
+msgstr "Tarefa de relatório de construções iniciada."
+
+#: cogs/admin.py:23
+msgid "O nível de VIP não pode ser negativo."
+msgstr "O nível de VIP não pode ser negativo."
+
+#: cogs/admin.py:50
+msgid "Nível de VIP para '{member}' atualizado para {level}."
+msgstr "Nível de VIP para '{member}' atualizado para {level}."
+
+#: cogs/admin.py:52
+msgid ""
+"Não foi encontrada uma conta de jogo vinculada para o membro '{member}'. "
+"O usuário precisa primeiro usar o comando /registrar."
 msgstr ""
+"Não foi encontrada uma conta de jogo vinculada para o membro '{member}'. "
+"O usuário precisa primeiro usar o comando /registrar."
 
-#: conan_server_status.py:617
-msgid "Fatal error starting the bot: {error}"
-msgstr "Erro fatal ao iniciar o bot: {error}"
+#: cogs/announcements.py:43
+msgid "Scheduled announcement."
+msgstr "Anúncio agendado."
 
-#~ msgid "All RCON connection attempts have failed."
-#~ msgstr "Todas as tentativas de conexão RCON falharam."
+#: cogs/announcements.py:45
+msgid "Sent announcement for '{server_name}' to channel {channel_id}."
+msgstr "Anúncio enviado para '{server_name}' no canal {channel_id}."
 
-#~ msgid ""
-#~ "New status message created for "
-#~ "'{server_name}' in channel {channel_name}."
-#~ msgstr ""
-#~ "Nova mensagem de status criada para "
-#~ "'{server_name}' no canal {channel_name}."
+#: cogs/announcements.py:48
+msgid ""
+"Could not find announcement channel with ID {channel_id} for server "
+"'{server_name}'."
+msgstr ""
+"Não foi possível encontrar o canal de anúncio com ID {channel_id} para o servidor "
+"'{server_name}'."
 
-#~ msgid "Found message for '{server_name}' in channel {channel_name}."
-#~ msgstr "Mensagem encontrada para '{server_name}' no canal {channel_name}."
+#: cogs/announcements.py:50
+msgid "Error in announcement task for server '{server_name}': {error}"
+msgstr "Erro na tarefa de anúncio para o servidor '{server_name}': {error}"
 
+#: cogs/building.py:34
+msgid "Building Watcher for '{server_name}' is missing required configuration."
+msgstr "O Observador de Construções para '{server_name}' está com a configuração incompleta."
+
+#: cogs/building.py:46
+msgid "Failed to generate building report for '{server_name}'. Exception: {error}"
+msgstr "Falha ao gerar relatório de construções para '{server_name}'. Exceção: {error}"
+
+#: cogs/building.py:48
+msgid "Building Report - {server_name}"
+msgstr "Relatório de Construções - {server_name}"
+
+#: cogs/building.py:51
+msgid "No buildings found at the moment."
+msgstr "Nenhuma construção encontrada no momento."
+
+#: cogs/building.py:55
+msgid "(No Owner)"
+msgstr "(Sem Proprietário)"
+
+#: cogs/building.py:58
+msgid " ⚠️ (Above the limit of {build_limit})"
+msgstr " ⚠️ (Acima do limite de {build_limit})"
+
+#: cogs/building.py:65
+msgid "Updated"
+msgstr "Atualizado"
+
+#: cogs/building.py:71
+msgid "Building report channel {channel_id} not found."
+msgstr "Canal de relatório de construções {channel_id} não encontrado."
+
+#: cogs/building.py:79
+msgid "Building Report"
+msgstr "Relatório de Construções"
+
+#: cogs/building.py:87
+msgid "Failed to post building report for '{server_name}': {error}"
+msgstr "Falha ao postar relatório de construções para '{server_name}': {error}"
+
+#: cogs/registration.py:34
+msgid ""
+"Olá! Para vincular sua conta do jogo à sua conta do Discord, entre no "
+"servidor e digite o seguinte comando no chat:\n"
+"\n"
+msgstr ""
+"Olá! Para vincular sua conta do jogo à sua conta do Discord, entre no "
+"servidor e digite o seguinte comando no chat:\n"
+"\n"
+
+#: cogs/registration.py:36
+msgid "Este código expira em 10 minutos."
+msgstr "Este código expira em 10 minutos."
+
+#: cogs/registration.py:39
+msgid "Enviei a você uma mensagem privada com as instruções para o registro!"
+msgstr "Enviei a você uma mensagem privada com as instruções para o registro!"
+
+#: cogs/registration.py:41
+msgid ""
+"Não consigo lhe enviar uma mensagem privada. Por favor, habilite as DMs "
+"de membros do servidor nas suas configurações de privacidade e tente "
+"novamente."
+msgstr ""
+"Não consigo lhe enviar uma mensagem privada. Por favor, habilite as DMs "
+"de membros do servidor nas suas configurações de privacidade e tente "
+"novamente."
+
+#: cogs/registration.py:43
+msgid ""
+"Ocorreu um erro ao tentar lhe enviar as instruções. Por favor, contate um"
+" administrador."
+msgstr ""
+"Ocorreu um erro ao tentar lhe enviar as instruções. Por favor, contate um"
+" administrador."
+
+#: cogs/rewards.py:62
+msgid "Sucesso! Sua conta do jogo '{char}' foi vinculada à sua conta do Discord."
+msgstr "Sucesso! Sua conta do jogo '{char}' foi vinculada à sua conta do Discord."

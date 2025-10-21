@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-10-20 07:20-0300\n"
+"POT-Creation-Date: 2025-10-21 14:32-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,18 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.10.3\n"
+
+#: bot.py:42 conan_server_status.py:419 conan_server_status.py:499
+msgid "Bot connected as {username}"
+msgstr ""
+
+#: bot.py:56
+msgid "All cogs loaded and tasks started."
+msgstr ""
+
+#: bot.py:64 conan_server_status.py:617
+msgid "Fatal error starting the bot: {error}"
+msgstr ""
 
 #: conan_server_status.py:61
 msgid "Player tracker database '{db}' initialized successfully."
@@ -57,39 +69,39 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: conan_server_status.py:291
+#: cogs/status.py:106 conan_server_status.py:291
 msgid "The server is operating normally."
 msgstr ""
 
-#: conan_server_status.py:310
+#: cogs/status.py:125 conan_server_status.py:310
 msgid "Online Players ({count})"
 msgstr ""
 
-#: conan_server_status.py:312
+#: cogs/status.py:127 conan_server_status.py:312
 msgid "Online Players (0)"
 msgstr ""
 
-#: conan_server_status.py:312
+#: cogs/status.py:127 conan_server_status.py:312
 msgid "No one is playing at the moment."
 msgstr ""
 
-#: conan_server_status.py:316
+#: cogs/status.py:130 conan_server_status.py:316
 msgid "Uptime"
 msgstr ""
 
-#: conan_server_status.py:318
+#: cogs/status.py:132 conan_server_status.py:318
 msgid "Server FPS"
 msgstr ""
 
-#: conan_server_status.py:320
+#: cogs/status.py:134 conan_server_status.py:320
 msgid "Memory"
 msgstr ""
 
-#: conan_server_status.py:322
+#: cogs/status.py:136 conan_server_status.py:322
 msgid "CPU"
 msgstr ""
 
-#: conan_server_status.py:328
+#: cogs/status.py:138 conan_server_status.py:328
 msgid "Status updated"
 msgstr ""
 
@@ -97,11 +109,11 @@ msgstr ""
 msgid "Failed to generate server status embed for '{server}': {error}"
 msgstr ""
 
-#: conan_server_status.py:348
+#: conan_server_status.py:348 rcon.py:16
 msgid "[{server}] RCON connection successful on attempt {attempt}/3."
 msgstr ""
 
-#: conan_server_status.py:352
+#: conan_server_status.py:352 rcon.py:20
 msgid "[{server}] RCON connection attempt {attempt}/3 failed: {error}"
 msgstr ""
 
@@ -109,11 +121,11 @@ msgstr ""
 msgid "Channel with ID {channel_id} for '{server_name}' not found."
 msgstr ""
 
-#: conan_server_status.py:391
+#: cogs/status.py:146 conan_server_status.py:391
 msgid "Could not connect to the server. It may be offline or restarting."
 msgstr ""
 
-#: conan_server_status.py:394
+#: cogs/status.py:147 conan_server_status.py:394
 msgid "Check the console or contact an administrator."
 msgstr ""
 
@@ -123,10 +135,6 @@ msgstr ""
 
 #: conan_server_status.py:412
 msgid "Error updating status message for '{server}': {error}"
-msgstr ""
-
-#: conan_server_status.py:419 conan_server_status.py:499
-msgid "Bot connected as {username}"
 msgstr ""
 
 #: conan_server_status.py:435 conan_server_status.py:515
@@ -151,7 +159,107 @@ msgstr ""
 msgid "Building report task started."
 msgstr ""
 
-#: conan_server_status.py:617
-msgid "Fatal error starting the bot: {error}"
+#: cogs/admin.py:23
+msgid "O nível de VIP não pode ser negativo."
+msgstr ""
+
+#: cogs/admin.py:50
+msgid "Nível de VIP para '{member}' atualizado para {level}."
+msgstr ""
+
+#: cogs/admin.py:52
+msgid ""
+"Não foi encontrada uma conta de jogo vinculada para o membro '{member}'. "
+"O usuário precisa primeiro usar o comando /registrar."
+msgstr ""
+
+#: cogs/announcements.py:43
+msgid "Scheduled announcement."
+msgstr ""
+
+#: cogs/announcements.py:45
+msgid "Sent announcement for '{server_name}' to channel {channel_id}."
+msgstr ""
+
+#: cogs/announcements.py:48
+msgid ""
+"Could not find announcement channel with ID {channel_id} for server "
+"'{server_name}'."
+msgstr ""
+
+#: cogs/announcements.py:50
+msgid "Error in announcement task for server '{server_name}': {error}"
+msgstr ""
+
+#: cogs/building.py:34
+msgid "Building Watcher for '{server_name}' is missing required configuration."
+msgstr ""
+
+#: cogs/building.py:46
+msgid "Failed to generate building report for '{server_name}'. Exception: {error}"
+msgstr ""
+
+#: cogs/building.py:48
+msgid "Building Report - {server_name}"
+msgstr ""
+
+#: cogs/building.py:51
+msgid "No buildings found at the moment."
+msgstr ""
+
+#: cogs/building.py:55
+msgid "(No Owner)"
+msgstr ""
+
+#: cogs/building.py:58
+msgid " ⚠️ (Above the limit of {build_limit})"
+msgstr ""
+
+#: cogs/building.py:65
+msgid "Updated"
+msgstr ""
+
+#: cogs/building.py:71
+msgid "Building report channel {channel_id} not found."
+msgstr ""
+
+#: cogs/building.py:79
+msgid "Building Report"
+msgstr ""
+
+#: cogs/building.py:87
+msgid "Failed to post building report for '{server_name}': {error}"
+msgstr ""
+
+#: cogs/registration.py:34
+msgid ""
+"Olá! Para vincular sua conta do jogo à sua conta do Discord, entre no "
+"servidor e digite o seguinte comando no chat:\n"
+"\n"
+msgstr ""
+
+#: cogs/registration.py:36
+msgid "Este código expira em 10 minutos."
+msgstr ""
+
+#: cogs/registration.py:39
+msgid "Enviei a você uma mensagem privada com as instruções para o registro!"
+msgstr ""
+
+#: cogs/registration.py:41
+msgid ""
+"Não consigo lhe enviar uma mensagem privada. Por favor, habilite as DMs "
+"de membros do servidor nas suas configurações de privacidade e tente "
+"novamente."
+msgstr ""
+
+#: cogs/registration.py:43
+msgid ""
+"Ocorreu um erro ao tentar lhe enviar as instruções. Por favor, contate um"
+" administrador."
+msgstr ""
+
+#: cogs/rewards.py:62
+msgid "Sucesso! Sua conta do jogo '{char}' foi vinculada à sua conta do Discord."
 msgstr ""
 
