@@ -10,8 +10,8 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **Configurable Playtime Rewards**: A per-server reward system that can be enabled or disabled. You can configure the playtime interval, reward item, and quantity for each server independently, with support for VIP-specific reward intervals.
 - **Scheduled Announcements**: A per-server announcement system to post messages to a specific channel on a schedule (e.g., "Double XP enabled!"). You can configure the day, time, message, and timezone for each server.
 - **Automated Building Reports**: An hourly task that queries a backup of the game database to generate a report of building piece counts for all players and clans. It highlights those who are over a configurable limit, helping to enforce server rules safely.
-- **Player Registration and Account Linking**: Allows players to link their in-game character to their Discord account, enabling personalized features like rewards and admin commands.
-- **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members, which can influence reward intervals.
+- **Player Registration and Account Linking**: Allows players to link their in-game character to their Discord account using a `/registrar` command and an in-game code, enabling personalized features like rewards and admin commands.
+- **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members (`/setvip @User <level>`), which directly influences their reward intervals and other potential benefits.
 - **Isolated Data Paths**: Each server can be configured to use its own separate database and log file, preventing data mix-ups and allowing for independent operation.
 - **Robust and Resilient**: Features RCON connection error handling with automatic retry attempts.
 

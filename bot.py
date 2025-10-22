@@ -24,6 +24,7 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] - 
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='/', intents=intents)
+pending_registrations = {}
 bot._ = _
 
 # --- COG LIST ---
@@ -37,23 +38,24 @@ COGS_TO_LOAD = [
     'cogs.announcements',
 ]
 
-@bot.event
-async def on_ready():
-    logging.info(_('Bot connected as {username}').format(username=bot.user))
-
-    # Initialize databases
-    db_paths = {server.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB) for server in config.SERVERS}
-    for db_path in db_paths:
-        initialize_player_tracker_db(db_path)
-
+async def setup_hook():
+    """A coroutine to be called to setup the bot."""
     # Load cogs
     for cog in COGS_TO_LOAD:
         try:
             await bot.load_extension(cog)
+            logging.info(f"Loaded cog: {cog}")
         except Exception as e:
-            logging.error(f"Failed to load cog {cog}: {e}")
+            logging.error(f"Failed to load cog {cog}: {e}", exc_info=True)
 
-    logging.info(_("All cogs loaded and tasks started."))
+    # Sync commands
+    try:
+        synced = await bot.tree.sync()
+        logging.info(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        logging.error(e)
+
+bot.setup_hook = setup_hook
 
 
 # --- INITIALIZATION ---

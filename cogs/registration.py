@@ -8,7 +8,8 @@ import os
 
 import config
 
-pending_registrations = {}
+from bot import pending_registrations
+from utils.database import DEFAULT_PLAYER_TRACKER_DB
 
 class RegistrationCog(commands.Cog, name="Registration"):
     """Handles player registration and account linking."""
@@ -71,7 +72,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
                                 if char_match:
                                     char_name = char_match.group(1).strip()
                                     pending_registrations[code]['char_name'] = char_name
-                                    logging.info(f"REG_DEBUG: Code {code} used by {char_name}. Pending final link.")
+
             except Exception as e:
                 logging.error(f"Error processing registration log for server {server_conf['NAME']}: {e}")
 

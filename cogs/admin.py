@@ -38,17 +38,17 @@ class AdminCog(commands.Cog, name="Admin"):
                             expiry_date = datetime.utcnow() + timedelta(days=30)
                             expiry_date_str = expiry_date.strftime("%Y-%m-%d")
 
-                        cur.execute("UPDATE player_time SET vip_level = ?, vip_expiry_date = ? WHERE discord_id = ?", 
-                                    (vip_level, expiry_date_str, str(member.id)))
-                        con.commit()
-                        updated_in_server = server_conf["NAME"]
+                    cur.execute("UPDATE player_time SET vip_level = ?, vip_expiry_date = ? WHERE discord_id = ?", 
+                                (vip_level, expiry_date_str, str(member.id)))
+                    con.commit()
 
+                    updated_in_server = server_conf["NAME"]
             except Exception as e:
                 logging.error(f"Error in setvip command for server {server_conf['NAME']}: {e}")
 
-            if updated_in_server:
-                await ctx.send(self.bot._("Nível de VIP para '{member}' atualizado para {level}.").format(member=member.display_name, level=vip_level), ephemeral=True)
-            else:
-                await ctx.send(self.bot._("Não foi encontrada uma conta de jogo vinculada para o membro '{member}'. O usuário precisa primeiro usar o comando /registrar.").format(member=member.display_name), ephemeral=True)
+        if updated_in_server:
+            await ctx.send(self.bot._("Nível de VIP para '{member}' atualizado para {level}.").format(member=member.display_name, level=vip_level), ephemeral=True)
+        else:
+            await ctx.send(self.bot._("Não foi encontrada uma conta de jogo vinculada para o membro '{member}'. O usuário precisa primeiro usar o comando /registrar.").format(member=member.display_name), ephemeral=True)
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))

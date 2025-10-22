@@ -67,3 +67,44 @@ def get_batch_online_times(db_path: str, platform_ids: List[str], server_name: s
     except Exception as e:
         logging.error(f"Could not read batch player online times from {db_path}: {e}")
     return times
+
+def link_discord_to_character(player_tracker_db_path: str, game_db_path: str, server_name: str, discord_id: int, char_name: str) -> bool:
+    """Links a Discord ID to a character by finding their platform_id through the game.db."""
+    account_id = None
+    platform_id = None
+
+    try:
+        with sqlite3.connect(f'file:{game_db_path}?mode=ro', uri=True) as con:
+            cur = con.cursor()
+
+            cur.execute("SELECT id FROM characters WHERE char_name = ?", (char_name,))
+            result = cur.fetchone()
+            if result:
+                account_id = result[0]
+
+
+                cur.execute("SELECT platformId FROM account WHERE id = ?", (account_id,))
+                result2 = cur.fetchone()
+                if result2:
+                    platform_id = result2[0]
+
+
+    except Exception as e:
+        logging.error(f"Could not read character data from {game_db_path}: {e}")
+        return False
+
+    if not platform_id:
+        logging.warning(f"Could not find a valid platform_id for character '{char_name}'.")
+        return False
+
+    try:
+        with sqlite3.connect(player_tracker_db_path) as con:
+            cur = con.cursor()
+            cur.execute("INSERT OR IGNORE INTO player_time (platform_id, server_name) VALUES (?, ?)", (platform_id, server_name))
+            cur.execute("UPDATE player_time SET discord_id = ? WHERE platform_id = ? AND server_name = ?", (str(discord_id), platform_id, server_name))
+            con.commit()
+
+        return True
+    except Exception as e:
+        logging.error(f"Failed to link Discord ID to character in {player_tracker_db_path}: {e}")
+        return False
