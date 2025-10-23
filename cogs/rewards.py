@@ -99,25 +99,32 @@ class RewardsCog(commands.Cog, name="Rewards"):
                         quantity = reward_config["REWARD_QUANTITY"]
                         command = f"con {player['idx']} SpawnItem {item_id} {quantity}"
                         
-                        try:
-                            response, _unused = await rcon_client.send_cmd(command)
-                            logging.info(self._(f"Reward command '{command}' for player {player['char_name']} on server '{server_name}' executed. Response: {response.strip()}"))
-                            
-                            # Log the reward to the text file
-                            # log_reward_to_file(
-                            #     log_file_path,
-                            #     server_name,
-                            #     player['char_name'],
-                            #     online_minutes,
-                            #     item_id,
-                            #     quantity
-                            # )
+                        reward_sent = False
+                        for attempt in range(3):
+                            try:
+                                response, _unused = await rcon_client.send_cmd(command)
+                                logging.info(self.bot._(f"Reward command '{command}' for player {player['char_name']} on server '{server_name}' executed. Response: {response.strip()}"))
+                                
+                                # Log the reward to the text file
+                                # log_reward_to_file(
+                                #     log_file_path,
+                                #     server_name,
+                                #     player['char_name'],
+                                #     online_minutes,
+                                #     item_id,
+                                #     quantity
+                                # )
 
-                            # Update rewarded hour in DB
-                            cur.execute("UPDATE player_time SET last_rewarded_hour = ? WHERE platform_id = ? AND server_name = ?", (current_hour_milestone, platform_id, server_name))
-
-                        except Exception as e:
-                            logging.error(self._(f"Failed to send reward RCON command for player {player['char_name']} on server '{server_name}': {e}"))
+                                # Update rewarded hour in DB
+                                cur.execute("UPDATE player_time SET last_rewarded_hour = ? WHERE platform_id = ? AND server_name = ?", (current_hour_milestone, platform_id, server_name))
+                                reward_sent = True
+                                break # Exit loop on success
+                            except Exception as e:
+                                logging.warning(self.bot._(f"Attempt {attempt + 1}/3 to send reward for player {player['char_name']} failed: {e}"))
+                                await asyncio.sleep(2) # Wait 2 seconds before retrying
+                        
+                        if not reward_sent:
+                            logging.error(self.bot._(f"Failed to send reward RCON command for player {player['char_name']} on server '{server_name}' after 3 attempts."))
         except Exception as e:
             logging.error(f"An error occurred in track_and_reward_players for server '{server_name}': {e}")
         finally:

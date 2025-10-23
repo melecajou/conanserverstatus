@@ -5,12 +5,9 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 ## Features
 
 - **Multi-Server Monitoring**: Tracks multiple servers simultaneously, each with its own configuration.
-- **Live Player Status**: Displays an auto-updating list of online players, including their in-game level and total playtime on the server.
-- **Live System Stats**: Extracts and displays live server performance metrics (Uptime, Server FPS, Memory Usage, CPU) directly in the status embed.
-- **Configurable Playtime Rewards**: A per-server reward system that can be enabled or disabled. You can configure the playtime interval, reward item, and quantity for each server independently, with support for VIP-specific reward intervals.
-- **Scheduled Announcements**: A per-server announcement system to post messages to a specific channel on a schedule (e.g., "Double XP enabled!"). You can configure the day, time, message, and timezone for each server.
-- **Automated Building Reports**: An hourly task that queries a backup of the game database to generate a report of building piece counts for all players and clans. It highlights those who are over a configurable limit, helping to enforce server rules safely.
-- **Player Registration and Account Linking**: Allows players to link their in-game character to their Discord account using a `/registrar` command and an in-game code, enabling personalized features like rewards and admin commands.
+- **Efficient Live Status**: Displays an auto-updating list of online players, including their in-game level and total playtime. This process is highly optimized, using batch database queries to ensure minimal performance impact, even with a large number of players.
+- **Robust Playtime Rewards**: A per-server reward system with tiered VIP levels. The system is resilient, featuring a retry mechanism for reward delivery to handle temporary RCON connection issues.
+- **Player Registration and Account Linking**: A streamlined process for players to link their in-game character to their Discord account using a `/registrar` command and an in-game code. This enables personalized features and rewards.
 - **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members (`/setvip @User <level>`), which directly influences their reward intervals and other potential benefits.
 - **Isolated Data Paths**: Each server can be configured to use its own separate database and log file, preventing data mix-ups and allowing for independent operation.
 - **Robust and Resilient**: Features RCON connection error handling with automatic retry attempts.
