@@ -32,8 +32,8 @@ class AdminCog(commands.Cog, name="Admin"):
                     cur.execute("SELECT platform_id FROM player_time WHERE discord_id = ?", (str(member.id),))
                     result = cur.fetchone()
 
+                    expiry_date_str = None
                     if result:
-                        expiry_date_str = None
                         if vip_level > 0:
                             expiry_date = datetime.utcnow() + timedelta(days=30)
                             expiry_date_str = expiry_date.strftime("%Y-%m-%d")

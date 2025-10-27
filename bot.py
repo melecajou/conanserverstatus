@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] - 
 # --- BOT SETUP ---
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='/', intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents)
 pending_registrations = {}
 bot._ = _
 
@@ -40,6 +40,11 @@ COGS_TO_LOAD = [
 
 async def setup_hook():
     """A coroutine to be called to setup the bot."""
+    # Initialize databases
+    for server_config in config.SERVERS:
+        db_path = server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
+        initialize_player_tracker_db(db_path)
+
     # Load cogs
     for cog in COGS_TO_LOAD:
         try:

@@ -49,25 +49,6 @@ class RewardsCog(commands.Cog, name="Rewards"):
             with sqlite3.connect(db_path) as con:
                 cur = con.cursor()
 
-                # Finalize any pending registrations for online players
-                for code, reg_data in list(pending_registrations.items()):
-                    if 'char_name' in reg_data:
-                        for player in online_players:
-                            if player['char_name'] == reg_data['char_name']:
-                                discord_id = reg_data['discord_id']
-                                platform_id = player['platform_id']
-                                
-                                # This is the crucial part: UPDATE the existing row.
-                                cur.execute("UPDATE player_time SET discord_id = ? WHERE platform_id = ? AND server_name = ?", (str(discord_id), platform_id, server_name))
-                                con.commit()
-
-                                user = await self.bot.fetch_user(discord_id)
-                                if user:
-                                    await user.send(self.bot._("Sucesso! Sua conta do jogo '{char}' foi vinculada à sua conta do Discord.").format(char=player['char_name']))
-                                logging.info(f"Successfully linked Discord user {discord_id} to character {player['char_name']} ({platform_id}).")
-                                del pending_registrations[code]
-                                break # Move to the next pending registration
-
                 for player in online_players:
                     platform_id = player["platform_id"]
                     cur.execute("INSERT OR IGNORE INTO player_time (platform_id, server_name) VALUES (?, ?)", (platform_id, server_name))

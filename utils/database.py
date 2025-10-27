@@ -70,33 +70,40 @@ def get_batch_online_times(db_path: str, platform_ids: List[str], server_name: s
 
 def link_discord_to_character(player_tracker_db_path: str, game_db_path: str, server_name: str, discord_id: int, char_name: str) -> bool:
     """Links a Discord ID to a character by finding their platform_id through the game.db."""
-    account_id = None
+
+    # Esta variável 'account_id' estava sendo usada incorretamente.
+    # Agora vamos buscar o 'player_id_text' (ex: 'DE70F14C9A560DD3')
+    player_id_text = None
     platform_id = None
 
     try:
         with sqlite3.connect(f'file:{game_db_path}?mode=ro', uri=True) as con:
             cur = con.cursor()
 
-            cur.execute("SELECT id FROM characters WHERE char_name = ?", (char_name,))
+            # --- ETAPA 1 CORRIGIDA ---
+            # Em vez de 'id', selecionamos 'playerId'
+            cur.execute("SELECT playerId FROM characters WHERE char_name = ?", (char_name,))
             result = cur.fetchone()
             if result:
-                account_id = result[0]
+                player_id_text = result[0] # Este é o ID de texto da conta
 
-
-                cur.execute("SELECT platformId FROM account WHERE id = ?", (account_id,))
+                # --- ETAPA 2 CORRIGIDA ---
+                # Usamos 'player_id_text' para procurar na coluna 'user' da tabela 'account'
+                cur.execute("SELECT platformId FROM account WHERE id = ?", (player_id_text,))
                 result2 = cur.fetchone()
                 if result2:
-                    platform_id = result2[0]
-
+                    platform_id = result2[0] # Este é o SteamID (ou ID de plataforma)
 
     except Exception as e:
         logging.error(f"Could not read character data from {game_db_path}: {e}")
         return False
 
     if not platform_id:
-        logging.warning(f"Could not find a valid platform_id for character '{char_name}'.")
+        # A mensagem de log original estava correta, mas a lógica para chegar aqui estava errada.
+        logging.warning(f"Could not find a valid platform_id for character '{char_name}'. (playerId: {player_id_text})")
         return False
 
+    # A Etapa 3 (salvar no nosso DB) estava correta e permanece a mesma.
     try:
         with sqlite3.connect(player_tracker_db_path) as con:
             cur = con.cursor()
