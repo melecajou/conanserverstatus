@@ -26,13 +26,7 @@ class StatusCog(commands.Cog, name="Status"):
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
                 continue
-            client = Client(server_conf["SERVER_IP"], server_conf["RCON_PORT"], server_conf["RCON_PASS"])
-            try:
-                await client.connect()
-                self.rcon_clients[server_conf["NAME"]] = client
-                logging.info(f"RCON client connected for server: {server_conf['NAME']}")
-            except RCONConnectionError as e:
-                logging.error(f"Failed to connect RCON client for server: {server_conf['NAME']}. Error: {e}")
+            self.rcon_clients[server_conf["NAME"]] = Client(server_conf["SERVER_IP"], server_conf["RCON_PORT"], server_conf["RCON_PASS"])
 
     async def cog_unload(self):
         self.update_all_statuses_task.cancel()
@@ -51,26 +45,13 @@ class StatusCog(commands.Cog, name="Status"):
                 logging.error(f"Channel with ID {channel_id} for '{server_conf['NAME']}' not found.")
                 continue
 
-            new_embed = None
             rcon_client = self.rcon_clients.get(server_conf["NAME"])
+            if not rcon_client:
+                logging.error(f"RCON client not initialized for {server_conf['NAME']}. Re-initializing.")
+                rcon_client = Client(server_conf["SERVER_IP"], server_conf["RCON_PORT"], server_conf["RCON_PASS"])
+                self.rcon_clients[server_conf["NAME"]] = rcon_client
 
-            if rcon_client:
-                try:
-                    new_embed = await self.get_server_status_embed(server_conf, rcon_client)
-                except RCONConnectionError:
-                    logging.warning(f"RCON connection lost for {server_conf['NAME']}. Attempting to reconnect...")
-                    try:
-                        await rcon_client.connect()
-                        new_embed = await self.get_server_status_embed(server_conf, rcon_client)
-                    except RCONConnectionError as e:
-                        logging.error(f"Failed to reconnect RCON for {server_conf['NAME']}: {e}")
-                        new_embed = self.create_offline_embed(server_conf)
-                except Exception as e:
-                    logging.error(f"An unexpected error occurred for '{server_conf['NAME']}': {e}", exc_info=True)
-                    new_embed = self.create_offline_embed(server_conf)
-            else:
-                new_embed = self.create_offline_embed(server_conf)
-
+            new_embed = await self.get_server_status_embed(server_conf, rcon_client)
 
             try:
                 status_message = self.status_messages.get(channel_id)
@@ -103,16 +84,26 @@ class StatusCog(commands.Cog, name="Status"):
                         self.status_messages[channel_id] = msg
                         break
 
-    async def get_server_status_embed(self, server_config: dict, rcon_client: Client) -> Optional[discord.Embed]:
+    async def get_server_status_embed(self, server_config: dict, rcon_client: Client) -> discord.Embed:
         server_name = server_config["NAME"]
         game_db_path = server_config.get("DB_PATH")
         player_db_path = server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
         log_path = server_config.get("LOG_PATH")
 
-        response, _ = await rcon_client.send_cmd("ListPlayers")
-        player_lines = [line for line in response.split('\n') if line.strip().startswith(tuple('0123456789'))]
+        try:
+            await rcon_client.connect()
+            response, _ = await rcon_client.send_cmd("ListPlayers")
+            player_lines = [line for line in response.split('\n') if line.strip().startswith(tuple('0123456789'))]
+            self.bot.dispatch("conan_players_updated", server_config, player_lines, rcon_client)
+        except RCONConnectionError as e:
+            logging.warning(f"RCON connection failed for {server_name}: {e}")
+            return self.create_offline_embed(server_config)
+        except Exception as e:
+            logging.error(f"An unexpected error occurred for '{server_name}': {e}", exc_info=True)
+            return self.create_offline_embed(server_config)
+        finally:
+            await rcon_client.close()
 
-        self.bot.dispatch("conan_players_updated", server_config, player_lines, rcon_client)
 
         system_stats = parse_server_log(log_path)
         online_players = []
@@ -144,22 +135,22 @@ class StatusCog(commands.Cog, name="Status"):
                     detail_line += f" ({level})"
                 detail_line += f" - {playtime_str}"
                 player_details.append(detail_line)
-            embed.add_field(name=self.bot._("Online Players ({count})").format(count=len(online_players)),
+            embed.add_field(name=self._("Online Players ({count})").format(count=len(online_players)),
                               value="\n".join(player_details), inline=False)
         else:
-            embed.add_field(name=self.bot._("Online Players (0)"), value=self.bot._("No one is playing at the moment."),
+            embed.add_field(name=self._("Online Players (0)"), value=self._("No one is playing at the moment."),
                               inline=False)
 
         if system_stats.get('uptime'):
-            embed.add_field(name=self.bot._("Uptime"), value=system_stats['uptime'], inline=True)
+            embed.add_field(name=self._("Uptime"), value=system_stats['uptime'], inline=True)
         if system_stats.get('fps'):
-            embed.add_field(name=self.bot._("Server FPS"), value=system_stats['fps'], inline=True)
+            embed.add_field(name=self._("Server FPS"), value=system_stats['fps'], inline=True)
         if system_stats.get('memory'):
-            embed.add_field(name=self.bot._("Memory"), value=system_stats['memory'], inline=True)
+            embed.add_field(name=self._("Memory"), value=system_stats['memory'], inline=True)
         if system_stats.get('cpu'):
-            embed.add_field(name=self.bot._("CPU"), value=system_stats['cpu'], inline=True)
+            embed.add_field(name=self._("CPU"), value=system_stats['cpu'], inline=True)
 
-        footer_text = self.bot._("Status updated")
+        footer_text = self._("Status updated")
         if system_stats.get('version'):
             footer_text += f" | Version: {system_stats['version']}"
         embed.set_footer(text=footer_text)
@@ -168,10 +159,9 @@ class StatusCog(commands.Cog, name="Status"):
 
     def create_offline_embed(self, server_conf: dict) -> discord.Embed:
         embed = discord.Embed(title=f"❌ {server_conf['NAME']}",
-                              description=self.bot._(
-                                  "Could not connect to the server. It may be offline or restarting."),
+                              description=self._("Could not connect to the server. It may be offline or restarting."),
                               color=discord.Color.red())
-        embed.set_footer(text=self.bot._("Check the console or contact an administrator."))
+        embed.set_footer(text=self._("Check the console or contact an administrator."))
         embed.timestamp = discord.utils.utcnow()
         return embed
 
