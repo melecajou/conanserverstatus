@@ -47,9 +47,8 @@ class StatusCog(commands.Cog, name="Status"):
 
             rcon_client = self.rcon_clients.get(server_conf["NAME"])
             if not rcon_client:
-                logging.error(f"RCON client not initialized for {server_conf['NAME']}. Re-initializing.")
-                rcon_client = Client(server_conf["SERVER_IP"], server_conf["RCON_PORT"], server_conf["RCON_PASS"])
-                self.rcon_clients[server_conf["NAME"]] = rcon_client
+                logging.error(f"RCON client not initialized for {server_conf['NAME']}. Skipping.")
+                continue
 
             new_embed = await self.get_server_status_embed(server_conf, rcon_client)
 
@@ -101,9 +100,6 @@ class StatusCog(commands.Cog, name="Status"):
         except Exception as e:
             logging.error(f"An unexpected error occurred for '{server_name}': {e}", exc_info=True)
             return self.create_offline_embed(server_config)
-        finally:
-            await rcon_client.close()
-
 
         system_stats = parse_server_log(log_path)
         online_players = []
