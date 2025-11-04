@@ -104,6 +104,9 @@ class RewardsCog(commands.Cog, name="Rewards"):
                             "UPDATE player_time SET last_rewarded_hour = ? WHERE platform_id = ? AND server_name = ?",
                             (current_hour_milestone, platform_id, server_name))
                         await db.commit()
+                        logging.info(self._(
+                            f"Player {player['char_name']} on server '{server_name}' has been rewarded."
+                        ))
 
     @commands.Cog.listener()
     async def on_conan_players_updated(self, server_conf: dict, player_lines: List[str], rcon_client):

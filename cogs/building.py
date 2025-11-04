@@ -106,6 +106,7 @@ class BuildingCog(commands.Cog, name="Building"):
                 logging.error(self.bot._("Building Watcher for '{server_name}' is missing required configuration.").format(server_name=server_conf["NAME"]))
                 continue
 
+            logging.info(f"Starting building watcher for server: {server_conf['NAME']}")
             results = []
             try:
                 with open(sql_path, 'r') as f:
@@ -114,8 +115,10 @@ class BuildingCog(commands.Cog, name="Building"):
                     cur = con.cursor()
                     cur.execute(sql_script)
                     results = cur.fetchall()
+                logging.info(f"Building watcher query successful for {server_conf['NAME']}. Found {len(results)} owners.")
             except Exception as e:
                 logging.error(self.bot._("Failed to generate building report for '{server_name}'. Exception: {error}").format(server_name=server_conf["NAME"], error=e), exc_info=True)
+                continue
 
             embed = discord.Embed(title=self.bot._("Building Report - {server_name}").format(server_name=server_conf['NAME']), color=discord.Color.blue())
 
