@@ -92,6 +92,7 @@ class StatusCog(commands.Cog, name="Status"):
         try:
             await rcon_client.connect()
             response, _ = await rcon_client.send_cmd("ListPlayers")
+            logging.info(f"ListPlayers response for {server_name}: {response}")
             player_lines = [line for line in response.split('\n') if line.strip().startswith(tuple('0123456789'))]
             self.bot.dispatch("conan_players_updated", server_config, player_lines, rcon_client)
         except RCONConnectionError as e:
