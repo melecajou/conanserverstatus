@@ -153,7 +153,6 @@ class BuildingCog(commands.Cog, name="Building"):
             embed.timestamp = discord.utils.utcnow()
 
             try:
-                logging.info(f"Attempting to post building report for {server_conf['NAME']} to channel {channel_id}.")
                 channel = self.bot.get_channel(channel_id)
                 if not channel:
                     logging.error(self.bot._("Building report channel {channel_id} not found.").format(channel_id=channel_id))
@@ -161,23 +160,16 @@ class BuildingCog(commands.Cog, name="Building"):
 
                 report_message = self.building_report_messages.get(channel_id)
                 if report_message:
-                    logging.info(f"Found cached message {report_message.id} for channel {channel_id}. Editing.")
                     await report_message.edit(embed=embed)
-                    logging.info(f"Successfully edited message for {server_conf['NAME']}.")
                 else:
-                    logging.info(f"No cached message found for channel {channel_id}. Searching channel history.")
                     async for msg in channel.history(limit=50):
                         if msg.author.id == self.bot.user.id and msg.embeds and msg.embeds[0].title.startswith(self.bot._("Building Report")):
-                            logging.info(f"Found message {msg.id} in history for channel {channel_id}. Caching and editing.")
                             self.building_report_messages[channel_id] = msg
                             await msg.edit(embed=embed)
-                            logging.info(f"Successfully edited message for {server_conf['NAME']}.")
                             break
                     else:
-                        logging.info(f"No message found in history for channel {channel_id}. Sending new message.")
                         new_msg = await channel.send(embed=embed)
                         self.building_report_messages[channel_id] = new_msg
-                        logging.info(f"Successfully sent new message for {server_conf['NAME']}.")
             except Exception as e:
                 logging.error(self.bot._("Failed to post building report for '{server_name}': {error}").format(server_name=server_conf["NAME"], error=e))
 
