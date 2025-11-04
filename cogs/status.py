@@ -3,7 +3,7 @@ import discord
 import logging
 from typing import Dict, List, Optional
 
-from aiomcrcon import Client
+from aiomcrcon import Client, RCONConnectionError
 
 import config
 from utils.database import get_batch_player_levels, get_batch_online_times, DEFAULT_PLAYER_TRACKER_DB
@@ -26,11 +26,18 @@ class StatusCog(commands.Cog, name="Status"):
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
                 continue
-            self.rcon_clients[server_conf["NAME"]] = Client(server_conf["SERVER_IP"], server_conf["RCON_PORT"],
-                                                            server_conf["RCON_PASS"])
+            client = Client(server_conf["SERVER_IP"], server_conf["RCON_PORT"], server_conf["RCON_PASS"])
+            try:
+                await client.connect()
+                self.rcon_clients[server_conf["NAME"]] = client
+                logging.info(f"RCON client connected for server: {server_conf['NAME']}")
+            except RCONConnectionError as e:
+                logging.error(f"Failed to connect RCON client for server: {server_conf['NAME']}. Error: {e}")
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.update_all_statuses_task.cancel()
+        for client in self.rcon_clients.values():
+            await client.close()
 
     @tasks.loop(minutes=1)
     async def update_all_statuses_task(self):
@@ -46,20 +53,24 @@ class StatusCog(commands.Cog, name="Status"):
 
             new_embed = None
             rcon_client = self.rcon_clients.get(server_conf["NAME"])
-            if not rcon_client:
-                logging.error(f"RCON client not found for server: {server_conf['NAME']}")
-                continue
 
-            try:
-                await rcon_client.connect()
-                new_embed = await self.get_server_status_embed(server_conf, rcon_client)
-            except Exception as e:
-                logging.error(f"Failed to generate status embed for '{server_conf['NAME']}'", exc_info=True)
-            finally:
-                await rcon_client.close()
-
-            if not new_embed:
+            if rcon_client:
+                try:
+                    new_embed = await self.get_server_status_embed(server_conf, rcon_client)
+                except RCONConnectionError:
+                    logging.warning(f"RCON connection lost for {server_conf['NAME']}. Attempting to reconnect...")
+                    try:
+                        await rcon_client.connect()
+                        new_embed = await self.get_server_status_embed(server_conf, rcon_client)
+                    except RCONConnectionError as e:
+                        logging.error(f"Failed to reconnect RCON for {server_conf['NAME']}: {e}")
+                        new_embed = self.create_offline_embed(server_conf)
+                except Exception as e:
+                    logging.error(f"An unexpected error occurred for '{server_conf['NAME']}': {e}", exc_info=True)
+                    new_embed = self.create_offline_embed(server_conf)
+            else:
                 new_embed = self.create_offline_embed(server_conf)
+
 
             try:
                 status_message = self.status_messages.get(channel_id)
