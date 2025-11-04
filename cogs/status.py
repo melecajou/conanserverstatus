@@ -15,6 +15,7 @@ class StatusCog(commands.Cog, name="Status"):
 
     def __init__(self, bot):
         self.bot = bot
+        self._ = bot._
         self.status_messages: Dict[int, discord.Message] = {}
         self.rcon_clients: Dict[str, Client] = {}
         if not self.update_all_statuses_task.is_running():
