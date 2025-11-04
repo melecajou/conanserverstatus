@@ -30,8 +30,6 @@ class StatusCog(commands.Cog, name="Status"):
 
     def cog_unload(self):
         self.update_all_statuses_task.cancel()
-        for client in self.rcon_clients.values():
-            client.close()
 
     @tasks.loop(minutes=1)
     async def update_all_statuses_task(self):
@@ -52,12 +50,12 @@ class StatusCog(commands.Cog, name="Status"):
                 continue
 
             try:
-                if not rcon_client.is_connected:
-                    await rcon_client.connect()
+                await rcon_client.connect()
                 new_embed = await self.get_server_status_embed(server_conf, rcon_client)
             except Exception as e:
                 logging.error(f"Failed to generate status embed for '{server_conf['NAME']}'", exc_info=True)
-                rcon_client.close()  # Close the connection on error
+            finally:
+                await rcon_client.close()
 
             if not new_embed:
                 new_embed = self.create_offline_embed(server_conf)
