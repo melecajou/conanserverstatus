@@ -1,9 +1,16 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from a .env file
+load_dotenv()
+
 # Bot language. Options: 'en' for English, 'pt_BR' for Brazilian Portuguese.
 LANGUAGE = "pt_BR"
 
 # Your Discord Bot's Token.
+# It is strongly recommended to set this in a .env file.
 # NEVER share or commit this token to public repositories.
-STATUS_BOT_TOKEN = "YOUR_TOKEN_HERE"
+STATUS_BOT_TOKEN = os.getenv("STATUS_BOT_TOKEN")
 
 # List of servers to monitor.
 # You can add as many servers as you want, just copy the dictionary block.
@@ -12,7 +19,8 @@ SERVERS = [
             "NAME": "My Server 1 (Exiles)",
             "SERVER_IP" : "127.0.0.1",
             "RCON_PORT" : 25575,
-            "RCON_PASS" : "YOUR_RCON_PASSWORD_HERE",
+            # It is strongly recommended to set the RCON password in a .env file using RCON_PASS_0, RCON_PASS_1, etc.
+            "RCON_PASS" : os.getenv("RCON_PASS_0"),
             "STATUS_CHANNEL_ID" : 123456789012345678,
             "DB_PATH": "/path/to/your/server1/ConanSandbox/Saved/game.db",
             "LOG_PATH": "", # Optional: Absolute path to the ConanSandbox.log file for this server to show system stats. e.g., "/path/to/server/ConanSandbox/Saved/Logs/ConanSandbox.log",
@@ -32,7 +40,7 @@ SERVERS = [
             "NAME": "My Server 2 (Siptah)", 
             "SERVER_IP": "127.0.0.1",
             "RCON_PORT": 25576,
-            "RCON_PASS": "YOUR_OTHER_RCON_PASSWORD",
+            "RCON_PASS": os.getenv("RCON_PASS_1"),
             "STATUS_CHANNEL_ID": 987654321098765432,
             "DB_PATH": "", # Optional: Absolute path to the game.db file for this server to show player levels. e.g., "/path/to/server/ConanSandbox/Saved/game.db",
             # "LOG_PATH": "", # Optional: Absolute path to the ConanSandbox.log file for this server to show system stats. e.g., "/path/to/server/ConanSandbox/Saved/Logs/ConanSandbox.log",
@@ -44,7 +52,7 @@ SERVERS = [
             "NAME": "My Server 3 (PvP)",
             "SERVER_IP": "127.0.0.1",
             "RCON_PORT": 25577,
-            "RCON_PASS": "YOUR_PVP_RCON_PASSWORD",
+            "RCON_PASS": os.getenv("RCON_PASS_2"),
             "STATUS_CHANNEL_ID": 112233445566778899,
             "DB_PATH": "/path/to/your/pvp_server/ConanSandbox/Saved/game.db",
             
