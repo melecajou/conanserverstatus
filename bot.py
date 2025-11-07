@@ -9,34 +9,37 @@ import config
 from utils.database import initialize_player_tracker_db, DEFAULT_PLAYER_TRACKER_DB
 
 # --- INTERNATIONALIZATION (i18n) SETUP ---
-lang = getattr(config, 'LANGUAGE', 'en')
+lang = getattr(config, "LANGUAGE", "en")
 try:
-    translation = gettext.translation('messages', localedir='locale', languages=[lang])
+    translation = gettext.translation("messages", localedir="locale", languages=[lang])
     translation.install()
     _ = translation.gettext
 except FileNotFoundError:
     _ = gettext.gettext
 
 # --- LOGGING SETUP ---
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="[%(asctime)s] [%(levelname)s] - %(message)s"
+)
 
 # --- BOT SETUP ---
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 pending_registrations = {}
 bot._ = _
 
 # --- COG LIST ---
 # Add new cogs here
 COGS_TO_LOAD = [
-    'cogs.status',
-    'cogs.rewards',
-    'cogs.admin',
-    'cogs.registration',
-    'cogs.building',
-    'cogs.announcements',
+    "cogs.status",
+    "cogs.rewards",
+    "cogs.admin",
+    "cogs.registration",
+    "cogs.building",
+    "cogs.announcements",
 ]
+
 
 async def setup_hook():
     """A coroutine to be called to setup the bot."""
@@ -59,6 +62,7 @@ async def setup_hook():
         logging.info(f"Synced {len(synced)} command(s)")
     except Exception as e:
         logging.error(e)
+
 
 bot.setup_hook = setup_hook
 

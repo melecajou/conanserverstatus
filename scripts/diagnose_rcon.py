@@ -1,7 +1,7 @@
-
 import asyncio
 from aiomcrcon import Client, RCONConnectionError
 import config
+
 
 async def diagnose_rcon_connection():
     """
@@ -38,13 +38,16 @@ async def diagnose_rcon_connection():
 
     except RCONConnectionError as e:
         print(f"\n[FAILURE] A critical RCON connection error occurred: {e}")
-        print("This indicates a problem with the password, network, or server RCON port.")
+        print(
+            "This indicates a problem with the password, network, or server RCON port."
+        )
     except Exception as e:
         print(f"\n[FAILURE] An unexpected error occurred: {e}")
     finally:
         if client:
             await client.close()
             print("\nConnection closed.")
+
 
 if __name__ == "__main__":
     asyncio.run(diagnose_rcon_connection())
