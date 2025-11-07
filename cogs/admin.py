@@ -3,7 +3,7 @@ from discord import app_commands
 import discord
 import logging
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import config
 from utils.database import DEFAULT_PLAYER_TRACKER_DB
@@ -45,7 +45,7 @@ class AdminCog(commands.Cog, name="Admin"):
                     expiry_date_str = None
                     if result:
                         if vip_level > 0:
-                            expiry_date = datetime.utcnow() + timedelta(days=30)
+                            expiry_date = datetime.now(timezone.utc) + timedelta(days=30)
                             expiry_date_str = expiry_date.strftime("%Y-%m-%d")
 
                         cur.execute(
