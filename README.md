@@ -17,22 +17,16 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 The bot is organized into a modular, cog-based architecture for better maintainability and extensibility.
 
 - `bot.py`: The main entry point of the bot, responsible for initialization, loading cogs, and database setup.
-- `cogs/`: This directory contains individual cogs, each encapsulating specific features:
-    - `admin.py`: Provides administrative commands (e.g., setting VIP levels).
-    - `announcements.py`: Manages scheduled announcements.
-    - `building.py`: Handles automated building reports.
-    - `registration.py`: Manages player registration and account linking.
-    - `rewards.py`: Tracks player playtime and issues rewards.
-    - `status.py`: Manages live server status updates.
+- `cogs/`: This directory contains individual cogs, each encapsulating specific features.
 - `utils/`: Contains shared utility modules like database interactions and log parsing.
 - `data/`: Contains the SQLite databases for player time tracking.
 - `logs/`: Contains reward log files.
 - `locale/`: Contains language translation files.
-- `config.py`: The main configuration file. **This should not be committed to version control.**
+- `.env`: A file for storing sensitive information like your bot token and RCON passwords. This file is not committed to version control.
+- `.env.example`: A template for the `.env` file.
+- `config.py`: The main configuration file. This should not be committed to version control.
 - `config.py.example`: A template for `config.py`.
-- `buildings.sql`: The SQL script used by the Building Watcher feature.
-- `i18n_setup.py`: Utility for internationalization setup.
-- `scripts/`: Contains utility scripts for RCON diagnosis and testing.
+- `tests/`: Contains the test suite for the bot.
 
 ## Installation
 
@@ -54,12 +48,20 @@ pip install -r requirements.txt
 ```
 
 **4. Configure the Bot**
-Copy the example file and fill in your information.
+
+**a. Create the `.env` file:**
+Copy the example file to create your own `.env` file.
+```bash
+cp .env.example .env
+```
+Now, open the `.env` file and fill in your `STATUS_BOT_TOKEN` and the `RCON_PASS` for each of your servers.
+
+**b. Create the `config.py` file:**
+Copy the example file to create your own `config.py` file.
 ```bash
 cp config.py.example config.py
-nano config.py
 ```
-Inside `config.py`, you will need to fill in your bot token and the `SERVERS` list. See the comments within the example file for a detailed explanation of all configuration options, including the new `ANNOUNCEMENTS` and `BUILDING_WATCHER` blocks.
+Inside `config.py`, you will need to fill in the `SERVERS` list with the details of your game servers. The bot token and RCON passwords will be loaded automatically from your `.env` file.
 
 **Important**: When running the bot as a `systemd` service, ensure all file paths in `config.py` (like `DB_PATH`, `SQL_PATH`, etc.) are **absolute paths**, as the service does not run from your home directory.
 
