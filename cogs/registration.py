@@ -34,10 +34,10 @@ class RegistrationCog(commands.Cog, name="Registration"):
         name="register",
         description="Generates a code to link your in-game account.",
         name_localizations={
-            discord.Locale.brazil: "registrar",
+            "pt-BR": "registrar",
         },
         description_localizations={
-            discord.Locale.brazil: "Gera um código para vincular sua conta do jogo.",
+            "pt-BR": "Gera um código para vincular sua conta do jogo.",
         },
     )
     @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
@@ -95,19 +95,25 @@ class RegistrationCog(commands.Cog, name="Registration"):
         """Handles errors for the /register command."""
         if isinstance(error, app_commands.CommandOnCooldown):
             await interaction.response.send_message(
-                f"This command is on cooldown. Please try again in {error.retry_after:.1f} seconds.",
+                self.bot._(
+                    "This command is on cooldown. Please try again in {seconds:.1f} seconds."
+                ).format(seconds=error.retry_after),
                 ephemeral=True,
             )
         else:
             logging.error(f"Error in /register command: {error}")
             if not interaction.response.is_done():
                 await interaction.response.send_message(
-                    "An unexpected error occurred. Please contact an administrator.",
+                    self.bot._(
+                        "An unexpected error occurred. Please contact an administrator."
+                    ),
                     ephemeral=True,
                 )
             else:
                 await interaction.followup.send(
-                    "An unexpected error occurred. Please contact an administrator.",
+                    self.bot._(
+                        "An unexpected error occurred. Please contact an administrator."
+                    ),
                     ephemeral=True,
                 )
 

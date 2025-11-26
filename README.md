@@ -7,7 +7,7 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **Multi-Server Monitoring**: Tracks multiple servers simultaneously, each with its own configuration.
 - **Efficient Live Status**: Displays an auto-updating list of online players, including their in-game level and total playtime. This process is highly optimized, using asynchronous, non-blocking database queries to ensure minimal performance impact.
 - **Robust Playtime Rewards**: A per-server reward system with tiered VIP levels. The system is resilient, featuring a retry mechanism for reward delivery to handle temporary RCON connection issues.
-- **Player Registration and Account Linking**: A streamlined process for players to link their in-game character to their Discord account using a `/registrar` command and an in-game code. This enables personalized features and rewards.
+- **Player Registration and Account Linking**: A streamlined process for players to link their in-game character to their Discord account using a `/register` command and an in-game code. This enables personalized features and rewards.
 - **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members (`/setvip @User <level>`), which directly influences their reward intervals and other potential benefits.
 - **Isolated Data Paths**: Each server can be configured to use its own separate database and log file, preventing data mix-ups and allowing for independent operation.
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
@@ -22,6 +22,8 @@ The bot is organized into a modular, cog-based architecture for better maintaina
 - `data/`: Contains the SQLite databases for player time tracking.
 - `logs/`: Contains reward log files.
 - `locale/`: Contains language translation files.
+- `scripts/`: Contains utility scripts for RCON diagnosis and testing.
+- `sql/`: Contains SQL scripts used by features like the Building Watcher.
 - `.env`: A file for storing sensitive information like your bot token and RCON passwords. This file is not committed to version control.
 - `.env.example`: A template for the `.env` file.
 - `config.py`: The main configuration file. This should not be committed to version control.
