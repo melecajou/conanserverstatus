@@ -18,6 +18,11 @@ LOG_LINES_TO_READ = 20
 REGISTRATION_COMMAND_REGEX = re.compile(r"!register (\w+)")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
 
+# Language check decorator
+def is_lang(lang: str):
+    def predicate(interaction: discord.Interaction) -> bool:
+        return config.LANGUAGE == lang
+    return app_commands.check(predicate)
 
 class RegistrationCog(commands.Cog, name="Registration"):
     """Handles player registration and account linking."""
@@ -30,22 +35,8 @@ class RegistrationCog(commands.Cog, name="Registration"):
         """Clean up the cog before unloading."""
         self.process_registration_log_task.cancel()
 
-    @app_commands.command(
-        name="register",
-        description="Generates a code to link your in-game account.",
-        name_localizations={
-            "pt-BR": "registrar",
-        },
-        description_localizations={
-            "pt-BR": "Gera um código para vincular sua conta do jogo.",
-        },
-    )
-    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
-    async def register_command(self, interaction: discord.Interaction):
-        """
-        Handles the /register command, generating a unique code for the user
-        and sending them instructions via DM.
-        """
+    async def _register(self, interaction: discord.Interaction):
+        """Shared logic for the registration command."""
         await interaction.response.defer(ephemeral=True)
 
         registration_code = secrets.token_hex(4)
@@ -88,11 +79,32 @@ class RegistrationCog(commands.Cog, name="Registration"):
             )
             logging.error(f"Failed to send registration DM to {interaction.user}: {e}")
 
-    @register_command.error
+    @app_commands.command(
+        name="register",
+        description="Generates a code to link your in-game account.",
+    )
+    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
+    @is_lang("en")
+    async def register_command_en(self, interaction: discord.Interaction):
+        """The /register command for English users."""
+        await self._register(interaction)
+
+    @app_commands.command(
+        name="registrar",
+        description="Gera um código para vincular sua conta do jogo.",
+    )
+    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
+    @is_lang("pt_BR")
+    async def register_command_pt_br(self, interaction: discord.Interaction):
+        """The /registrar command for Brazilian Portuguese users."""
+        await self._register(interaction)
+
+    @register_command_en.error
+    @register_command_pt_br.error
     async def on_register_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
     ):
-        """Handles errors for the /register command."""
+        """Handles errors for the /register and /registrar commands."""
         if isinstance(error, app_commands.CommandOnCooldown):
             await interaction.response.send_message(
                 self.bot._(
@@ -101,7 +113,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
                 ephemeral=True,
             )
         else:
-            logging.error(f"Error in /register command: {error}")
+            logging.error(f"Error in registration command: {error}")
             if not interaction.response.is_done():
                 await interaction.response.send_message(
                     self.bot._(
