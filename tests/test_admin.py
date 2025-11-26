@@ -1,5 +1,4 @@
 import pytest
-import aiosqlite
 import sqlite3
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import AsyncMock, MagicMock
@@ -18,6 +17,7 @@ class TestAdminCog(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Set up the test environment for each test."""
         self.mock_bot = MagicMock()
+        # Correctly mock the translation function to return the key
         self.mock_bot._ = lambda s: s
 
         # The AdminCog uses synchronous sqlite3, so we'll use a file-based test database
@@ -70,7 +70,8 @@ class TestAdminCog(IsolatedAsyncioTestCase):
         await self.admin_cog.set_vip_command.callback(self.admin_cog, self.mock_interaction, mock_member, 1)
 
         self.mock_interaction.followup.send.assert_called_with(
-            "Nível de VIP para 'Test User' atualizado para 1.", ephemeral=True
+            "VIP level for '{member}' updated to {level}.".format(member="Test User", level=1),
+            ephemeral=True
         )
 
         with sqlite3.connect(self.db_path) as con:
@@ -91,7 +92,7 @@ class TestAdminCog(IsolatedAsyncioTestCase):
         await self.admin_cog.set_vip_command.callback(self.admin_cog, self.mock_interaction, mock_member, 1)
 
         self.mock_interaction.followup.send.assert_called_with(
-            "Não foi encontrada uma conta de jogo vinculada para o membro 'Unregistered User'. O usuário precisa primeiro usar o comando /registrar.",
+            "No linked game account was found for the member '{member}'. The user must first use the /register command.".format(member="Unregistered User"),
             ephemeral=True,
         )
 
@@ -106,5 +107,5 @@ class TestAdminCog(IsolatedAsyncioTestCase):
         await self.admin_cog.set_vip_command.callback(self.admin_cog, self.mock_interaction, mock_member, -1)
 
         self.mock_interaction.followup.send.assert_called_with(
-            "O nível de VIP não pode ser negativo.", ephemeral=True
+            "The VIP level cannot be negative.", ephemeral=True
         )

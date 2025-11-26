@@ -16,7 +16,7 @@ class AdminCog(commands.Cog, name="Admin"):
         self.bot = bot
 
     @app_commands.command(
-        name="setvip", description="Define o nível de VIP para um membro do Discord."
+        name="setvip", description="Sets the VIP level for a Discord member."
     )
     @app_commands.checks.has_permissions(administrator=True)
     async def set_vip_command(
@@ -26,7 +26,7 @@ class AdminCog(commands.Cog, name="Admin"):
 
         if vip_level < 0:
             await interaction.followup.send(
-                self.bot._("O nível de VIP não pode ser negativo."), ephemeral=True
+                self.bot._("The VIP level cannot be negative."), ephemeral=True
             )
             return
 
@@ -62,14 +62,14 @@ class AdminCog(commands.Cog, name="Admin"):
         if updated_in_server:
             await interaction.followup.send(
                 self.bot._(
-                    "Nível de VIP para '{member}' atualizado para {level}."
+                    "VIP level for '{member}' updated to {level}."
                 ).format(member=member.display_name, level=vip_level),
                 ephemeral=True,
             )
         else:
             await interaction.followup.send(
                 self.bot._(
-                    "Não foi encontrada uma conta de jogo vinculada para o membro '{member}'. O usuário precisa primeiro usar o comando /registrar."
+                    "No linked game account was found for the member '{member}'. The user must first use the /register command."
                 ).format(member=member.display_name),
                 ephemeral=True,
             )
