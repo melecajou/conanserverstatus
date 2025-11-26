@@ -34,10 +34,10 @@ class RegistrationCog(commands.Cog, name="Registration"):
         name="register",
         description="Generates a code to link your in-game account.",
         name_localizations={
-            discord.Locale.portuguese_brazilian: "registrar",
+            discord.Locale.brazil: "registrar",
         },
         description_localizations={
-            discord.Locale.portuguese_brazilian: "Gera um código para vincular sua conta do jogo.",
+            discord.Locale.brazil: "Gera um código para vincular sua conta do jogo.",
         },
     )
     @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
