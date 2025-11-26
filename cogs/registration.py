@@ -15,7 +15,7 @@ from utils.database import link_discord_to_character
 REGISTRATION_EXPIRY_MINUTES = 10
 LOG_SCAN_INTERVAL_SECONDS = 5
 LOG_LINES_TO_READ = 20
-REGISTRATION_COMMAND_REGEX = re.compile(r"!registrar (\w+)")
+REGISTRATION_COMMAND_REGEX = re.compile(r"!register (\w+)")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
 
 
@@ -31,7 +31,14 @@ class RegistrationCog(commands.Cog, name="Registration"):
         self.process_registration_log_task.cancel()
 
     @app_commands.command(
-        name="register", description="Generates a code to link your in-game account."
+        name="register",
+        description="Generates a code to link your in-game account.",
+        name_localizations={
+            discord.Locale.portuguese_brazilian: "registrar",
+        },
+        description_localizations={
+            discord.Locale.portuguese_brazilian: "Gera um código para vincular sua conta do jogo.",
+        },
     )
     @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
     async def register_command(self, interaction: discord.Interaction):
@@ -144,7 +151,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
         self, line: str, game_db_path: str, player_db_path: str, server_name: str
     ):
         """Parses a single log line for a registration code and processes it."""
-        if "!registrar" not in line:
+        if "!register" not in line:
             return
 
         code_match = REGISTRATION_COMMAND_REGEX.search(line)
