@@ -1,7 +1,7 @@
 from discord.ext import commands, tasks
 import discord
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 from aiomcrcon import Client, RCONConnectionError
 
@@ -54,6 +54,7 @@ class StatusCog(commands.Cog, name="Status"):
         The main task that periodically updates the status of all configured servers.
         This task runs every minute.
         """
+        total_online_players = 0
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
                 continue
@@ -73,8 +74,16 @@ class StatusCog(commands.Cog, name="Status"):
                 )
                 continue
 
-            new_embed = await self._get_server_status_embed(server_conf, rcon_client)
+            new_embed, player_count = await self._get_server_status_embed(
+                server_conf, rcon_client
+            )
+            total_online_players += player_count
             await self._update_status_message(channel, new_embed)
+
+        activity = discord.Game(
+            name=self._("Players Online: {count}").format(count=total_online_players)
+        )
+        await self.bot.change_presence(activity=activity)
 
     async def _update_status_message(
         self, channel: discord.TextChannel, embed: discord.Embed
@@ -194,7 +203,7 @@ class StatusCog(commands.Cog, name="Status"):
 
     async def _get_server_status_embed(
         self, server_config: dict, rcon_client: Client
-    ) -> discord.Embed:
+    ) -> Tuple[discord.Embed, int]:
         """
         Creates the embed for the server status, showing online players and server stats.
 
@@ -203,13 +212,13 @@ class StatusCog(commands.Cog, name="Status"):
             rcon_client: The RCON client for the server.
 
         Returns:
-            A discord.Embed object representing the server's status.
+            A tuple containing the discord.Embed object and the count of online players.
         """
         server_name = server_config["NAME"]
         player_lines = await self._get_player_lines(rcon_client, server_name)
 
         if player_lines is None:
-            return self._create_offline_embed(server_config)
+            return self._create_offline_embed(server_config), 0
 
         # Dispatch an event with the raw player lines for other cogs to use
         self.bot.dispatch(
@@ -274,7 +283,7 @@ class StatusCog(commands.Cog, name="Status"):
             footer_text += f" | Version: {system_stats['version']}"
         embed.set_footer(text=footer_text)
         embed.timestamp = discord.utils.utcnow()
-        return embed
+        return embed, len(online_players)
 
     def _create_offline_embed(self, server_conf: dict) -> discord.Embed:
         """
