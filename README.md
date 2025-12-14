@@ -63,7 +63,31 @@ Copy the example file to create your own `config.py` file.
 ```bash
 cp config.py.example config.py
 ```
-Inside `config.py`, you will need to fill in the `SERVERS` list with the details of your game servers. The bot token and RCON passwords will be loaded automatically from your `.env` file.
+Inside `config.py`, you will need to fill in the bot's `LANGUAGE` and the `SERVERS` list with the details of your game servers. The bot token and RCON passwords will be loaded automatically from your `.env` file.
+
+**Bot Language Configuration:**
+Set the `LANGUAGE` variable at the top of `config.py`. For example:
+```python
+LANGUAGE = "pt_BR" # or "en" for English
+```
+
+**Reward Configuration with VIP Tiers:**
+For each server in the `SERVERS` list, update the `REWARD_CONFIG` section to define reward intervals based on VIP levels. An example configuration demonstrating different intervals for VIP levels 0, 1, and 2 is shown below:
+
+```python
+            "REWARD_CONFIG": {
+                "ENABLED": True,
+                # INTERVALS_MINUTES allows different reward intervals based on VIP level.
+                # The key 0 represents the default VIP level.
+                "INTERVALS_MINUTES": {
+                    0: 60,  # Level 0 (Default): Reward every 60 minutes
+                    1: 30,  # Level 1 (VIP): Reward every 30 minutes
+                    2: 15   # Level 2 (Super VIP): Reward every 15 minutes
+                },
+                "REWARD_ITEM_ID": 10000000, # Replace with your desired in-game item ID
+                "REWARD_QUANTITY": 1        # Replace with the desired quantity
+            },
+```
 
 **Important**: When running the bot as a `systemd` service, ensure all file paths in `config.py` (like `DB_PATH`, `SQL_PATH`, etc.) are **absolute paths**, as the service does not run from your home directory.
 
