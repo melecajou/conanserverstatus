@@ -31,7 +31,13 @@ SERVERS = [
 
             "REWARD_CONFIG": {
                 "ENABLED": True,
-                "REWARD_INTERVAL_MINUTES": 120,
+                # INTERVALS_MINUTES allows different reward intervals based on VIP level.
+                # 0 is the default level.
+                "INTERVALS_MINUTES": {
+                    0: 60,  # Level 0 (Default): Reward every 60 minutes
+                    1: 30,  # Level 1 (VIP): Reward every 30 minutes
+                    2: 15   # Level 2 (Super VIP): Reward every 15 minutes
+                },
                 "REWARD_ITEM_ID": 10000000,
                 "REWARD_QUANTITY": 1
             }

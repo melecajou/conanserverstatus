@@ -180,7 +180,11 @@ class RewardsCog(commands.Cog, name="Rewards"):
             reward_config: The reward configuration for the server.
             online_players: A list of dictionaries representing the online players.
         """
-        reward_intervals = reward_config.get("INTERVALS_MINUTES", {0: 120})
+        if "INTERVALS_MINUTES" in reward_config:
+            reward_intervals = reward_config["INTERVALS_MINUTES"]
+        else:
+            default_interval = reward_config.get("REWARD_INTERVAL_MINUTES", 120)
+            reward_intervals = {0: default_interval}
 
         for player in online_players:
             platform_id = player["platform_id"]
