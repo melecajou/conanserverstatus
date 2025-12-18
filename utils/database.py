@@ -1,7 +1,7 @@
 import sqlite3
 import logging
 import os
-from typing import Dict, List
+from typing import Dict, List, Any
 
 # --- DATABASE SETUP ---
 DEFAULT_PLAYER_TRACKER_DB = "data/playertracker.db"
@@ -65,27 +65,30 @@ def get_batch_player_levels(db_path: str, char_names: List[str]) -> Dict[str, in
     return levels
 
 
-def get_batch_online_times(
+def get_batch_player_data(
     db_path: str, platform_ids: List[str], server_name: str
-) -> Dict[str, int]:
-    """Queries the player tracker database to get online times for a batch of players."""
-    times = {pid: 0 for pid in platform_ids}
+) -> Dict[str, Dict[str, Any]]:
+    """Queries the player tracker database to get data for a batch of players."""
+    player_data = {
+        pid: {"online_minutes": 0, "is_registered": False} for pid in platform_ids
+    }
     if not platform_ids:
-        return times
+        return player_data
     try:
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
             placeholders = ", ".join("?" * len(platform_ids))
             query_params = platform_ids + [server_name]
             cur.execute(
-                f"SELECT platform_id, online_minutes FROM player_time WHERE platform_id IN ({placeholders}) AND server_name = ?",
+                f"SELECT platform_id, online_minutes, discord_id FROM player_time WHERE platform_id IN ({placeholders}) AND server_name = ?",
                 query_params,
             )
-            for pid, minutes in cur.fetchall():
-                times[pid] = minutes
+            for pid, minutes, discord_id in cur.fetchall():
+                player_data[pid]["online_minutes"] = minutes
+                player_data[pid]["is_registered"] = bool(discord_id)
     except Exception as e:
-        logging.error(f"Could not read batch player online times from {db_path}: {e}")
-    return times
+        logging.error(f"Could not read batch player data from {db_path}: {e}")
+    return player_data
 
 
 def link_discord_to_character(

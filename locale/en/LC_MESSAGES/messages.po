@@ -89,3 +89,19 @@ msgstr "Command on cooldown. Try again in {seconds:.1f} seconds."
 #: conan_server_status.py:171
 msgid "Fatal error starting the bot: {error}"
 msgstr "Fatal error starting the bot: {error}"
+
+# Cluster Status Translations
+msgid "🌍 Cluster Status"
+msgstr "🌍 Cluster Status"
+
+msgid "Consolidated status of all servers."
+msgstr "Consolidated status of all servers."
+
+msgid "Total CPU"
+msgstr "Total CPU"
+
+msgid "Total Memory"
+msgstr "Total Memory"
+
+msgid "Cluster status updated"
+msgstr "Cluster status updated"

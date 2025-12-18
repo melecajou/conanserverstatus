@@ -5,6 +5,7 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 ## Features
 
 - **Multi-Server Monitoring**: Tracks multiple servers simultaneously, each with its own configuration.
+- **Consolidated Cluster Status**: Optionally consolidates the status of all servers into a single channel, providing a unified view of online players and aggregated system statistics.
 - **Efficient Live Status**: Displays an auto-updating list of online players, including their in-game level and total playtime. This process is highly optimized, using asynchronous, non-blocking database queries to ensure minimal performance impact.
 - **Robust Playtime Rewards**: A per-server reward system with tiered VIP levels. The system is resilient, featuring a retry mechanism for reward delivery to handle temporary RCON connection issues.
 - **Player Registration and Account Linking**: A streamlined process for players to link their in-game character to their Discord account using a `/register` command and an in-game code. This enables personalized features and rewards.
@@ -69,6 +70,19 @@ Inside `config.py`, you will need to fill in the bot's `LANGUAGE` and the `SERVE
 Set the `LANGUAGE` variable at the top of `config.py`. For example:
 ```python
 LANGUAGE = "pt_BR" # or "en" for English
+```
+
+**Cluster Status Configuration:**
+To enable a consolidated status message for all your servers:
+1.  In `config.py`, set `CLUSTER_STATUS["ENABLED"]` to `True`.
+2.  Set `CLUSTER_STATUS["CHANNEL_ID"]` to the ID of the Discord channel where you want the consolidated status to appear.
+3.  (Optional) Add an `"ALIAS"` key to each server in the `SERVERS` list to provide a shorter name for the cluster status display.
+
+```python
+CLUSTER_STATUS = {
+    "ENABLED": True,
+    "CHANNEL_ID": 123456789012345678
+}
 ```
 
 **Reward Configuration with VIP Tiers:**

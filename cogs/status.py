@@ -1,6 +1,7 @@
 from discord.ext import commands, tasks
 import discord
 import logging
+import re
 from typing import Dict, List, Optional, Any, Tuple
 
 from aiomcrcon import Client, RCONConnectionError
@@ -8,7 +9,7 @@ from aiomcrcon import Client, RCONConnectionError
 import config
 from utils.database import (
     get_batch_player_levels,
-    get_batch_online_times,
+    get_batch_player_data,
     DEFAULT_PLAYER_TRACKER_DB,
 )
 from utils.log_parser import parse_server_log
@@ -55,6 +56,8 @@ class StatusCog(commands.Cog, name="Status"):
         This task runs every minute.
         """
         total_online_players = 0
+        cluster_data = []
+
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
                 continue
@@ -74,16 +77,123 @@ class StatusCog(commands.Cog, name="Status"):
                 )
                 continue
 
-            new_embed, player_count = await self._get_server_status_embed(
+            new_embed, player_count, server_data = await self._get_server_status_embed(
                 server_conf, rcon_client
             )
             total_online_players += player_count
             await self._update_status_message(channel, new_embed)
 
+            if server_data:
+                cluster_data.append(server_data)
+
+        # Update consolidated cluster status if enabled
+        if hasattr(config, "CLUSTER_STATUS") and config.CLUSTER_STATUS.get(
+            "ENABLED", False
+        ):
+            await self._update_cluster_status(cluster_data, total_online_players)
+
         activity = discord.Game(
             name=self._("Players Online: {count}").format(count=total_online_players)
         )
         await self.bot.change_presence(activity=activity)
+
+    async def _update_cluster_status(
+        self, cluster_data: List[Dict[str, Any]], total_players: int
+    ):
+        """
+        Updates the consolidated cluster status message.
+
+        Args:
+            cluster_data: A list of dictionaries containing data for each online server.
+            total_players: The total number of players online across all servers.
+        """
+        channel_id = config.CLUSTER_STATUS.get("CHANNEL_ID")
+        channel = self.bot.get_channel(channel_id)
+        if not channel:
+            logging.error(f"Cluster status channel with ID {channel_id} not found.")
+            return
+
+        embed = discord.Embed(
+            title=self._("🌍 Cluster Status"),
+            description=self._("Consolidated status of all servers."),
+            color=discord.Color.gold(),
+        )
+
+        all_players_details = []
+        total_cpu = 0.0
+        total_memory_gb = 0.0
+
+        for server in cluster_data:
+            server_name = server["name"]
+            server_alias = server["alias"]
+            online_players = server["online_players"]
+            levels_map = server["levels_map"]
+            player_data_map = server["player_data_map"]
+            system_stats = server["system_stats"]
+
+            # Aggregate System Stats
+            if system_stats.get("cpu"):
+                try:
+                    cpu_val = float(system_stats["cpu"].replace("%", ""))
+                    total_cpu += cpu_val
+                except ValueError:
+                    pass
+
+            if system_stats.get("memory"):
+                try:
+                    mem_val = float(system_stats["memory"].replace(" GB", ""))
+                    total_memory_gb += mem_val
+                except ValueError:
+                    pass
+
+            # Format Player Details with Server Alias
+            for player in online_players:
+                level = levels_map.get(player["char_name"], 0)
+                p_data = player_data_map.get(
+                    player["platform_id"], {"online_minutes": 0, "is_registered": False}
+                )
+                online_minutes = p_data["online_minutes"]
+                is_registered = p_data["is_registered"]
+
+                p_hours, p_minutes = divmod(online_minutes, 60)
+                playtime_str = f"{p_hours}h {p_minutes}m"
+
+                detail_line = f"• {player['char_name']}"
+                if level > 0:
+                    detail_line += f" ({level})"
+                detail_line += f" - {playtime_str} ({server_alias})"
+
+                if is_registered:
+                    detail_line += " ✅"
+                else:
+                    detail_line += " ❓"
+
+                all_players_details.append(detail_line)
+
+        if all_players_details:
+            embed.add_field(
+                name=self._("Online Players ({count})").format(count=total_players),
+                value="\n".join(all_players_details),
+                inline=False,
+            )
+        else:
+            embed.add_field(
+                name=self._("Online Players (0)"),
+                value=self._("No one is playing at the moment."),
+                inline=False,
+            )
+
+        embed.add_field(
+            name=self._("Total CPU"), value=f"{total_cpu:.1f}%", inline=True
+        )
+        embed.add_field(
+            name=self._("Total Memory"), value=f"{total_memory_gb:.2f} GB", inline=True
+        )
+
+        embed.set_footer(text=self._("Cluster status updated"))
+        embed.timestamp = discord.utils.utcnow()
+
+        await self._update_status_message(channel, embed)
 
     async def _update_status_message(
         self, channel: discord.TextChannel, embed: discord.Embed
@@ -175,7 +285,7 @@ class StatusCog(commands.Cog, name="Status"):
         self,
         online_players: List[Dict[str, Any]],
         levels_map: Dict[str, int],
-        times_map: Dict[str, int],
+        player_data_map: Dict[str, Dict[str, Any]],
     ) -> List[str]:
         """
         Formats the details of each online player into a list of strings.
@@ -183,7 +293,7 @@ class StatusCog(commands.Cog, name="Status"):
         Args:
             online_players: A list of dictionaries representing the online players.
             levels_map: A dictionary mapping character names to their levels.
-            times_map: A dictionary mapping platform IDs to their online minutes.
+            player_data_map: A dictionary mapping platform IDs to their data.
 
         Returns:
             A list of strings, where each string is a formatted line of player details.
@@ -191,19 +301,30 @@ class StatusCog(commands.Cog, name="Status"):
         player_details = []
         for player in online_players:
             level = levels_map.get(player["char_name"], 0)
-            online_minutes = times_map.get(player["platform_id"], 0)
+            p_data = player_data_map.get(
+                player["platform_id"], {"online_minutes": 0, "is_registered": False}
+            )
+            online_minutes = p_data["online_minutes"]
+            is_registered = p_data["is_registered"]
+
             p_hours, p_minutes = divmod(online_minutes, 60)
             playtime_str = f"{p_hours}h {p_minutes}m"
             detail_line = f"• {player['char_name']}"
             if level > 0:
                 detail_line += f" ({level})"
             detail_line += f" - {playtime_str}"
+
+            if is_registered:
+                detail_line += " ✅"
+            else:
+                detail_line += " ❓"
+
             player_details.append(detail_line)
         return player_details
 
     async def _get_server_status_embed(
         self, server_config: dict, rcon_client: Client
-    ) -> Tuple[discord.Embed, int]:
+    ) -> Tuple[discord.Embed, int, Optional[Dict[str, Any]]]:
         """
         Creates the embed for the server status, showing online players and server stats.
 
@@ -212,13 +333,14 @@ class StatusCog(commands.Cog, name="Status"):
             rcon_client: The RCON client for the server.
 
         Returns:
-            A tuple containing the discord.Embed object and the count of online players.
+            A tuple containing the discord.Embed object, the count of online players,
+            and a dictionary with server data (or None if offline).
         """
         server_name = server_config["NAME"]
         player_lines = await self._get_player_lines(rcon_client, server_name)
 
         if player_lines is None:
-            return self._create_offline_embed(server_config), 0
+            return self._create_offline_embed(server_config), 0, None
 
         # Dispatch an event with the raw player lines for other cogs to use
         self.bot.dispatch(
@@ -240,19 +362,31 @@ class StatusCog(commands.Cog, name="Status"):
             color=discord.Color.green(),
         )
 
+        server_data = {
+            "name": server_name,
+            "alias": server_config.get("ALIAS", server_name),
+            "online_players": online_players,
+            "system_stats": system_stats,
+            "levels_map": {},
+            "player_data_map": {},
+        }
+
         if online_players:
             char_names = [p["char_name"] for p in online_players]
             platform_ids = [p["platform_id"] for p in online_players]
             levels_map = get_batch_player_levels(
                 server_config.get("DB_PATH"), char_names
             )
-            times_map = get_batch_online_times(
+            player_data_map = get_batch_player_data(
                 server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB),
                 platform_ids,
                 server_name,
             )
+            server_data["levels_map"] = levels_map
+            server_data["player_data_map"] = player_data_map
+
             player_details = self._format_player_details(
-                online_players, levels_map, times_map
+                online_players, levels_map, player_data_map
             )
             embed.add_field(
                 name=self._("Online Players ({count})").format(
@@ -283,7 +417,7 @@ class StatusCog(commands.Cog, name="Status"):
             footer_text += f" | Version: {system_stats['version']}"
         embed.set_footer(text=footer_text)
         embed.timestamp = discord.utils.utcnow()
-        return embed, len(online_players)
+        return embed, len(online_players), server_data
 
     def _create_offline_embed(self, server_conf: dict) -> discord.Embed:
         """

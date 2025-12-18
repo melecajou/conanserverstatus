@@ -12,11 +12,19 @@ LANGUAGE = "pt_BR"
 # NEVER share or commit this token to public repositories.
 STATUS_BOT_TOKEN = os.getenv("STATUS_BOT_TOKEN")
 
+# Cluster Status Configuration
+# Consolidates status from all servers into a single channel.
+CLUSTER_STATUS = {
+    "ENABLED": False,
+    "CHANNEL_ID": 123456789012345678
+}
+
 # List of servers to monitor.
 # You can add as many servers as you want, just copy the dictionary block.
 SERVERS = [
         {
             "NAME": "My Server 1 (Exiles)",
+            "ALIAS": "Exiles",
             "SERVER_IP" : "127.0.0.1",
             "RCON_PORT" : 25575,
             # It is strongly recommended to set the RCON password in a .env file using RCON_PASS_0, RCON_PASS_1, etc.

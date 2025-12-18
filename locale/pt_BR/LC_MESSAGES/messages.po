@@ -286,3 +286,19 @@ msgstr ""
 #: cogs/rewards.py:62
 msgid "Sucesso! Sua conta do jogo '{char}' foi vinculada à sua conta do Discord."
 msgstr "Sucesso! Sua conta do jogo '{char}' foi vinculada à sua conta do Discord."
+
+# Cluster Status Translations
+msgid "🌍 Cluster Status"
+msgstr "🌍 Status do Cluster"
+
+msgid "Consolidated status of all servers."
+msgstr "Status consolidado de todos os servidores."
+
+msgid "Total CPU"
+msgstr "CPU Total"
+
+msgid "Total Memory"
+msgstr "Memória Total"
+
+msgid "Cluster status updated"
+msgstr "Status do cluster atualizado"
