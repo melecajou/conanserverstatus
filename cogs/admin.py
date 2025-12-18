@@ -16,61 +16,38 @@ class AdminCog(commands.Cog, name="Admin"):
         self.bot = bot
 
     @app_commands.command(
-        name="setvip", description="Sets the VIP level for a Discord member."
+        name="setvip",
+        description="Sets the VIP level for a member.",
     )
-    @app_commands.checks.has_permissions(administrator=True)
-    async def set_vip_command(
-        self, interaction: discord.Interaction, member: discord.Member, vip_level: int
+    @app_commands.describe(
+        member="The Discord member to set the VIP level for.",
+        level="The VIP level (0 = None, 1 = VIP, 2 = Super VIP, etc.)",
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def setvip(
+        self, interaction: discord.Interaction, member: discord.Member, level: int
     ):
-        await interaction.response.defer(ephemeral=True)
-
-        if vip_level < 0:
-            await interaction.followup.send(
+        """Sets the VIP level for a Discord member globally."""
+        if level < 0:
+            await interaction.response.send_message(
                 self.bot._("The VIP level cannot be negative."), ephemeral=True
             )
             return
 
-        updated_in_server = None
-        for server_conf in config.SERVERS:
-            db_path = server_conf.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
-            try:
-                with sqlite3.connect(db_path) as con:
-                    cur = con.cursor()
-                    cur.execute(
-                        "SELECT platform_id FROM player_time WHERE discord_id = ?",
-                        (str(member.id),),
-                    )
-                    result = cur.fetchone()
+        from utils.database import set_global_vip
+        success = set_global_vip(member.id, level)
 
-                    expiry_date_str = None
-                    if result:
-                        if vip_level > 0:
-                            expiry_date = datetime.now(timezone.utc) + timedelta(days=30)
-                            expiry_date_str = expiry_date.strftime("%Y-%m-%d")
-
-                        cur.execute(
-                            "UPDATE player_time SET vip_level = ?, vip_expiry_date = ? WHERE discord_id = ?",
-                            (vip_level, expiry_date_str, str(member.id)),
-                        )
-                        con.commit()
-                        updated_in_server = server_conf["NAME"]
-            except Exception as e:
-                logging.error(
-                    f"Error in setvip command for server {server_conf['NAME']}: {e}"
+        if success:
+            await interaction.response.send_message(
+                self.bot._("VIP level for '{member}' updated to {level}.").format(
+                    member=member.display_name, level=level
                 )
-
-        if updated_in_server:
-            await interaction.followup.send(
-                self.bot._(
-                    "VIP level for '{member}' updated to {level}."
-                ).format(member=member.display_name, level=vip_level),
-                ephemeral=True,
             )
         else:
-            await interaction.followup.send(
+            await interaction.response.send_message(
                 self.bot._(
-                    "No linked game account was found for the member '{member}'. The user must first use the /register command."
-                ).format(member=member.display_name),
+                    "An error occurred while updating the VIP level. Please check the logs."
+                ),
                 ephemeral=True,
             )
 

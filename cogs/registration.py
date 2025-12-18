@@ -9,7 +9,7 @@ import os
 
 import config
 from bot import pending_registrations
-from utils.database import link_discord_to_character
+from utils.database import link_discord_to_character, link_discord_to_platform
 
 # Constants
 REGISTRATION_EXPIRY_MINUTES = 10
@@ -187,7 +187,9 @@ class RegistrationCog(commands.Cog, name="Registration"):
         logging.info(
             f"Registration code {code} used by character {char_name}. Attempting to link..."
         )
-        success = link_discord_to_character(
+        
+        # Link in server-specific DB (ensures platform_id is known locally)
+        success_local = link_discord_to_character(
             player_tracker_db_path=player_db_path,
             game_db_path=game_db_path,
             server_name=server_name,
@@ -195,7 +197,24 @@ class RegistrationCog(commands.Cog, name="Registration"):
             char_name=char_name,
         )
 
-        if success:
+        if success_local:
+            # Get the platform_id that was just identified
+            import sqlite3
+            platform_id = None
+            try:
+                with sqlite3.connect(player_db_path) as con:
+                    cur = con.cursor()
+                    cur.execute("SELECT platform_id FROM player_time WHERE server_name = ? AND discord_id = ?", (server_name, str(discord_id)))
+                    row = cur.fetchone()
+                    if row:
+                        platform_id = row[0]
+            except Exception as e:
+                logging.error(f"Error retrieving platform_id after link: {e}")
+
+            # Link globally
+            if platform_id:
+                link_discord_to_platform(platform_id, discord_id)
+
             logging.info(
                 f"Successfully linked Discord user {discord_id} to character {char_name} on server {server_name}."
             )

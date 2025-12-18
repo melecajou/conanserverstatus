@@ -10,6 +10,7 @@ import config
 from utils.database import (
     get_batch_player_levels,
     get_batch_player_data,
+    get_global_player_data,
     DEFAULT_PLAYER_TRACKER_DB,
 )
 from utils.log_parser import parse_server_log
@@ -140,6 +141,7 @@ class StatusCog(commands.Cog, name="Status"):
             online_players = server["online_players"]
             levels_map = server["levels_map"]
             player_data_map = server["player_data_map"]
+            global_data_map = server.get("global_data_map", {})
             system_stats = server["system_stats"]
 
             # Aggregate System Stats
@@ -163,8 +165,15 @@ class StatusCog(commands.Cog, name="Status"):
                 p_data = player_data_map.get(
                     player["platform_id"], {"online_minutes": 0, "is_registered": False}
                 )
+                
+                # Registration status from global data
+                is_registered = False
+                if player["platform_id"] in global_data_map:
+                    is_registered = bool(global_data_map[player["platform_id"]]["discord_id"])
+                else:
+                    is_registered = p_data["is_registered"]
+
                 online_minutes = p_data["online_minutes"]
-                is_registered = p_data["is_registered"]
 
                 p_hours, p_minutes = divmod(online_minutes, 60)
                 playtime_str = f"{p_hours}h {p_minutes}m"
@@ -310,6 +319,7 @@ class StatusCog(commands.Cog, name="Status"):
         online_players: List[Dict[str, Any]],
         levels_map: Dict[str, int],
         player_data_map: Dict[str, Dict[str, Any]],
+        global_data_map: Dict[str, Dict[str, Any]] = None,
     ) -> List[str]:
         """
         Formats the details of each online player into a list of strings.
@@ -318,6 +328,7 @@ class StatusCog(commands.Cog, name="Status"):
             online_players: A list of dictionaries representing the online players.
             levels_map: A dictionary mapping character names to their levels.
             player_data_map: A dictionary mapping platform IDs to their data.
+            global_data_map: A dictionary mapping platform IDs to global data.
 
         Returns:
             A list of strings, where each string is a formatted line of player details.
@@ -328,8 +339,15 @@ class StatusCog(commands.Cog, name="Status"):
             p_data = player_data_map.get(
                 player["platform_id"], {"online_minutes": 0, "is_registered": False}
             )
+            
+            # Registration status comes from global data now
+            is_registered = False
+            if global_data_map and player["platform_id"] in global_data_map:
+                is_registered = bool(global_data_map[player["platform_id"]]["discord_id"])
+            else:
+                is_registered = p_data["is_registered"] # Fallback
+
             online_minutes = p_data["online_minutes"]
-            is_registered = p_data["is_registered"]
 
             p_hours, p_minutes = divmod(online_minutes, 60)
             playtime_str = f"{p_hours}h {p_minutes}m"
@@ -406,11 +424,14 @@ class StatusCog(commands.Cog, name="Status"):
                 platform_ids,
                 server_name,
             )
+            global_data_map = get_global_player_data(platform_ids)
+
             server_data["levels_map"] = levels_map
             server_data["player_data_map"] = player_data_map
+            server_data["global_data_map"] = global_data_map
 
             player_details = self._format_player_details(
-                online_players, levels_map, player_data_map
+                online_players, levels_map, player_data_map, global_data_map
             )
             embed.add_field(
                 name=self._("Online Players ({count})").format(

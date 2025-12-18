@@ -6,6 +6,7 @@ import os
 import shutil
 
 import config
+from utils.database import get_global_player_data
 
 
 def get_platform_id_for_player(player_id, game_db_path):
@@ -23,22 +24,17 @@ def get_platform_id_for_player(player_id, game_db_path):
         return None
 
 
-def get_vip_level_for_player(platform_id, player_db_path):
-    """Gets the VIP level for a given platform ID from the player tracker DB."""
-    if not platform_id or not os.path.exists(player_db_path):
+def get_vip_level_for_player(platform_id):
+    """Gets the VIP level for a given platform ID from the global registry."""
+    if not platform_id:
         return 0
     try:
-        with sqlite3.connect(f"file:{player_db_path}?mode=ro", uri=True) as con:
-            cur = con.cursor()
-            cur.execute(
-                "SELECT vip_level FROM player_time WHERE platform_id = ?",
-                (platform_id,),
-            )
-            result = cur.fetchone()
-            return result[0] if result else 0
+        data = get_global_player_data([platform_id])
+        if platform_id in data:
+            return data[platform_id]["vip_level"]
     except Exception as e:
         logging.error(f"Failed to get VIP level for platform {platform_id}: {e}")
-        return 0
+    return 0
 
 
 def get_owner_details(owner_id, game_db_path, player_db_path):
@@ -66,9 +62,7 @@ def get_owner_details(owner_id, game_db_path, player_db_path):
                             member_pid[0], game_db_path
                         )
                         if platform_id:
-                            vip_level = get_vip_level_for_player(
-                                platform_id, player_db_path
-                            )
+                            vip_level = get_vip_level_for_player(platform_id)
                             if vip_level > max_vip:
                                 max_vip = vip_level
                 return guild_name, max_vip, "guild"
@@ -82,7 +76,7 @@ def get_owner_details(owner_id, game_db_path, player_db_path):
                 char_name, player_id = char_result
                 platform_id = get_platform_id_for_player(player_id, game_db_path)
                 if platform_id:
-                    vip_level = get_vip_level_for_player(platform_id, player_db_path)
+                    vip_level = get_vip_level_for_player(platform_id)
                     return char_name, vip_level, "player"
 
     except Exception as e:

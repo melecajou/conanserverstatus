@@ -6,7 +6,12 @@ import discord
 from discord.ext import commands
 
 import config
-from utils.database import initialize_player_tracker_db, DEFAULT_PLAYER_TRACKER_DB
+from utils.database import (
+    initialize_player_tracker_db,
+    initialize_global_db,
+    migrate_to_global_db,
+    DEFAULT_PLAYER_TRACKER_DB,
+)
 
 # --- INTERNATIONALIZATION (i18n) SETUP ---
 lang = getattr(config, "LANGUAGE", "en")
@@ -43,10 +48,18 @@ COGS_TO_LOAD = [
 
 async def setup_hook():
     """A coroutine to be called to setup the bot."""
-    # Initialize databases
+    # Initialize global registry
+    initialize_global_db()
+    
+    # Collect all server DB paths for migration
+    server_dbs = []
     for server_config in config.SERVERS:
         db_path = server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
+        server_dbs.append(db_path)
         initialize_player_tracker_db(db_path)
+
+    # Perform migration to global registry
+    migrate_to_global_db(server_dbs)
 
     # Load cogs
     for cog in COGS_TO_LOAD:

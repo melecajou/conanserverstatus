@@ -133,29 +133,55 @@ class RewardsCog(commands.Cog, name="Rewards"):
         reward_intervals: Dict[int, int],
     ) -> Optional[tuple]:
         """
-        Retrieves a player's reward status from the database.
+        Retrieves a player's reward status using global VIP data.
 
         Args:
-            db: The database connection.
+            db: The server-specific database connection for playtime.
             server_name: The name of the server.
             platform_id: The platform ID of the player.
             reward_intervals: A dictionary mapping VIP levels to reward intervals.
 
         Returns:
             A tuple containing the player's online minutes, last rewarded hour, and reward interval,
-            or None if the player is not eligible for a reward.
+            or None if the player is not registered or found.
         """
+        # 1. Get online minutes and last rewarded hour from local DB
         async with db.cursor() as cur:
             await cur.execute(
-                "SELECT online_minutes, last_rewarded_hour, discord_id, vip_level FROM player_time WHERE platform_id = ? AND server_name = ?",
+                "SELECT online_minutes, last_rewarded_hour FROM player_time WHERE platform_id = ? AND server_name = ?",
                 (platform_id, server_name),
             )
             result = await cur.fetchone()
+        
+        if not result:
+            return None
+            
+        online_minutes, last_rewarded_hour = result
 
-        if not result or result[2] is None or result[2] == "":
+        # 2. Get global discord_id and VIP level
+        import sqlite3
+        from utils.database import GLOBAL_DB_PATH
+        
+        discord_id = None
+        vip_level = 0
+        
+        try:
+            with sqlite3.connect(f"file:{GLOBAL_DB_PATH}?mode=ro", uri=True) as g_con:
+                g_cur = g_con.cursor()
+                g_cur.execute("SELECT discord_id FROM user_identities WHERE platform_id = ?", (platform_id,))
+                res_id = g_cur.fetchone()
+                if res_id:
+                    discord_id = res_id[0]
+                    g_cur.execute("SELECT vip_level FROM discord_vips WHERE discord_id = ?", (discord_id,))
+                    res_vip = g_cur.fetchone()
+                    if res_vip:
+                        vip_level = res_vip[0]
+        except Exception as e:
+            logging.error(f"Error fetching global reward status for {platform_id}: {e}")
+
+        if not discord_id:
             return None
 
-        online_minutes, last_rewarded_hour, _, vip_level = result
         reward_interval = reward_intervals.get(
             vip_level, reward_intervals.get(0, 120)
         )
