@@ -7,10 +7,10 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **Multi-Server Monitoring**: Tracks multiple servers simultaneously, each with its own configuration.
 - **Consolidated Cluster Status**: Optionally consolidates the status of all servers into a single channel, providing a unified view of online players and aggregated system statistics.
 - **Efficient Live Status**: Displays an auto-updating list of online players, including their in-game level and total playtime. This process is highly optimized, using asynchronous, non-blocking database queries to ensure minimal performance impact.
-- **Robust Playtime Rewards**: A per-server reward system with tiered VIP levels. The system is resilient, featuring a retry mechanism for reward delivery to handle temporary RCON connection issues.
-- **Player Registration and Account Linking**: A streamlined process for players to link their in-game character to their Discord account using a `/register` command and an in-game code. This enables personalized features and rewards.
-- **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members (`/setvip @User <level>`), which directly influences their reward intervals and other potential benefits.
-- **Isolated Data Paths**: Each server can be configured to use its own separate database and log file, preventing data mix-ups and allowing for independent operation.
+- **Robust Playtime Rewards**: A per-server reward system with tiered VIP levels. VIP status is now **centralized globally** by Discord account, meaning a VIP player enjoys benefits across all servers in your cluster.
+- **Global Player Registration**: A streamlined process for players to link their in-game character to their Discord account using a `/register` command. Once registered on any server, the player is automatically recognized on **all other servers** in the cluster without needing to register again.
+- **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members (`/setvip @User <level>`). This command updates the user's status **globally** across the entire cluster.
+- **Isolated Data Paths**: Each server uses its own separate database for stats, while player identity and VIP status are managed in a unified global registry (`data/global_registry.db`).
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
 
 ## Project Structure
@@ -20,7 +20,7 @@ The bot is organized into a modular, cog-based architecture for better maintaina
 - `bot.py`: The main entry point of the bot, responsible for initialization, loading cogs, and database setup.
 - `cogs/`: This directory contains individual cogs, each encapsulating specific features.
 - `utils/`: Contains shared utility modules like database interactions and log parsing.
-- `data/`: Contains the SQLite databases for player time tracking.
+- `data/`: Contains the SQLite databases. `global_registry.db` stores identities and VIPs, while `playertracker_*.db` store server-specific stats.
 - `logs/`: Contains reward log files.
 - `locale/`: Contains language translation files.
 - `scripts/`: Contains utility scripts for RCON diagnosis and testing.
