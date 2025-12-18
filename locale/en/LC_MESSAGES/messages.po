@@ -105,3 +105,6 @@ msgstr "Total Memory"
 
 msgid "Cluster status updated"
 msgstr "Cluster status updated"
+
+msgid "Servers"
+msgstr "Servers"

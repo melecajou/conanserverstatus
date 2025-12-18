@@ -57,6 +57,7 @@ class StatusCog(commands.Cog, name="Status"):
         """
         total_online_players = 0
         cluster_data = []
+        server_statuses = []
 
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
@@ -83,14 +84,20 @@ class StatusCog(commands.Cog, name="Status"):
             total_online_players += player_count
             await self._update_status_message(channel, new_embed)
 
+            alias = server_conf.get("ALIAS", server_conf["NAME"])
             if server_data:
                 cluster_data.append(server_data)
+                server_statuses.append({"alias": alias, "online": True})
+            else:
+                server_statuses.append({"alias": alias, "online": False})
 
         # Update consolidated cluster status if enabled
         if hasattr(config, "CLUSTER_STATUS") and config.CLUSTER_STATUS.get(
             "ENABLED", False
         ):
-            await self._update_cluster_status(cluster_data, total_online_players)
+            await self._update_cluster_status(
+                cluster_data, total_online_players, server_statuses
+            )
 
         activity = discord.Game(
             name=self._("Players Online: {count}").format(count=total_online_players)
@@ -98,7 +105,10 @@ class StatusCog(commands.Cog, name="Status"):
         await self.bot.change_presence(activity=activity)
 
     async def _update_cluster_status(
-        self, cluster_data: List[Dict[str, Any]], total_players: int
+        self,
+        cluster_data: List[Dict[str, Any]],
+        total_players: int,
+        server_statuses: List[Dict[str, Any]],
     ):
         """
         Updates the consolidated cluster status message.
@@ -106,6 +116,7 @@ class StatusCog(commands.Cog, name="Status"):
         Args:
             cluster_data: A list of dictionaries containing data for each online server.
             total_players: The total number of players online across all servers.
+            server_statuses: A list of dictionaries with alias and online status for all servers.
         """
         channel_id = config.CLUSTER_STATUS.get("CHANNEL_ID")
         channel = self.bot.get_channel(channel_id)
@@ -180,6 +191,19 @@ class StatusCog(commands.Cog, name="Status"):
             embed.add_field(
                 name=self._("Online Players (0)"),
                 value=self._("No one is playing at the moment."),
+                inline=False,
+            )
+
+        # Server Status Field
+        status_lines = []
+        for s in server_statuses:
+            icon = "✅" if s["online"] else "❌"
+            status_lines.append(f"{icon} {s['alias']}")
+
+        if status_lines:
+            embed.add_field(
+                name=self._("Servers"),
+                value="\n".join(status_lines),
                 inline=False,
             )
 

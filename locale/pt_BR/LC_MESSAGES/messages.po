@@ -302,3 +302,6 @@ msgstr "Memória Total"
 
 msgid "Cluster status updated"
 msgstr "Status do cluster atualizado"
+
+msgid "Servers"
+msgstr "Servidores"
