@@ -9,7 +9,10 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **Efficient Live Status**: Displays an auto-updating list of online players, including their in-game level and total playtime. This process is highly optimized, using asynchronous, non-blocking database queries to ensure minimal performance impact.
 - **Robust Playtime Rewards**: A per-server reward system with tiered VIP levels. VIP status is now **centralized globally** by Discord account, meaning a VIP player enjoys benefits across all servers in your cluster.
 - **Global Player Registration**: A streamlined process for players to link their in-game character to their Discord account using a `/register` command. Once registered on any server, the player is automatically recognized on **all other servers** in the cluster without needing to register again.
-- **Admin Commands**: Provides administrative functionalities, such as setting VIP levels for Discord members (`/setvip @User <level>`). This command updates the user's status **globally** across the entire cluster.
+- **Automated Role Assignment**: Automatically assigns a specific Discord role to users upon successful registration. Includes a sync command to retroactively apply roles to already registered users.
+- **Admin Commands**: Provides administrative functionalities:
+    - `/setvip @User <level>`: Sets the user's VIP level **globally** across the entire cluster.
+    - `/sync_roles`: (Admin only) Iterates through all player databases and assigns the configured registered role to any user who has linked their account but doesn't have the role yet.
 - **Isolated Data Paths**: Each server uses its own separate database for stats, while player identity and VIP status are managed in a unified global registry (`data/global_registry.db`).
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
 
@@ -102,6 +105,15 @@ For each server in the `SERVERS` list, update the `REWARD_CONFIG` section to def
                 "REWARD_QUANTITY": 1        # Replace with the desired quantity
             },
 ```
+
+**Registered User Role Configuration:**
+To automatically assign a role to registered users:
+1.  In `config.py`, set `REGISTERED_ROLE_ID` to the ID of the Discord role you want to give.
+    ```python
+    REGISTERED_ROLE_ID = 123456789012345678
+    ```
+2.  **Permissions**: Ensure the Bot's own role is **higher** in the Discord server settings > Roles list than the role it is trying to assign. Also, the bot must have the "Manage Roles" permission.
+3.  **Syncing**: After configuring this for the first time, run the `/sync_roles` command in Discord (Admin only) to give the role to all users who are already registered.
 
 **Important**: When running the bot as a `systemd` service, ensure all file paths in `config.py` (like `DB_PATH`, `SQL_PATH`, etc.) are **absolute paths**, as the service does not run from your home directory.
 
