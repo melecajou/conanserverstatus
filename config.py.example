@@ -12,6 +12,10 @@ LANGUAGE = "pt_BR"
 # NEVER share or commit this token to public repositories.
 STATUS_BOT_TOKEN = os.getenv("STATUS_BOT_TOKEN")
 
+# Role ID to be assigned to registered users.
+# Set to None or 0 to disable this feature.
+REGISTERED_ROLE_ID = 123456789012345678
+
 # Cluster Status Configuration
 # Consolidates status from all servers into a single channel.
 CLUSTER_STATUS = {

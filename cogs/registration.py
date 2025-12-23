@@ -44,6 +44,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
         registration_code = secrets.token_hex(4)
         pending_registrations[registration_code] = {
             "discord_id": interaction.user.id,
+            "guild_id": interaction.guild_id,
             "expires_at": datetime.now(timezone.utc)
             + timedelta(minutes=REGISTRATION_EXPIRY_MINUTES),
         }
@@ -110,6 +111,73 @@ class RegistrationCog(commands.Cog, name="Registration"):
                     ephemeral=True,
                 )
 
+    @app_commands.command(
+        name="sync_roles",
+        description="Syncs the registered role to all linked users (Admin only).",
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def sync_roles_command(self, interaction: discord.Interaction):
+        """
+        Iterates through all player databases, finds linked Discord users,
+        and assigns the registered role to them in the current guild.
+        """
+        if not hasattr(config, "REGISTERED_ROLE_ID") or not config.REGISTERED_ROLE_ID:
+            await interaction.response.send_message(
+                "REGISTERED_ROLE_ID is not configured.", ephemeral=True
+            )
+            return
+
+        role = interaction.guild.get_role(config.REGISTERED_ROLE_ID)
+        if not role:
+            await interaction.response.send_message(
+                f"Role with ID {config.REGISTERED_ROLE_ID} not found in this guild.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        count = 0
+        import sqlite3
+        
+        # Collect all unique Discord IDs from all configured servers
+        linked_discord_ids = set()
+        
+        for server in config.SERVERS:
+            player_db = server.get("PLAYER_DB_PATH")
+            if not player_db or not os.path.exists(player_db):
+                continue
+                
+            try:
+                with sqlite3.connect(player_db) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT DISTINCT discord_id FROM player_time WHERE discord_id IS NOT NULL")
+                    rows = cursor.fetchall()
+                    for row in rows:
+                        if row[0]:
+                            try:
+                                linked_discord_ids.add(int(row[0]))
+                            except ValueError:
+                                pass
+            except Exception as e:
+                logging.error(f"Error reading DB {player_db}: {e}")
+
+        # Assign roles
+        for discord_id in linked_discord_ids:
+            try:
+                member = await interaction.guild.fetch_member(discord_id)
+                if member and role not in member.roles:
+                    await member.add_roles(role)
+                    count += 1
+            except discord.NotFound:
+                continue # User not in server
+            except Exception as e:
+                logging.error(f"Error syncing role for {discord_id}: {e}")
+
+        await interaction.followup.send(
+            f"Role sync complete. Added role to {count} users.", ephemeral=True
+        )
+
     def _clear_expired_registrations(self):
         """Removes registration codes that have expired."""
         now = datetime.now(timezone.utc)
@@ -166,12 +234,13 @@ class RegistrationCog(commands.Cog, name="Registration"):
                 char_name = char_match.group(1).strip()
                 reg_data = pending_registrations[code]
                 discord_id = reg_data["discord_id"]
+                guild_id = reg_data.get("guild_id")
 
                 # Mark as processed to prevent duplicate handling
                 pending_registrations[code]["char_name"] = char_name
 
                 await self._link_account_and_notify(
-                    code, discord_id, char_name, player_db_path, game_db_path, server_name
+                    code, discord_id, char_name, player_db_path, game_db_path, server_name, guild_id
                 )
 
     async def _link_account_and_notify(
@@ -182,6 +251,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
         player_db_path: str,
         game_db_path: str,
         server_name: str,
+        guild_id: int = None,
     ):
         """Links the game account to the Discord ID and notifies the user."""
         logging.info(
@@ -218,6 +288,20 @@ class RegistrationCog(commands.Cog, name="Registration"):
             logging.info(
                 f"Successfully linked Discord user {discord_id} to character {char_name} on server {server_name}."
             )
+
+            # Apply Role
+            if guild_id and hasattr(config, "REGISTERED_ROLE_ID") and config.REGISTERED_ROLE_ID:
+                try:
+                    guild = self.bot.get_guild(guild_id)
+                    if guild:
+                        member = await guild.fetch_member(discord_id)
+                        role = guild.get_role(config.REGISTERED_ROLE_ID)
+                        if member and role:
+                            await member.add_roles(role)
+                            logging.info(f"Assigned role {role.name} to {member.display_name}")
+                except Exception as e:
+                    logging.error(f"Failed to assign role to {discord_id}: {e}")
+
             try:
                 user = await self.bot.fetch_user(discord_id)
                 if user:
