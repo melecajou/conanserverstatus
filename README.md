@@ -17,6 +17,7 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
     - **Cooldowns**: Configurable cooldown period to prevent abuse.
     - **Feedback**: Sends a Direct Message to the user upon successful teleportation.
     - **Restrictions**: Only players with a linked Discord account can use this feature.
+    - **List Warps**: Use `/warps` in Discord or `!warps` in the in-game chat to see a list of available locations.
 - **Isolated Data Paths**: Each server uses its own separate database for stats, while player identity and VIP status are managed in a unified global registry (`data/global_registry.db`).
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
 
