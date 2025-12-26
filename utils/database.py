@@ -223,6 +223,18 @@ def initialize_player_tracker_db(db_path: str):
             )
         if "vip_expiry_date" not in columns:
             cur.execute("ALTER TABLE player_time ADD COLUMN vip_expiry_date TEXT")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS player_homes (
+                platform_id TEXT NOT NULL,
+                server_name TEXT NOT NULL,
+                x REAL NOT NULL,
+                y REAL NOT NULL,
+                z REAL NOT NULL,
+                PRIMARY KEY (platform_id, server_name)
+            )
+        """
+        )
         con.commit()
         con.close()
         logging.info(
@@ -347,3 +359,57 @@ def link_discord_to_character(
             f"Failed to link Discord ID to character in {player_tracker_db_path}: {e}"
         )
         return False
+
+
+def save_player_home(db_path: str, platform_id: str, server_name: str, x: float, y: float, z: float) -> bool:
+    """Saves or updates a player's home coordinates."""
+    try:
+        with sqlite3.connect(db_path) as con:
+            cur = con.cursor()
+            cur.execute(
+                "INSERT OR REPLACE INTO player_homes (platform_id, server_name, x, y, z) VALUES (?, ?, ?, ?, ?)",
+                (platform_id, server_name, x, y, z),
+            )
+            con.commit()
+        return True
+    except Exception as e:
+        logging.error(f"Failed to save player home in {db_path}: {e}")
+        return False
+
+
+def get_player_home(db_path: str, platform_id: str, server_name: str) -> Any:
+    """Retrieves a player's home coordinates."""
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+            cur = con.cursor()
+            cur.execute(
+                "SELECT x, y, z FROM player_homes WHERE platform_id = ? AND server_name = ?",
+                (platform_id, server_name),
+            )
+            return cur.fetchone()
+    except Exception as e:
+        logging.error(f"Failed to get player home from {db_path}: {e}")
+        return None
+
+
+def get_character_coordinates(game_db_path: str, char_name: str) -> Any:
+    """Gets the current coordinates of a character from the game database."""
+    if not os.path.exists(game_db_path):
+        return None
+    try:
+        with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
+            cur = con.cursor()
+            # Join characters and actor_position on characters.id = actor_position.id
+            cur.execute(
+                """
+                SELECT ap.x, ap.y, ap.z 
+                FROM characters c 
+                JOIN actor_position ap ON c.id = ap.id 
+                WHERE c.char_name = ?
+                """,
+                (char_name,),
+            )
+            return cur.fetchone()
+    except Exception as e:
+        logging.error(f"Failed to get character coordinates from {game_db_path}: {e}")
+        return None

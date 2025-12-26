@@ -18,6 +18,11 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
     - **Feedback**: Sends a Direct Message to the user upon successful teleportation.
     - **Restrictions**: Only players with a linked Discord account can use this feature.
     - **List Warps**: Use `/warps` in Discord or `!warps` in the in-game chat to see a list of available locations.
+- **Home System**: Allows players to set a personal teleport point.
+    - `!sethome`: Saves the player's current position as their home.
+    - `!home`: Teleports the player back to their saved home position.
+    - **Note**: The position is read from the game database. There might be a slight delay in coordinate accuracy (up to 1 minute) depending on the server's automatic save cycle.
+    - **Cooldowns**: Both `!sethome` and `!home` have configurable cooldowns.
 - **Isolated Data Paths**: Each server uses its own separate database for stats, while player identity and VIP status are managed in a unified global registry (`data/global_registry.db`).
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
 
@@ -131,6 +136,8 @@ To enable the warp system:
             "WARP_CONFIG": {
                 "ENABLED": True,
                 "COOLDOWN_MINUTES": 5,
+                "HOME_ENABLED": True,
+                "HOME_COOLDOWN_MINUTES": 15,
                 "LOCATIONS": {
                     "hub": "10000 20000 5000",
                     "arena": "-5000 10000 2000"

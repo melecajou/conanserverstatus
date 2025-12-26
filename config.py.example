@@ -105,6 +105,9 @@ SERVERS = [
             "WARP_CONFIG": {
                 "ENABLED": True,
                 "COOLDOWN_MINUTES": 5,
+                "HOME_ENABLED": True,
+                "HOME_COOLDOWN_MINUTES": 15,
+                "SETHOME_COOLDOWN_MINUTES": 5,
                 "LOCATIONS": {
                     "hub": "10000 20000 5000",
                     "arena": "-5000 10000 2000"
