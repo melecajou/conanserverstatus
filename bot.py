@@ -43,6 +43,7 @@ COGS_TO_LOAD = [
     "cogs.registration",
     "cogs.building",
     "cogs.announcements",
+    "cogs.warps",
 ]
 
 

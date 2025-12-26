@@ -100,6 +100,15 @@ SERVERS = [
                 "SQL_PATH": "/home/steam/bots/ConanServerStatus/sql/buildings.sql", # Must be an absolute path
                 "DB_BACKUP_PATH": "/path/to/your/pvp_server/ConanSandbox/Saved/game_backup_1.db", # Must be an absolute path to a backup
                 "BUILD_LIMIT": 2000
+            },
+
+            "WARP_CONFIG": {
+                "ENABLED": True,
+                "COOLDOWN_MINUTES": 5,
+                "LOCATIONS": {
+                    "hub": "10000 20000 5000",
+                    "arena": "-5000 10000 2000"
+                }
             }
         }
 ]

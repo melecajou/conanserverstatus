@@ -13,6 +13,10 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **Admin Commands**: Provides administrative functionalities:
     - `/setvip @User <level>`: Sets the user's VIP level **globally** across the entire cluster.
     - `/sync_roles`: (Admin only) Iterates through all player databases and assigns the configured registered role to any user who has linked their account but doesn't have the role yet.
+- **Warp System**: Allows registered players to teleport to pre-defined locations using the in-game command `!warp <location>`.
+    - **Cooldowns**: Configurable cooldown period to prevent abuse.
+    - **Feedback**: Sends a Direct Message to the user upon successful teleportation.
+    - **Restrictions**: Only players with a linked Discord account can use this feature.
 - **Isolated Data Paths**: Each server uses its own separate database for stats, while player identity and VIP status are managed in a unified global registry (`data/global_registry.db`).
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
 
@@ -114,6 +118,24 @@ To automatically assign a role to registered users:
     ```
 2.  **Permissions**: Ensure the Bot's own role is **higher** in the Discord server settings > Roles list than the role it is trying to assign. Also, the bot must have the "Manage Roles" permission.
 3.  **Syncing**: After configuring this for the first time, run the `/sync_roles` command in Discord (Admin only) to give the role to all users who are already registered.
+
+**Warp System Configuration:**
+To enable the warp system:
+1.  In `config.py`, add the `WARP_CONFIG` section to your server configuration.
+2.  Define `ENABLED` as `True`.
+3.  Set the `COOLDOWN_MINUTES`.
+4.  Add your destinations in `LOCATIONS` using the format `"name": "X Y Z"`.
+
+```python
+            "WARP_CONFIG": {
+                "ENABLED": True,
+                "COOLDOWN_MINUTES": 5,
+                "LOCATIONS": {
+                    "hub": "10000 20000 5000",
+                    "arena": "-5000 10000 2000"
+                }
+            }
+```
 
 **Important**: When running the bot as a `systemd` service, ensure all file paths in `config.py` (like `DB_PATH`, `SQL_PATH`, etc.) are **absolute paths**, as the service does not run from your home directory.
 
