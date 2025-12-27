@@ -413,3 +413,53 @@ def get_character_coordinates(game_db_path: str, char_name: str) -> Any:
     except Exception as e:
         logging.error(f"Failed to get character coordinates from {game_db_path}: {e}")
         return None
+
+
+def get_all_guild_members(server_dbs: List[str], global_db_path: str = GLOBAL_DB_PATH) -> Dict[int, List[str]]:
+    """
+    Scans all server databases to find guild affiliations for registered Discord users.
+    Returns: {discord_id: [list_of_guild_names]}
+    """
+    # 1. Load all registered users (Platform ID -> Discord ID)
+    registered_users = {}
+    try:
+        with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
+            cur = con.cursor()
+            cur.execute("SELECT platform_id, discord_id FROM user_identities")
+            for pid, did in cur.fetchall():
+                registered_users[pid] = did
+    except Exception as e:
+        logging.error(f"Failed to load registered users for guild sync: {e}")
+        return {}
+
+    user_guilds = {} # {discord_id: set(guild_names)}
+
+    # 2. Scan each game DB
+    for db_path in server_dbs:
+        if not db_path or not os.path.exists(db_path):
+            continue
+            
+        try:
+            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                cur = con.cursor()
+                # Join characters, guilds, and account to get PlatformID + GuildName
+                query = """
+                    SELECT a.platformId, g.name 
+                    FROM characters c 
+                    JOIN guilds g ON c.guild = g.guildId 
+                    JOIN account a ON c.playerId = a.id
+                """
+                cur.execute(query)
+                
+                for platform_id, guild_name in cur.fetchall():
+                    if platform_id in registered_users:
+                        discord_id = registered_users[platform_id]
+                        if discord_id not in user_guilds:
+                            user_guilds[discord_id] = set()
+                        user_guilds[discord_id].add(guild_name)
+                        
+        except Exception as e:
+            logging.error(f"Error reading guilds from {db_path}: {e}")
+
+    # Convert sets to lists
+    return {k: list(v) for k, v in user_guilds.items()}

@@ -30,6 +30,7 @@ logging.basicConfig(
 # --- BOT SETUP ---
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 pending_registrations = {}
 bot._ = _
@@ -44,6 +45,7 @@ COGS_TO_LOAD = [
     "cogs.building",
     "cogs.announcements",
     "cogs.warps",
+    "cogs.guild_sync",
 ]
 
 

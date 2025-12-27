@@ -23,6 +23,15 @@ CLUSTER_STATUS = {
     "CHANNEL_ID": 123456789012345678
 }
 
+# Guild Sync Configuration
+# Automatically manages Discord roles based on in-game guild membership.
+GUILD_SYNC = {
+    "ENABLED": False,
+    "SERVER_ID": 123456789012345678, # Your Discord Server ID
+    "ROLE_PREFIX": "🛡️ ",          # Prefix for guild roles
+    "CLEANUP_EMPTY_ROLES": True     # Delete role if guild becomes empty
+}
+
 # List of servers to monitor.
 # You can add as many servers as you want, just copy the dictionary block.
 SERVERS = [

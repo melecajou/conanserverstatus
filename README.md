@@ -23,6 +23,11 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
     - `!home`: Teleports the player back to their saved home position.
     - **Note**: The position is read from the game database. There might be a slight delay in coordinate accuracy (up to 1 minute) depending on the server's automatic save cycle.
     - **Cooldowns**: Both `!sethome` and `!home` have configurable cooldowns.
+- **Guild Sync**: Automatically synchronizes in-game guild membership with Discord roles.
+    - Creates roles like `🛡️ GuildName` automatically.
+    - Assigns roles to registered members.
+    - Removes roles when a player leaves a guild.
+    - Cleans up empty guild roles to keep the server organized.
 - **Isolated Data Paths**: Each server uses its own separate database for stats, while player identity and VIP status are managed in a unified global registry (`data/global_registry.db`).
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
 
@@ -138,6 +143,7 @@ To enable the warp system:
                 "COOLDOWN_MINUTES": 5,
                 "HOME_ENABLED": True,
                 "HOME_COOLDOWN_MINUTES": 15,
+                "SETHOME_COOLDOWN_MINUTES": 5,
                 "LOCATIONS": {
                     "hub": "10000 20000 5000",
                     "arena": "-5000 10000 2000"
@@ -145,7 +151,24 @@ To enable the warp system:
             }
 ```
 
+**Guild Sync Configuration:**
+To enable automatic guild role synchronization:
+1.  In `config.py`, add the `GUILD_SYNC` block.
+2.  Set `ENABLED` to `True`.
+3.  Set `SERVER_ID` to your Discord server ID.
+4.  (Optional) Customize the `ROLE_PREFIX`.
+
+```python
+GUILD_SYNC = {
+    "ENABLED": True,
+    "SERVER_ID": 123456789012345678,
+    "ROLE_PREFIX": "🛡️ ",
+    "CLEANUP_EMPTY_ROLES": True
+}
+```
+
 **Important**: When running the bot as a `systemd` service, ensure all file paths in `config.py` (like `DB_PATH`, `SQL_PATH`, etc.) are **absolute paths**, as the service does not run from your home directory.
+
 
 ## Running the Bot as a Service
 
