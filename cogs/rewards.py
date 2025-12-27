@@ -84,23 +84,19 @@ class RewardsCog(commands.Cog, name="Rewards"):
     ) -> bool:
         """
         Issues a reward to a single player and updates the database.
-
-        Args:
-            rcon_client: The RCON client for the server.
-            server_name: The name of the server.
-            player: A dictionary representing the player.
-            reward_config: The reward configuration for the server.
-
-        Returns:
-            True if the reward was issued successfully, False otherwise.
         """
         item_id = reward_config["REWARD_ITEM_ID"]
         quantity = reward_config["REWARD_QUANTITY"]
         command = f"con {player['idx']} SpawnItem {item_id} {quantity}"
 
+        status_cog = self.bot.get_cog("Status")
+        if not status_cog:
+            logging.error("StatusCog not found for reward execution.")
+            return False
+
         for attempt in range(3):
             try:
-                response, _ = await rcon_client.send_cmd(command)
+                response, _ = await status_cog.execute_rcon(server_name, command)
                 logging.info(
                     self._(
                         "Reward command '%s' for player %s on server '%s' executed. Response: %s"

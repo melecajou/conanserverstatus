@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands, tasks
 import discord
 import logging
@@ -24,6 +25,7 @@ class StatusCog(commands.Cog, name="Status"):
         self._ = bot._
         self.status_messages: Dict[int, discord.Message] = {}
         self.rcon_clients: Dict[str, Client] = {}
+        self.rcon_locks: Dict[str, asyncio.Lock] = {}
         if not self.update_all_statuses_task.is_running():
             self.update_all_statuses_task.start()
 
@@ -35,11 +37,13 @@ class StatusCog(commands.Cog, name="Status"):
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
                 continue
-            self.rcon_clients[server_conf["NAME"]] = Client(
+            server_name = server_conf["NAME"]
+            self.rcon_clients[server_name] = Client(
                 server_conf["SERVER_IP"],
                 server_conf["RCON_PORT"],
                 server_conf["RCON_PASS"],
             )
+            self.rcon_locks[server_name] = asyncio.Lock()
 
     async def cog_unload(self):
         """
@@ -49,6 +53,26 @@ class StatusCog(commands.Cog, name="Status"):
         self.update_all_statuses_task.cancel()
         for client in self.rcon_clients.values():
             await client.close()
+
+    async def execute_rcon(self, server_name: str, command: str) -> Tuple[str, str]:
+        """
+        Executes an RCON command on the specified server with locking to prevent
+        race conditions.
+        """
+        client = self.rcon_clients.get(server_name)
+        lock = self.rcon_locks.get(server_name)
+
+        if not client or not lock:
+            raise ValueError(f"RCON client or lock not found for server: {server_name}")
+
+        async with lock:
+            try:
+                await client.connect()
+                return await client.send_cmd(command)
+            except Exception as e:
+                # If it's a connection error, aiomcrcon might need a clean state
+                logging.warning(f"RCON execution failed for {server_name}: {e}")
+                raise e
 
     @tasks.loop(minutes=1)
     async def update_all_statuses_task(self):
@@ -297,8 +321,7 @@ class StatusCog(commands.Cog, name="Status"):
             or None if the connection fails.
         """
         try:
-            await rcon_client.connect()
-            response, _ = await rcon_client.send_cmd("ListPlayers")
+            response, _ = await self.execute_rcon(server_name, "ListPlayers")
             return [
                 line
                 for line in response.split("\n")

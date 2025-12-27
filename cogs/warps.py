@@ -158,27 +158,38 @@ class WarpsCog(commands.Cog, name="Warps"):
                 self.processed_commands.add(cache_key)
                 await self._handle_warp(char_name, destination, server_conf, server_name)
 
-    async def _get_player_info(self, rcon_client, char_name):
-        """Fetches session ID and platform ID for a character name."""
+    async def _get_player_info(self, rcon_client, char_name, server_name):
+        """
+        Fetches the player index (session ID) and platform ID for a character name.
+        Returns: (idx, platform_id) or (None, None)
+        """
+        status_cog = self.bot.get_cog("Status")
+        if not status_cog: return None, None
+        
         try:
-            response, _ = await rcon_client.send_cmd("ListPlayers")
+            response, _ = await status_cog.execute_rcon(server_name, "ListPlayers")
             lines = response.split("\n")
             for line in lines:
                 parts = line.split("|")
+                # Format: ID | CharName | ... | PlatformID
                 if len(parts) > 4:
-                    if parts[1].strip() == char_name:
+                    current_name = parts[1].strip()
+                    if current_name == char_name:
                         return parts[0].strip(), parts[4].strip()
         except Exception as e:
-            logging.error(f"Error fetching player list: {e}")
+            logging.error(f"Error fetching player list for warp: {e}")
         return None, None
 
     async def _handle_list_request(self, char_name: str, server_conf: dict):
         """Sends the list of available warps to the player via Discord DM."""
         status_cog = self.bot.get_cog("Status")
-        rcon_client = status_cog.rcon_clients.get(server_conf["NAME"]) if status_cog else None
+        if not status_cog: return
+
+        server_name = server_conf["NAME"]
+        rcon_client = status_cog.rcon_clients.get(server_name)
         if not rcon_client: return
 
-        _, platform_id = await self._get_player_info(rcon_client, char_name)
+        _, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
         if not platform_id: return
 
         player_data = get_global_player_data([platform_id])
@@ -210,7 +221,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         rcon_client = status_cog.rcon_clients.get(server_name) if status_cog else None
         if not rcon_client: return
 
-        _, platform_id = await self._get_player_info(rcon_client, char_name)
+        _, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
         if not platform_id: return
 
         player_data = get_global_player_data([platform_id])
@@ -262,7 +273,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         rcon_client = status_cog.rcon_clients.get(server_name) if status_cog else None
         if not rcon_client: return
 
-        idx, platform_id = await self._get_player_info(rcon_client, char_name)
+        idx, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
         if not idx or not platform_id: return
 
         player_data = get_global_player_data([platform_id])
@@ -292,7 +303,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         if home_coords:
             x, y, z = home_coords
             try:
-                await rcon_client.send_cmd(f"con {idx} TeleportPlayer {x} {y} {z}")
+                await status_cog.execute_rcon(server_name, f"con {idx} TeleportPlayer {x} {y} {z}")
                 logging.info(f"Teleported {char_name} to home")
                 self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
                 try:
@@ -322,7 +333,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         rcon_client = status_cog.rcon_clients.get(server_name) if status_cog else None
         if not rcon_client: return
 
-        idx, platform_id = await self._get_player_info(rcon_client, char_name)
+        idx, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
         if not idx or not platform_id: return
 
         player_data = get_global_player_data([platform_id])
@@ -346,7 +357,7 @@ class WarpsCog(commands.Cog, name="Warps"):
                 return
 
         try:
-            await rcon_client.send_cmd(f"con {idx} TeleportPlayer {coords}")
+            await status_cog.execute_rcon(server_name, f"con {idx} TeleportPlayer {coords}")
             logging.info(f"Teleported {char_name} to {destination}")
             self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
             try:
