@@ -70,7 +70,14 @@ pip install -r requirements.txt
 
 **4. Configure the Bot**
 
-**a. Create the `.env` file:**
+**a. Discord Portal Setup:**
+1.  Go to the [Discord Developer Portal](https://discord.com/developers/applications).
+2.  Select your application and go to the **Bot** tab.
+3.  Under **Privileged Gateway Intents**, enable:
+    - **Server Members Intent** (Required for Guild Sync and Role Assignment).
+    - **Message Content Intent** (Required for reading in-game chat commands).
+
+**b. Create the `.env` file:**
 Copy the example file to create your own `.env` file.
 ```bash
 cp .env.example .env
