@@ -156,27 +156,42 @@ class RewardsCog(commands.Cog, name="Rewards"):
 
         # 2. Get global discord_id and VIP level
         import sqlite3
+        from datetime import datetime
         from utils.database import GLOBAL_DB_PATH
         
         discord_id = None
         vip_level = 0
+        vip_expiry = None
         
         try:
             with sqlite3.connect(f"file:{GLOBAL_DB_PATH}?mode=ro", uri=True) as g_con:
+                g_con.row_factory = sqlite3.Row
                 g_cur = g_con.cursor()
                 g_cur.execute("SELECT discord_id FROM user_identities WHERE platform_id = ?", (platform_id,))
                 res_id = g_cur.fetchone()
                 if res_id:
-                    discord_id = res_id[0]
-                    g_cur.execute("SELECT vip_level FROM discord_vips WHERE discord_id = ?", (discord_id,))
+                    discord_id = res_id["discord_id"]
+                    g_cur.execute("SELECT vip_level, vip_expiry_date FROM discord_vips WHERE discord_id = ?", (discord_id,))
                     res_vip = g_cur.fetchone()
                     if res_vip:
-                        vip_level = res_vip[0]
+                        vip_level = res_vip["vip_level"]
+                        vip_expiry = res_vip["vip_expiry_date"]
         except Exception as e:
             logging.error(f"Error fetching global reward status for {platform_id}: {e}")
 
         if not discord_id:
             return None
+
+        # Check for expiration (only for rewards)
+        if vip_level > 0 and vip_expiry:
+            try:
+                # Assuming date is stored in ISO format (YYYY-MM-DD HH:MM:SS)
+                expiry_dt = datetime.fromisoformat(vip_expiry)
+                if datetime.now() > expiry_dt:
+                    logging.info(f"VIP Rewards expired for player {platform_id} (Discord: {discord_id}). Treating as Level 0 for rewards.")
+                    vip_level = 0
+            except (ValueError, TypeError):
+                logging.warning(f"Invalid expiry date format for Discord ID {discord_id}: {vip_expiry}")
 
         reward_interval = reward_intervals.get(
             vip_level, reward_intervals.get(0, 120)

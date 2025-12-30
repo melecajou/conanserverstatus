@@ -196,6 +196,71 @@ def set_global_vip(
         return False
 
 
+def get_global_vip(discord_id: int, global_db_path: str = GLOBAL_DB_PATH) -> Optional[Dict[str, Any]]:
+    """Retrieves VIP data for a specific Discord ID."""
+    try:
+        with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            cur.execute(
+                "SELECT vip_level, vip_expiry_date FROM discord_vips WHERE discord_id = ?",
+                (discord_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                return {
+                    "vip_level": row["vip_level"],
+                    "vip_expiry": row["vip_expiry_date"]
+                }
+    except Exception as e:
+        logging.error(f"Error fetching global VIP for {discord_id}: {e}")
+    return None
+
+
+def get_all_vips(global_db_path: str = GLOBAL_DB_PATH) -> List[Dict[str, Any]]:
+    """Retrieves all VIP users from the global registry."""
+    vips = []
+    try:
+        with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            cur.execute("SELECT discord_id, vip_level, vip_expiry_date FROM discord_vips WHERE vip_level > 0")
+            for row in cur.fetchall():
+                vips.append({
+                    "discord_id": row["discord_id"],
+                    "vip_level": row["vip_level"],
+                    "vip_expiry": row["vip_expiry_date"]
+                })
+    except Exception as e:
+        logging.error(f"Error fetching all vips: {e}")
+    return vips
+
+
+def update_vip_expiry(discord_id: int, days: int, global_db_path: str = GLOBAL_DB_PATH) -> bool:
+    """Updates only the expiration date for an existing VIP user."""
+    try:
+        from datetime import datetime, timedelta
+        expiry_dt = datetime.now() + timedelta(days=days)
+        expiry_date = expiry_dt.isoformat()
+        
+        with sqlite3.connect(global_db_path) as con:
+            cur = con.cursor()
+            # Check if user exists first
+            cur.execute("SELECT 1 FROM discord_vips WHERE discord_id = ?", (discord_id,))
+            if not cur.fetchone():
+                return False
+                
+            cur.execute(
+                "UPDATE discord_vips SET vip_expiry_date = ? WHERE discord_id = ?",
+                (expiry_date, discord_id),
+            )
+            con.commit()
+        return True
+    except Exception as e:
+        logging.error(f"Failed to update VIP expiry: {e}")
+        return False
+
+
 def initialize_player_tracker_db(db_path: str):
     """Creates or updates the player tracker database and table."""
     try:
