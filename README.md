@@ -11,8 +11,14 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **Global Player Registration**: A streamlined process for players to link their in-game character to their Discord account using a `/register` command. Once registered on any server, the player is automatically recognized on **all other servers** in the cluster without needing to register again.
 - **Automated Role Assignment**: Automatically assigns a specific Discord role to users upon successful registration. Includes a sync command to retroactively apply roles to already registered users.
 - **Admin Commands**: Provides administrative functionalities:
-    - `/setvip @User <level>`: Sets the user's VIP level **globally** across the entire cluster.
-    - `/sync_roles`: (Admin only) Iterates through all player databases and assigns the configured registered role to any user who has linked their account but doesn't have the role yet.
+    - `/setvip @User <level> [days]`: Sets the user's VIP level **globally**. Optionally, set the number of days for reward benefits (permanent if omitted).
+    - `/listvips`: Lists all players with an active VIP level and their expiration status.
+    - `/checkvip @User`: Checks the VIP status, level, and expiration of a specific member.
+    - `/setvipexpiry @User <days>`: Updates the expiration duration for an existing VIP member.
+    - `/sync_roles`: Iterates through all player databases and assigns the configured registered role to any user who has linked their account but doesn't have the role yet.
+- **User Commands**:
+    - `/register`: Generates a code to link your in-game character to your Discord account.
+    - `/premium`: Checks your own current VIP status, level, and benefit expiration date.
 - **Warp System**: Allows registered players to teleport to pre-defined locations using the in-game command `!warp <location>`.
     - **Cooldowns**: Configurable cooldown period to prevent abuse.
     - **Feedback**: Sends a Direct Message to the user upon successful teleportation.
@@ -173,6 +179,11 @@ GUILD_SYNC = {
     "CLEANUP_EMPTY_ROLES": True
 }
 ```
+
+**VIP System and Expiration:**
+The bot features a hybrid VIP system:
+- **Building Benefits**: Once a player is set as VIP (Level > 0), their building piece limit (monitored by the Building Watcher) is increased **permanently**.
+- **Reward Benefits**: Playtime reward intervals (faster rewards) can be **temporary**. When using `/setvip`, you can specify the duration in days. After this period, the player's reward interval reverts to the default (Level 0), but they keep their VIP Level for building purposes.
 
 **Important**: When running the bot as a `systemd` service, ensure all file paths in `config.py` (like `DB_PATH`, `SQL_PATH`, etc.) are **absolute paths**, as the service does not run from your home directory.
 
