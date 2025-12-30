@@ -121,6 +121,13 @@ SERVERS = [
                     "hub": "10000 20000 5000",
                     "arena": "-5000 10000 2000"
                 }
+            },
+
+            "INACTIVITY_REPORT": {
+                "ENABLED": False,
+                "DAYS": 15,
+                "CHANNEL_ID": 123456789012345678,
+                "SQL_PATH": "/home/steam/bots/ConanServerStatus/sql/inactive_structures.sql"
             }
         }
 ]

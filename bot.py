@@ -46,6 +46,7 @@ COGS_TO_LOAD = [
     "cogs.announcements",
     "cogs.warps",
     "cogs.guild_sync",
+    "cogs.inactivity",
 ]
 
 

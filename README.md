@@ -34,6 +34,9 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
     - Assigns roles to registered members.
     - Removes roles when a player leaves a guild.
     - Cleans up empty guild roles to keep the server organized.
+- **Inactivity Report**: Daily reports on building structures whose owners have been offline for a configurable number of days.
+    - Lists owner name, piece count, and last activity date.
+    - Includes a `TeleportPlayer` command for easy investigation by admins.
 - **Isolated Data Paths**: Each server uses its own separate database for stats, while player identity and VIP status are managed in a unified global registry (`data/global_registry.db`).
 - **Robust and Resilient**: Features resilient RCON connection handling to gracefully manage temporary server unavailability.
 
@@ -178,6 +181,21 @@ GUILD_SYNC = {
     "ROLE_PREFIX": "🛡️ ",
     "CLEANUP_EMPTY_ROLES": True
 }
+```
+
+**Inactivity Report Configuration:**
+To enable daily reports on abandoned bases:
+1.  Add the `INACTIVITY_REPORT` block to each server in `config.py`.
+2.  Set `ENABLED` to `True`.
+3.  Define `DAYS` (threshold for inactivity) and `CHANNEL_ID` (where the admin report will be sent).
+
+```python
+            "INACTIVITY_REPORT": {
+                "ENABLED": True,
+                "DAYS": 15,
+                "CHANNEL_ID": 123456789012345678,
+                "SQL_PATH": "/home/steam/bots/ConanServerStatus/sql/inactive_structures.sql"
+            }
 ```
 
 **VIP System and Expiration:**

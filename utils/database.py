@@ -537,3 +537,32 @@ def get_all_guild_members(server_dbs: List[str], global_db_path: str = GLOBAL_DB
 
     # Convert sets to lists
     return {k: list(v) for k, v in user_guilds.items()}
+
+
+def get_inactive_structures(game_db_path: str, sql_path: str, days: int) -> List[Dict[str, Any]]:
+    """
+    Identifies inactive building structures based on an SQL script.
+    """
+    if not os.path.exists(game_db_path) or not os.path.exists(sql_path):
+        return []
+
+    results = []
+    try:
+        with open(sql_path, "r") as f:
+            query = f.read()
+
+        with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            cur.execute(query, (days,))
+            for row in cur.fetchall():
+                results.append({
+                    "owner": row["Owner"],
+                    "pieces": row["Pieces"],
+                    "location": row["Location"],
+                    "last_activity": row["LastActivity_GMT3"]
+                })
+    except Exception as e:
+        logging.error(f"Error fetching inactivity structures from {game_db_path}: {e}")
+        
+    return results
