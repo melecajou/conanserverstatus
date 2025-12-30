@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 import discord
 import logging
 import re
+import struct
 from typing import Dict, List, Optional, Any, Tuple
 
 from aiomcrcon import Client, RCONConnectionError
@@ -26,6 +27,7 @@ class StatusCog(commands.Cog, name="Status"):
         self.status_messages: Dict[int, discord.Message] = {}
         self.rcon_clients: Dict[str, Client] = {}
         self.rcon_locks: Dict[str, asyncio.Lock] = {}
+        self.level_cache: Dict[str, int] = {} # Cache for player levels {char_name: level}
         if not self.update_all_statuses_task.is_running():
             self.update_all_statuses_task.start()
 
@@ -69,9 +71,18 @@ class StatusCog(commands.Cog, name="Status"):
             try:
                 await client.connect()
                 return await client.send_cmd(command)
+            except struct.error:
+                # This happens when the server is starting up and sends an incomplete packet
+                await client.close() # Force a clean state
+                raise RCONConnectionError("Incomplete RCON packet received.")
+            except asyncio.TimeoutError:
+                # RCON connection timed out (server likely down or lagging heavily)
+                await client.close()
+                raise RCONConnectionError("RCON timed out.")
             except Exception as e:
                 # If it's a connection error, aiomcrcon might need a clean state
                 logging.warning(f"RCON execution failed for {server_name}: {e}")
+                await client.close()
                 raise e
 
     @tasks.loop(minutes=1)
@@ -290,6 +301,8 @@ class StatusCog(commands.Cog, name="Status"):
         """
         await self.bot.wait_until_ready()
         await self.async_init()  # Initialize RCON clients
+        
+        # 1. Find messages for individual servers
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
                 continue
@@ -304,6 +317,20 @@ class StatusCog(commands.Cog, name="Status"):
                         and msg.embeds[0].title.startswith(("✅", "❌"))
                     ):
                         self.status_messages[channel_id] = msg
+                        break
+        
+        # 2. Find message for Cluster Status
+        if hasattr(config, "CLUSTER_STATUS") and config.CLUSTER_STATUS.get("ENABLED"):
+            cluster_channel_id = config.CLUSTER_STATUS.get("CHANNEL_ID")
+            cluster_channel = self.bot.get_channel(cluster_channel_id)
+            if cluster_channel:
+                async for msg in cluster_channel.history(limit=50):
+                    if (
+                        msg.author.id == self.bot.user.id
+                        and msg.embeds
+                        and (msg.embeds[0].title == self._("🌍 Cluster Status") or "Cluster" in msg.embeds[0].title)
+                    ):
+                        self.status_messages[cluster_channel_id] = msg
                         break
 
     async def _get_player_lines(
@@ -439,9 +466,22 @@ class StatusCog(commands.Cog, name="Status"):
         if online_players:
             char_names = [p["char_name"] for p in online_players]
             platform_ids = [p["platform_id"] for p in online_players]
-            levels_map = get_batch_player_levels(
+            
+            # Try to get fresh levels
+            levels_data = get_batch_player_levels(
                 server_config.get("DB_PATH"), char_names
             )
+            
+            if levels_data is not None:
+                # Update cache with new data
+                for char, lvl in levels_data.items():
+                    self.level_cache[char] = lvl
+                levels_map = levels_data
+            else:
+                # DB Error: Use cached levels
+                levels_map = {name: self.level_cache.get(name, 0) for name in char_names}
+                logging.warning(f"Using cached levels for {server_name} due to DB read error.")
+
             player_data_map = get_batch_player_data(
                 server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB),
                 platform_ids,

@@ -37,6 +37,10 @@ class GuildSyncCog(commands.Cog, name="GuildSync"):
         server_dbs = [s.get("DB_PATH") for s in config.SERVERS if s.get("DB_PATH")]
         user_guild_map = get_all_guild_members(server_dbs)
 
+        if user_guild_map is None:
+            logging.warning("Guild Sync aborted due to database read error.")
+            return
+
         logging.info(f"Starting Guild Sync for {len(user_guild_map)} users...")
 
         # 2. Iterate through Discord Members

@@ -1,7 +1,7 @@
 import sqlite3
 import logging
 import os
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 # --- DATABASE SETUP ---
 DEFAULT_PLAYER_TRACKER_DB = "data/playertracker.db"
@@ -246,7 +246,7 @@ def initialize_player_tracker_db(db_path: str):
         )
 
 
-def get_batch_player_levels(db_path: str, char_names: List[str]) -> Dict[str, int]:
+def get_batch_player_levels(db_path: str, char_names: List[str]) -> Optional[Dict[str, int]]:
     """Queries the game database to get the levels for a batch of characters."""
     levels = {name: 0 for name in char_names}
     if not db_path or not char_names:
@@ -261,8 +261,11 @@ def get_batch_player_levels(db_path: str, char_names: List[str]) -> Dict[str, in
             )
             for name, level in cur.fetchall():
                 levels[name] = level
+    except sqlite3.DatabaseError:
+        return None
     except Exception as e:
         logging.error(f"Could not read batch player levels from {db_path}: {e}")
+        return None
     return levels
 
 
@@ -415,10 +418,10 @@ def get_character_coordinates(game_db_path: str, char_name: str) -> Any:
         return None
 
 
-def get_all_guild_members(server_dbs: List[str], global_db_path: str = GLOBAL_DB_PATH) -> Dict[int, List[str]]:
+def get_all_guild_members(server_dbs: List[str], global_db_path: str = GLOBAL_DB_PATH) -> Optional[Dict[int, List[str]]]:
     """
     Scans all server databases to find guild affiliations for registered Discord users.
-    Returns: {discord_id: [list_of_guild_names]}
+    Returns: {discord_id: [list_of_guild_names]} or None if a DB read failed.
     """
     # 1. Load all registered users (Platform ID -> Discord ID)
     registered_users = {}
@@ -430,7 +433,7 @@ def get_all_guild_members(server_dbs: List[str], global_db_path: str = GLOBAL_DB
                 registered_users[pid] = did
     except Exception as e:
         logging.error(f"Failed to load registered users for guild sync: {e}")
-        return {}
+        return None
 
     user_guilds = {} # {discord_id: set(guild_names)}
 
@@ -458,8 +461,14 @@ def get_all_guild_members(server_dbs: List[str], global_db_path: str = GLOBAL_DB
                             user_guilds[discord_id] = set()
                         user_guilds[discord_id].add(guild_name)
                         
+        except sqlite3.DatabaseError as e:
+            # Critical: If we can't read a DB, we can't trust the "absence" of a guild.
+            # Abort the entire operation to prevent role deletion.
+            logging.error(f"Critical error reading guilds from {db_path}: {e} (Aborting Sync)")
+            return None
         except Exception as e:
             logging.error(f"Error reading guilds from {db_path}: {e}")
+            return None
 
     # Convert sets to lists
     return {k: list(v) for k, v in user_guilds.items()}
