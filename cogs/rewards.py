@@ -188,7 +188,7 @@ class RewardsCog(commands.Cog, name="Rewards"):
                 # Assuming date is stored in ISO format (YYYY-MM-DD HH:MM:SS)
                 expiry_dt = datetime.fromisoformat(vip_expiry)
                 if datetime.now() > expiry_dt:
-                    logging.info(f"VIP Rewards expired for player {platform_id} (Discord: {discord_id}). Treating as Level 0 for rewards.")
+                    logging.debug(f"VIP Rewards expired for player {platform_id} (Discord: {discord_id}). Treating as Level 0 for rewards.")
                     vip_level = 0
             except (ValueError, TypeError):
                 logging.warning(f"Invalid expiry date format for Discord ID {discord_id}: {vip_expiry}")
