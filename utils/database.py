@@ -288,6 +288,8 @@ def initialize_player_tracker_db(db_path: str):
             )
         if "vip_expiry_date" not in columns:
             cur.execute("ALTER TABLE player_time ADD COLUMN vip_expiry_date TEXT")
+        if "last_reward_playtime" not in columns:
+            cur.execute("ALTER TABLE player_time ADD COLUMN last_reward_playtime INTEGER DEFAULT 0")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS player_homes (

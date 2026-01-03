@@ -141,10 +141,10 @@ class RewardsCog(commands.Cog, name="Rewards"):
             A tuple containing the player's online minutes, last rewarded hour, and reward interval,
             or None if the player is not registered or found.
         """
-        # 1. Get online minutes and last rewarded hour from local DB
+        # 1. Get online minutes and last rewarded playtime from local DB
         async with db.cursor() as cur:
             await cur.execute(
-                "SELECT online_minutes, last_rewarded_hour FROM player_time WHERE platform_id = ? AND server_name = ?",
+                "SELECT online_minutes, last_reward_playtime FROM player_time WHERE platform_id = ? AND server_name = ?",
                 (platform_id, server_name),
             )
             result = await cur.fetchone()
@@ -152,7 +152,7 @@ class RewardsCog(commands.Cog, name="Rewards"):
         if not result:
             return None
             
-        online_minutes, last_rewarded_hour = result
+        online_minutes, last_reward_playtime = result
 
         # 2. Get global discord_id and VIP level
         import sqlite3
@@ -197,7 +197,7 @@ class RewardsCog(commands.Cog, name="Rewards"):
             vip_level, reward_intervals.get(0, 120)
         )
 
-        return online_minutes, last_rewarded_hour, reward_interval
+        return online_minutes, last_reward_playtime, reward_interval
 
     async def _check_and_process_rewards(
         self,
@@ -232,11 +232,11 @@ class RewardsCog(commands.Cog, name="Rewards"):
             if not reward_status:
                 continue
 
-            online_minutes, last_rewarded_hour, reward_interval = reward_status
-            current_hour_milestone = online_minutes // reward_interval
-
-            if current_hour_milestone > last_rewarded_hour:
-                total_hours_played = current_hour_milestone * (reward_interval / 60.0)
+            online_minutes, last_reward_playtime, reward_interval = reward_status
+            
+            # Check if enough time has passed since the last reward
+            if (online_minutes - last_reward_playtime) >= reward_interval:
+                total_hours_played = online_minutes / 60.0
                 logging.info(
                     self._(
                         "Player %s on server '%s' reached a new reward milestone at %.1f hours. Issuing reward."
@@ -249,8 +249,8 @@ class RewardsCog(commands.Cog, name="Rewards"):
                 ):
                     async with db.cursor() as cur:
                         await cur.execute(
-                            "UPDATE player_time SET last_rewarded_hour = ? WHERE platform_id = ? AND server_name = ?",
-                            (current_hour_milestone, platform_id, server_name),
+                            "UPDATE player_time SET last_reward_playtime = ? WHERE platform_id = ? AND server_name = ?",
+                            (online_minutes, platform_id, server_name),
                         )
                     await db.commit()
                     logging.info(
