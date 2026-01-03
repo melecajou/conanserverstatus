@@ -33,8 +33,8 @@ class WarpsCog(commands.Cog, name="Warps"):
         self._ = bot._
         # Cooldown storage: {(char_name, server_name, command_type): expiration_datetime}
         self.cooldowns = {}
-        # Simple cache to prevent double execution
-        self.processed_commands = set() 
+        # Cursor storage: {server_name: file_position}
+        self.log_cursors = {}
         self.process_warp_log_task.start()
 
     def cog_unload(self):
@@ -75,7 +75,6 @@ class WarpsCog(commands.Cog, name="Warps"):
         """
         Periodically scans server logs for warp commands and processes them.
         """
-        self._cleanup_processed_cache()
         for server_conf in config.SERVERS:
             await self._process_log_for_server(server_conf)
 
@@ -83,18 +82,6 @@ class WarpsCog(commands.Cog, name="Warps"):
     async def before_process_warp_log_task(self):
         """Waits for the bot to be ready before starting the task."""
         await self.bot.wait_until_ready()
-
-    def _cleanup_processed_cache(self):
-        """Removes old entries from the processed commands cache."""
-        now = datetime.now()
-        self.processed_commands = {
-            entry for entry in self.processed_commands 
-            if entry[3] > now
-        }
-        
-        keys_to_remove = [k for k, v in self.cooldowns.items() if v < now]
-        for k in keys_to_remove:
-            del self.cooldowns[k]
 
     async def _process_log_for_server(self, server_conf: dict):
         """Processes the log file for a single server to find warp commands."""
@@ -109,16 +96,40 @@ class WarpsCog(commands.Cog, name="Warps"):
             return
 
         try:
+            current_size = os.path.getsize(log_path)
+            last_pos = self.log_cursors.get(server_name, 0)
+
+            # If file was rotated (shrunk) or first run (0), reset
+            # For first run, we want to start at the END to avoid processing old logs.
+            if server_name not in self.log_cursors:
+                self.log_cursors[server_name] = current_size
+                return
+            
+            if current_size < last_pos:
+                # Rotated
+                last_pos = 0
+
+            if current_size == last_pos:
+                # No new data
+                return
+
             with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()[-LOG_LINES_TO_READ:]
+                f.seek(last_pos)
+                new_content = f.read()
+                self.log_cursors[server_name] = f.tell()
+
+                if not new_content:
+                    return
+
+                lines = new_content.splitlines()
                 for line in lines:
                     await self._process_log_line(line, server_conf, server_name)
+
         except Exception as e:
             logging.error(f"Error processing warp log for server {server_name}: {e}")
 
     async def _process_log_line(self, line: str, server_conf: dict, server_name: str):
         """Parses a single log line for a warp command or list request."""
-        line_hash = hash(line)
         char_match = CHAT_CHARACTER_REGEX.search(line)
         if not char_match:
             return
@@ -127,36 +138,24 @@ class WarpsCog(commands.Cog, name="Warps"):
 
         # 1. Check for Warp List Command (!warps / !warplist)
         if WARP_LIST_REGEX.search(line):
-            cache_key = (char_name, "list", line_hash, datetime.now() + timedelta(minutes=1))
-            if not any(e[0] == char_name and e[1] == "list" and e[2] == line_hash for e in self.processed_commands):
-                self.processed_commands.add(cache_key)
-                await self._handle_list_request(char_name, server_conf)
+            await self._handle_list_request(char_name, server_conf)
             return
 
         # 2. Check for SetHome Command (!sethome)
         if SETHOME_COMMAND_REGEX.search(line):
-            cache_key = (char_name, "sethome", line_hash, datetime.now() + timedelta(minutes=1))
-            if not any(e[0] == char_name and e[1] == "sethome" and e[2] == line_hash for e in self.processed_commands):
-                self.processed_commands.add(cache_key)
-                await self._handle_sethome(char_name, server_conf)
+            await self._handle_sethome(char_name, server_conf)
             return
 
         # 3. Check for Home Command (!home)
         if HOME_COMMAND_REGEX.search(line):
-            cache_key = (char_name, "home", line_hash, datetime.now() + timedelta(minutes=1))
-            if not any(e[0] == char_name and e[1] == "home" and e[2] == line_hash for e in self.processed_commands):
-                self.processed_commands.add(cache_key)
-                await self._handle_home(char_name, server_conf)
+            await self._handle_home(char_name, server_conf)
             return
 
         # 4. Check for Warp Teleport Command (!warp <dest>)
         warp_match = WARP_COMMAND_REGEX.search(line)
         if warp_match:
             destination = warp_match.group(1).lower()
-            cache_key = (char_name, destination, line_hash, datetime.now() + timedelta(minutes=1))
-            if not any(e[0] == char_name and e[1] == destination and e[2] == line_hash for e in self.processed_commands):
-                self.processed_commands.add(cache_key)
-                await self._handle_warp(char_name, destination, server_conf, server_name)
+            await self._handle_warp(char_name, destination, server_conf, server_name)
 
     async def _get_player_info(self, rcon_client, char_name, server_name):
         """
@@ -290,6 +289,7 @@ class WarpsCog(commands.Cog, name="Warps"):
             expiration = self.cooldowns[cooldown_key]
             if now < expiration:
                 rem = int((expiration - now).total_seconds())
+                logging.info(f"Player {char_name} tried !home but is on cooldown ({rem}s remaining).")
                 try:
                     user = await self.bot.fetch_user(discord_id)
                     if user: await user.send(f"⏳ **Home em Cooldown:** Aguarde **{rem // 60}m {rem % 60}s**.")
@@ -350,6 +350,7 @@ class WarpsCog(commands.Cog, name="Warps"):
             expiration = self.cooldowns[cooldown_key]
             if now < expiration:
                 rem = int((expiration - now).total_seconds())
+                logging.info(f"Player {char_name} tried !warp {destination} but is on cooldown ({rem}s remaining).")
                 try:
                     user = await self.bot.fetch_user(discord_id)
                     if user: await user.send(f"⏳ **Warp em Cooldown:** Aguarde **{rem // 60}m {rem % 60}s**.")
