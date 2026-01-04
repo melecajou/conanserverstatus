@@ -568,3 +568,45 @@ def get_inactive_structures(game_db_path: str, sql_path: str, days: int) -> List
         logging.error(f"Error fetching inactivity structures from {game_db_path}: {e}")
         
     return results
+
+
+def find_discord_user_by_char_name(game_db_path: str, char_name: str, global_db_path: str = GLOBAL_DB_PATH) -> Optional[int]:
+    """
+    Searches for a character name in the game DB and returns the linked Discord ID if found.
+    Uses LIKE for case-insensitive/partial matching.
+    """
+    if not os.path.exists(game_db_path):
+        return None
+
+    discord_id = None
+    try:
+        with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
+            cur = con.cursor()
+            # 1. Find character(s) matching name
+            # Note: characters.playerId maps to account.id
+            # account.platformId is what we store in global registry
+            query = """
+                SELECT a.platformId 
+                FROM characters c
+                JOIN account a ON c.playerId = a.id
+                WHERE c.char_name LIKE ?
+                LIMIT 1
+            """
+            cur.execute(query, (f"%{char_name}%",))
+            row = cur.fetchone()
+            
+            if row:
+                platform_id = row[0]
+                
+                # 2. Check global registry
+                with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as g_con:
+                    g_cur = g_con.cursor()
+                    g_cur.execute("SELECT discord_id FROM user_identities WHERE platform_id = ?", (platform_id,))
+                    res = g_cur.fetchone()
+                    if res:
+                        discord_id = res[0]
+
+    except Exception as e:
+        logging.error(f"Error searching for user by char name in {game_db_path}: {e}")
+
+    return discord_id

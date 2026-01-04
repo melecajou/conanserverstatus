@@ -114,6 +114,47 @@ class RegistrationCog(commands.Cog, name="Registration"):
                 )
 
     @app_commands.command(
+        name="finduser",
+        description="Finds a Discord user by their in-game character name.",
+    )
+    @app_commands.describe(char_name="The character name to search for.")
+    async def finduser(self, interaction: discord.Interaction, char_name: str):
+        """Finds a discord user by character name."""
+        await interaction.response.defer(ephemeral=True)
+        
+        from utils.database import find_discord_user_by_char_name
+        
+        found_discord_id = None
+        
+        # Search across all servers
+        for server_conf in config.SERVERS:
+            db_path = server_conf.get("DB_PATH")
+            if not db_path: continue
+            
+            discord_id = find_discord_user_by_char_name(db_path, char_name)
+            if discord_id:
+                found_discord_id = discord_id
+                break
+        
+        if found_discord_id:
+            try:
+                user = await self.bot.fetch_user(found_discord_id)
+                await interaction.followup.send(
+                    f"✅ O personagem **{char_name}** pertence ao usuário: {user.mention} (`{user.name}`)",
+                    ephemeral=True
+                )
+            except discord.NotFound:
+                await interaction.followup.send(
+                    f"⚠️ Encontrei o ID Discord `{found_discord_id}` para **{char_name}**, mas o usuário não está acessível (pode ter saído do servidor).",
+                    ephemeral=True
+                )
+        else:
+            await interaction.followup.send(
+                f"❌ Não encontrei nenhum usuário vinculado ao personagem **{char_name}**.",
+                ephemeral=True
+            )
+
+    @app_commands.command(
         name="sync_roles",
         description="Syncs the registered role to all linked users (Admin only).",
     )

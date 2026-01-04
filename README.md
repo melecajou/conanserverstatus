@@ -19,6 +19,7 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **User Commands**:
     - `/register`: Generates a code to link your in-game character to your Discord account.
     - `/premium`: Checks your own current VIP status, level, and benefit expiration date.
+    - `/finduser <char_name>`: Finds the Discord user linked to a specific in-game character name.
 - **Warp System**: Allows registered players to teleport to pre-defined locations using the in-game command `!warp <location>`.
     - **Cooldowns**: Configurable cooldown period to prevent abuse.
     - **Feedback**: Sends a Direct Message to the user upon successful teleportation.
