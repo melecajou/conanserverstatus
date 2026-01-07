@@ -135,6 +135,9 @@ class StatusCog(commands.Cog, name="Status"):
                 cluster_data, total_online_players, server_statuses
             )
 
+        # WEB EXPORT: Generate status.json for the website
+        await self._export_status_json(cluster_data, server_statuses)
+
         activity = discord.Game(
             name=self._("Players Online: {count}").format(count=total_online_players)
         )
@@ -291,6 +294,53 @@ class StatusCog(commands.Cog, name="Status"):
             logging.error(f"Error updating status message in '{channel.name}': {e}")
             if channel.id in self.status_messages:
                 del self.status_messages[channel.id]
+
+    async def _export_status_json(self, cluster_data, server_statuses):
+        """Exports the current cluster status to a JSON file for web usage."""
+        import json
+        import os
+        from datetime import datetime
+
+        export_data = {
+            "last_updated": datetime.now().isoformat(),
+            "total_players": sum(len(s["online_players"]) for s in cluster_data),
+            "servers": []
+        }
+
+        # Create a map for quick lookup of online status
+        status_map = {s["alias"]: s["online"] for s in server_statuses}
+
+        # Process each server
+        for s in cluster_data:
+            online_players = []
+            for p in s["online_players"]:
+                level = s["levels_map"].get(p["char_name"], 0)
+                p_data = s["player_data_map"].get(p["platform_id"], {"online_minutes": 0})
+                
+                online_players.append({
+                    "char_name": p["char_name"],
+                    "level": level,
+                    "playtime_minutes": p_data["online_minutes"]
+                })
+
+            export_data["servers"].append({
+                "name": s["name"],
+                "alias": s["alias"],
+                "online": status_map.get(s["alias"], False),
+                "players_count": len(online_players),
+                "players": online_players,
+                "stats": s["system_stats"]
+            })
+
+        # Ensure output directory exists
+        output_path = os.path.join("output", "status.json")
+        os.makedirs("output", exist_ok=True)
+
+        try:
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(export_data, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            logging.error(f"Failed to export status.json: {e}")
 
     @update_all_statuses_task.before_loop
     async def before_update_all_statuses_task(self):

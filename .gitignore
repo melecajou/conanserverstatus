@@ -17,3 +17,20 @@ logs/*.log
 # Temporary files
 *.bak
 temp_db_copy.db
+
+# Gemini Instructions
+GEMINI.md
+
+# Study Scripts and Docs
+docs/database_assets_study.md
+scripts/find_orphans.py
+scripts/debug_thrall.py
+scripts/list_thralls_advanced.py
+scripts/map_assets.py
+scripts/list_inactive_assets.py
+scripts/export_map_data.py
+scripts/sync_map_data.sh
+
+# Generated Data
+output/
+scripts/sync_status.sh
