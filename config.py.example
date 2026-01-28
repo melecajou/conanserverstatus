@@ -32,6 +32,28 @@ GUILD_SYNC = {
     "CLEANUP_EMPTY_ROLES": True     # Delete role if guild becomes empty
 }
 
+# Trade / Shop Configuration
+# Define items that players can buy in-game using !buy <key>
+# price_id is the template ID of the item used as currency (e.g. Gold/Silver)
+TRADE_ITEMS = {
+    "pocao": {
+        "item_id": 12345,
+        "quantity": 1,
+        "price_id": 11066,
+        "price_amount": 50,
+        "price_label": "Moedas de Ouro",
+        "label": "Poção de Cura Especial"
+    },
+    "kit": {
+        "item_id": 54321,
+        "quantity": 1,
+        "price_id": 11066,
+        "price_amount": 100,
+        "price_label": "Moedas de Ouro",
+        "label": "Kit de Sobrevivência"
+    }
+}
+
 # List of servers to monitor.
 # You can add as many servers as you want, just copy the dictionary block.
 SERVERS = [

@@ -573,18 +573,13 @@ def get_inactive_structures(game_db_path: str, sql_path: str, days: int) -> List
 def find_discord_user_by_char_name(game_db_path: str, char_name: str, global_db_path: str = GLOBAL_DB_PATH) -> Optional[int]:
     """
     Searches for a character name in the game DB and returns the linked Discord ID if found.
-    Uses LIKE for case-insensitive/partial matching.
     """
     if not os.path.exists(game_db_path):
         return None
 
-    discord_id = None
     try:
         with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
-            # 1. Find character(s) matching name
-            # Note: characters.playerId maps to account.id
-            # account.platformId is what we store in global registry
             query = """
                 SELECT a.platformId 
                 FROM characters c
@@ -597,16 +592,81 @@ def find_discord_user_by_char_name(game_db_path: str, char_name: str, global_db_
             
             if row:
                 platform_id = row[0]
-                
-                # 2. Check global registry
+                # Check global registry
                 with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as g_con:
                     g_cur = g_con.cursor()
                     g_cur.execute("SELECT discord_id FROM user_identities WHERE platform_id = ?", (platform_id,))
                     res = g_cur.fetchone()
                     if res:
-                        discord_id = res[0]
-
+                        return res[0]
     except Exception as e:
         logging.error(f"Error searching for user by char name in {game_db_path}: {e}")
 
-    return discord_id
+    return None
+
+
+def get_char_id_by_name(db_path: str, char_name: str) -> Optional[int]:
+    """Retrieves the internal character ID from the game database."""
+    if not os.path.exists(db_path):
+        return None
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+            cur = con.cursor()
+            cur.execute("SELECT id FROM characters WHERE char_name = ?", (char_name,))
+            row = cur.fetchone()
+            return row[0] if row else None
+    except Exception as e:
+        logging.error(f"Error getting char_id for {char_name}: {e}")
+    return None
+
+
+
+def get_item_in_backpack(db_path: str, char_id: int, template_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Searches for a specific item ID in a player's backpack (inv_type 0).
+    Returns a dictionary with 'slot' and 'quantity' or None if not found.
+    """
+    import struct
+    if not os.path.exists(db_path):
+        return None
+
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+            cur = con.cursor()
+            # inv_type 0 is Backpack
+            query = "SELECT item_id, data FROM item_inventory WHERE owner_id = ? AND template_id = ? AND inv_type = 0"
+            cur.execute(query, (char_id, template_id))
+            rows = cur.fetchall()
+            
+            for slot, data in rows:
+                quantity = 1
+                if data:
+                    try:
+                        packed_id = struct.pack('<I', template_id)
+                        offset = data.find(packed_id)
+                        while offset != -1:
+                            cursor_pos = offset + 4
+                            if cursor_pos + 4 <= len(data):
+                                prop_count = struct.unpack('<I', data[cursor_pos:cursor_pos+4])[0]
+                                cursor_pos += 4
+                                if prop_count < 100:
+                                    if cursor_pos + (prop_count * 8) <= len(data):
+                                        for _ in range(prop_count):
+                                            prop_id = struct.unpack('<I', data[cursor_pos:cursor_pos+4])[0]
+                                            cursor_pos += 4
+                                            prop_val = struct.unpack('<I', data[cursor_pos:cursor_pos+4])[0]
+                                            cursor_pos += 4
+                                            if prop_id == 1: # 1 is Quantity
+                                                quantity = prop_val
+                                                break
+                                offset = data.find(packed_id, offset + 1)
+                    except:
+                        pass
+                
+                # Return the first slot found with the item
+                return {"slot": slot, "quantity": quantity}
+                
+    except Exception as e:
+        logging.error(f"Error reading item from backpack in {db_path}: {e}")
+        
+    return None

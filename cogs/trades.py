@@ -1,0 +1,171 @@
+from discord.ext import commands, tasks
+import discord
+import logging
+import re
+import asyncio
+import os
+from datetime import datetime
+
+import config
+from utils.database import (
+    get_char_id_by_name,
+    get_item_in_backpack,
+    find_discord_user_by_char_name
+)
+
+# Constants
+TRADE_SCAN_INTERVAL = 5
+# Format: !buy item_key
+BUY_COMMAND_REGEX = re.compile(r"!buy\s+(\w+)")
+CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
+
+class TradesCog(commands.Cog, name="Trades"):
+    """Handles in-game trade/shop commands."""
+
+    def __init__(self, bot):
+        self.bot = bot
+        self._ = bot._
+        self.log_cursors = {}
+        self.process_trade_log_task.start()
+
+    def cog_unload(self):
+        self.process_trade_log_task.cancel()
+
+    @tasks.loop(seconds=TRADE_SCAN_INTERVAL)
+    async def process_trade_log_task(self):
+        """Scans logs for trade commands."""
+        for server_conf in config.SERVERS:
+            await self._process_log_for_server(server_conf)
+
+    @process_trade_log_task.before_loop
+    async def before_process_trade_task(self):
+        await self.bot.wait_until_ready()
+
+    async def _process_log_for_server(self, server_conf):
+        log_path = server_conf.get("LOG_PATH")
+        server_name = server_conf["NAME"]
+        if not log_path or not os.path.exists(log_path):
+            return
+
+        try:
+            current_size = os.path.getsize(log_path)
+            last_pos = self.log_cursors.get(server_name, 0)
+
+            if server_name not in self.log_cursors:
+                self.log_cursors[server_name] = current_size
+                return
+
+            if current_size < last_pos:
+                last_pos = 0
+
+            if current_size == last_pos:
+                return
+
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                f.seek(last_pos)
+                new_content = f.read()
+                self.log_cursors[server_name] = f.tell()
+
+                for line in new_content.splitlines():
+                    await self._process_log_line(line, server_conf)
+        except Exception as e:
+            logging.error(f"Error reading log for trade: {e}")
+
+    async def _process_log_line(self, line, server_conf):
+        if "!buy" not in line:
+            return
+
+        buy_match = BUY_COMMAND_REGEX.search(line)
+        char_match = CHAT_CHARACTER_REGEX.search(line)
+
+        if buy_match and char_match:
+            item_key = buy_match.group(1).lower()
+            char_name = char_match.group(1).strip()
+            asyncio.create_task(self._handle_buy(char_name, item_key, server_conf))
+
+    async def _handle_buy(self, char_name, item_key, server_conf):
+        db_path = server_conf["DB_PATH"]
+        server_name = server_conf["NAME"]
+        user = None
+        
+        # 1. Check Config
+        trade_config = getattr(config, "TRADE_ITEMS", {})
+        if item_key not in trade_config:
+            return
+
+        item = trade_config[item_key]
+
+        # 2. Find Discord User
+        try:
+            discord_id = find_discord_user_by_char_name(db_path, char_name)
+            if not discord_id:
+                logging.info(f"Unregistered player {char_name} tried to buy {item_key}")
+                return
+            
+            user = await self.bot.fetch_user(int(discord_id))
+        except Exception as e:
+            logging.warning(f"Could not find or contact user for {char_name}: {e}")
+            return
+
+        if not user: return
+
+        # 3. Initial DM Warning
+        try:
+            price_display = item.get('price_label', f"ID: {item['price_id']}")
+            await user.send(
+                f"🛒 **Pedido de Compra:** {item['label']}\n"
+                f"💰 **Preço:** {item['price_amount']}x ({price_display})\n"
+                f"⏳ **Aguarde 10 segundos** para sincronização. **NÃO MOVA ITENS NA MOCHILA!**"
+            )
+        except Exception as e:
+            logging.warning(f"Failed to send DM to {user.name}: {e}")
+            return
+
+        # 4. Wait for game.db sync
+        await asyncio.sleep(8)
+
+        # 5. Check Backpack
+        try:
+            char_id = get_char_id_by_name(db_path, char_name)
+            if not char_id:
+                await user.send("❌ Erro ao localizar seu personagem no banco de dados.")
+                return
+
+            backpack_item = get_item_in_backpack(db_path, char_id, item['price_id'])
+            
+            if not backpack_item or backpack_item['quantity'] < item['price_amount']:
+                await user.send(f"❌ Saldo insuficiente! Você precisa de {item['price_amount']}x {price_display}.")
+                return
+
+            # 6. RCON Transaction
+            status_cog = self.bot.get_cog("Status")
+            if not status_cog: return
+
+            resp_list, _ = await status_cog.execute_rcon(server_name, "ListPlayers")
+            idx = None
+            for line in resp_list.split('\n'):
+                if char_name in line:
+                    idx = line.split('|')[0].strip()
+                    break
+            
+            if idx is None:
+                await user.send("❌ Você precisa estar online para comprar.")
+                return
+
+            # A. Deduct
+            new_qty = backpack_item['quantity'] - item['price_amount']
+            await status_cog.execute_rcon(server_name, f"con {idx} SetInventoryItemIntStat {backpack_item['slot']} 1 {new_qty} 0")
+            
+            # B. Spawn
+            await status_cog.execute_rcon(server_name, f"con {idx} SpawnItem {item['item_id']} {item['quantity']}")
+            
+            await user.send(f"✅ **Sucesso!** {item['label']} entregue.")
+            logging.info(f"TRADE SUCCESS: {char_name} bought {item_key}")
+
+        except Exception as e:
+            logging.error(f"Critical error in trade for {char_name}: {e}")
+            try: await user.send("❌ Erro técnico. Contate o ADM.")
+            except: pass
+
+async def setup(bot):
+    await bot.add_cog(TradesCog(bot))
