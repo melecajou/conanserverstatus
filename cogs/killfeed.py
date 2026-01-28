@@ -162,20 +162,23 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                     continue
 
                 if is_pvp_kill:
-                    message = f"💀 **{killer}** matou **{victim}**!"
+                    message = self.bot._("💀 **{killer}** killed **{victim}**!").format(killer=killer, victim=victim)
                 elif victim:
-                    npc_name = "o ambiente"
+                    npc_name = self.bot._("the environment")
                     if npc_id:
                         try:
                             npc_row = cur.execute("SELECT Name FROM spawns_db.spawns WHERE RowName = ?", (npc_id,)).fetchone()
                             if npc_row: npc_name = npc_row[0]
                         except: pass
-                    message = f"☠️ **{victim}** foi morto por **{npc_name}**!"
+                    message = self.bot._("☠️ **{victim}** was killed by **{npc}**!").format(victim=victim, npc=npc_name)
                 else:
                     continue
 
                 embed = discord.Embed(description=message, color=discord.Color.dark_red())
-                embed.set_footer(text=f"📍 {server_name} | {datetime.fromtimestamp(event_time).strftime('%d/%m/%Y às %H:%M:%S')}")
+                embed.set_footer(text=self.bot._("📍 {server} | {date}").format(
+                    server=server_name, 
+                    date=datetime.fromtimestamp(event_time).strftime('%d/%m/%Y %H:%M:%S')
+                ))
                 await channel.send(embed=embed)
 
                 if event_time > new_max_time:
@@ -215,16 +218,22 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         top_players = cur.fetchall()
         con.close()
 
-        embed = discord.Embed(title=f"🏆 Ranking PvP: {server_name}", color=discord.Color.gold())
+        embed = discord.Embed(title=self.bot._("🏆 PvP Ranking: {server}").format(server=server_name), color=discord.Color.gold())
         if not top_players:
-            embed.description = "Nenhum dado de ranking PvP disponível ainda."
+            embed.description = self.bot._("No PvP ranking data available yet.")
         else:
             description = ""
             for i, (player, kills, deaths, score) in enumerate(top_players, 1):
                 rank_emoji = {1: '🥇', 2: '🥈', 3: '🥉'}.get(i, f'**#{i}**')
-                description += f"{rank_emoji} **{player}** - Pontos: {score} (K: {kills} / D: {deaths})\n"
+                description += self.bot._("{emoji} **{player}** - Points: {score} (K: {kills} / D: {deaths})\n").format(
+                    emoji=rank_emoji,
+                    player=player,
+                    score=score,
+                    kills=kills,
+                    deaths=deaths
+                )
             embed.description = description
-        embed.set_footer(text=f"Última atualização: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        embed.set_footer(text=self.bot._("Last update: {date}").format(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
         message_id = self.ranking_state.get(server_name)
         if message_id:

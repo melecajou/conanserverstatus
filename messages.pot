@@ -1,14 +1,14 @@
 # Translations template for PROJECT.
-# Copyright (C) 2025 ORGANIZATION
+# Copyright (C) 2026 ORGANIZATION
 # This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-10-21 14:32-0300\n"
+"POT-Creation-Date: 2026-01-28 18:56-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,249 +17,344 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.10.3\n"
 
-#: bot.py:42 conan_server_status.py:419 conan_server_status.py:499
-msgid "Bot connected as {username}"
-msgstr ""
-
-#: bot.py:56
-msgid "All cogs loaded and tasks started."
-msgstr ""
-
-#: bot.py:64 conan_server_status.py:617
+#: bot.py:94
 msgid "Fatal error starting the bot: {error}"
 msgstr ""
 
-#: conan_server_status.py:61
-msgid "Player tracker database '{db}' initialized successfully."
+#: cogs/admin.py:34
+msgid "The VIP level cannot be negative."
 msgstr ""
 
-#: conan_server_status.py:63
-msgid "Failed to initialize player tracker database '{db}': {error}"
+#: cogs/admin.py:47
+msgid "VIP level for '{member}' updated to {level}."
 msgstr ""
 
-#: conan_server_status.py:88
-msgid "Could not read player level from {db}: {error}"
-msgstr ""
-
-#: conan_server_status.py:102
-msgid "Could not read player online time from {db}: {error}"
-msgstr ""
-
-#: conan_server_status.py:187
-msgid ""
-"Player {player} on server '{server}' reached a new reward milestone at "
-"{hours:.1f} hours. Issuing reward."
-msgstr ""
-
-#: conan_server_status.py:195
-msgid ""
-"Reward command '{cmd}' for player {player} on server '{server}' executed."
-" Response: {resp}"
-msgstr ""
-
-#: conan_server_status.py:211
-msgid ""
-"Failed to send reward RCON command for player {player} on server "
-"'{server}': {error}"
-msgstr ""
-
-#: conan_server_status.py:217
-msgid ""
-"An error occurred in track_and_reward_players for server '{server}': "
-"{error}"
-msgstr ""
-
-#: cogs/status.py:106 conan_server_status.py:291
-msgid "The server is operating normally."
-msgstr ""
-
-#: cogs/status.py:125 conan_server_status.py:310
-msgid "Online Players ({count})"
-msgstr ""
-
-#: cogs/status.py:127 conan_server_status.py:312
-msgid "Online Players (0)"
-msgstr ""
-
-#: cogs/status.py:127 conan_server_status.py:312
-msgid "No one is playing at the moment."
-msgstr ""
-
-#: cogs/status.py:130 conan_server_status.py:316
-msgid "Uptime"
-msgstr ""
-
-#: cogs/status.py:132 conan_server_status.py:318
-msgid "Server FPS"
-msgstr ""
-
-#: cogs/status.py:134 conan_server_status.py:320
-msgid "Memory"
-msgstr ""
-
-#: cogs/status.py:136 conan_server_status.py:322
-msgid "CPU"
-msgstr ""
-
-#: cogs/status.py:138 conan_server_status.py:328
-msgid "Status updated"
-msgstr ""
-
-#: conan_server_status.py:336
-msgid "Failed to generate server status embed for '{server}': {error}"
-msgstr ""
-
-#: conan_server_status.py:348 rcon.py:16
-msgid "[{server}] RCON connection successful on attempt {attempt}/3."
-msgstr ""
-
-#: conan_server_status.py:352 rcon.py:20
-msgid "[{server}] RCON connection attempt {attempt}/3 failed: {error}"
-msgstr ""
-
-#: conan_server_status.py:373
-msgid "Channel with ID {channel_id} for '{server_name}' not found."
-msgstr ""
-
-#: cogs/status.py:146 conan_server_status.py:391
-msgid "Could not connect to the server. It may be offline or restarting."
-msgstr ""
-
-#: cogs/status.py:147 conan_server_status.py:394
-msgid "Check the console or contact an administrator."
-msgstr ""
-
-#: conan_server_status.py:408
-msgid "Message for '{server}' not found. Creating a new one."
-msgstr ""
-
-#: conan_server_status.py:412
-msgid "Error updating status message for '{server}': {error}"
-msgstr ""
-
-#: conan_server_status.py:435 conan_server_status.py:515
-msgid "Status update and reward task started."
-msgstr ""
-
-#: conan_server_status.py:443
-msgid ""
-"This command is being reworked. The bot updates automatically every "
-"minute."
-msgstr ""
-
-#: conan_server_status.py:449
-msgid "Command on cooldown. Try again in {seconds:.1f} seconds."
-msgstr ""
-
-#: conan_server_status.py:519
-msgid "Announcement task started."
-msgstr ""
-
-#: conan_server_status.py:523
-msgid "Building report task started."
-msgstr ""
-
-#: cogs/admin.py:23
-msgid "O nível de VIP não pode ser negativo."
-msgstr ""
-
-#: cogs/admin.py:50
-msgid "Nível de VIP para '{member}' atualizado para {level}."
-msgstr ""
-
-#: cogs/admin.py:52
-msgid ""
-"Não foi encontrada uma conta de jogo vinculada para o membro '{member}'. "
-"O usuário precisa primeiro usar o comando /registrar."
-msgstr ""
-
-#: cogs/announcements.py:43
-msgid "Scheduled announcement."
-msgstr ""
-
-#: cogs/announcements.py:45
-msgid "Sent announcement for '{server_name}' to channel {channel_id}."
+#: cogs/admin.py:58
+msgid "An error occurred while updating the VIP level. Please check the logs."
 msgstr ""
 
 #: cogs/announcements.py:48
+msgid "Scheduled announcement."
+msgstr ""
+
+#: cogs/announcements.py:52
+msgid "Sent announcement for '{server_name}' to channel {channel_id}."
+msgstr ""
+
+#: cogs/announcements.py:62
 msgid ""
 "Could not find announcement channel with ID {channel_id} for server "
 "'{server_name}'."
 msgstr ""
 
-#: cogs/announcements.py:50
+#: cogs/announcements.py:71
 msgid "Error in announcement task for server '{server_name}': {error}"
 msgstr ""
 
-#: cogs/building.py:34
+#: cogs/building.py:117
 msgid "Building Watcher for '{server_name}' is missing required configuration."
 msgstr ""
 
-#: cogs/building.py:46
+#: cogs/building.py:137
 msgid "Failed to generate building report for '{server_name}'. Exception: {error}"
 msgstr ""
 
-#: cogs/building.py:48
+#: cogs/building.py:145
 msgid "Building Report - {server_name}"
 msgstr ""
 
-#: cogs/building.py:51
+#: cogs/building.py:152
 msgid "No buildings found at the moment."
 msgstr ""
 
-#: cogs/building.py:55
-msgid "(No Owner)"
+#: cogs/building.py:161
+msgid "(Unknown Owner)"
 msgstr ""
 
-#: cogs/building.py:58
-msgid " ⚠️ (Above the limit of {build_limit})"
+#: cogs/building.py:172
+msgid " ⚠️ (Acima do limite)"
 msgstr ""
 
-#: cogs/building.py:65
+#: cogs/building.py:182
 msgid "Updated"
 msgstr ""
 
-#: cogs/building.py:71
+#: cogs/building.py:189
 msgid "Building report channel {channel_id} not found."
 msgstr ""
 
-#: cogs/building.py:79
+#: cogs/building.py:204
 msgid "Building Report"
 msgstr ""
 
-#: cogs/building.py:87
+#: cogs/building.py:215
 msgid "Failed to post building report for '{server_name}': {error}"
 msgstr ""
 
-#: cogs/registration.py:34
+#: cogs/inactivity.py:56
+msgid "🕵️‍♂️ Inactivity Report - {server}"
+msgstr ""
+
+#: cogs/inactivity.py:57
 msgid ""
-"Olá! Para vincular sua conta do jogo à sua conta do Discord, entre no "
-"servidor e digite o seguinte comando no chat:\n"
+"Listing of bases whose owner/clan has been offline for more than **{days}"
+" days**."
+msgstr ""
+
+#: cogs/inactivity.py:64
+msgid "pieces"
+msgstr ""
+
+#: cogs/inactivity.py:80
+msgid ""
+"Inactive bases (>{days} days) - Part {part}/{total}\n"
 "\n"
 msgstr ""
 
-#: cogs/registration.py:36
-msgid "Este código expira em 10 minutos."
+#: cogs/killfeed.py:165
+msgid "💀 **{killer}** killed **{victim}**!"
 msgstr ""
 
-#: cogs/registration.py:39
-msgid "Enviei a você uma mensagem privada com as instruções para o registro!"
+#: cogs/killfeed.py:167
+msgid "the environment"
 msgstr ""
 
-#: cogs/registration.py:41
+#: cogs/killfeed.py:173
+msgid "☠️ **{victim}** was killed by **{npc}**!"
+msgstr ""
+
+#: cogs/killfeed.py:178
+msgid "📍 {server} | {date}"
+msgstr ""
+
+#: cogs/killfeed.py:221
+msgid "🏆 PvP Ranking: {server}"
+msgstr ""
+
+#: cogs/killfeed.py:223
+msgid "No PvP ranking data available yet."
+msgstr ""
+
+#: cogs/killfeed.py:228
+msgid "{emoji} **{player}** - Points: {score} (K: {kills} / D: {deaths})\n"
+msgstr ""
+
+#: cogs/killfeed.py:236
+msgid "Last update: {date}"
+msgstr ""
+
+#: cogs/registration.py:56
 msgid ""
-"Não consigo lhe enviar uma mensagem privada. Por favor, habilite as DMs "
-"de membros do servidor nas suas configurações de privacidade e tente "
-"novamente."
+"Hello! To link your game account to your Discord account, please enter "
+"the following command in the in-game chat:\n"
+"\n"
 msgstr ""
 
-#: cogs/registration.py:43
+#: cogs/registration.py:60
+msgid "This code will expire in {minutes} minutes."
+msgstr ""
+
+#: cogs/registration.py:66
+msgid "I have sent you a private message with the registration instructions!"
+msgstr ""
+
+#: cogs/registration.py:73
 msgid ""
-"Ocorreu um erro ao tentar lhe enviar as instruções. Por favor, contate um"
-" administrador."
+"I cannot send you a private message. Please enable DMs from server "
+"members in your privacy settings and try again."
 msgstr ""
 
-#: cogs/rewards.py:62
-msgid "Sucesso! Sua conta do jogo '{char}' foi vinculada à sua conta do Discord."
+#: cogs/registration.py:80
+msgid ""
+"An error occurred while trying to send you the instructions. Please "
+"contact an administrator."
+msgstr ""
+
+#: cogs/registration.py:94
+msgid "This command is on cooldown. Please try again in {seconds:.1f} seconds."
+msgstr ""
+
+#: cogs/registration.py:103 cogs/registration.py:110
+msgid "An unexpected error occurred. Please contact an administrator."
+msgstr ""
+
+#: cogs/registration.py:373
+msgid ""
+"Success! Your game account '{char}' has been linked to your Discord "
+"account."
+msgstr ""
+
+#: cogs/rewards.py:101
+#, python-format
+msgid "Reward command '%s' for player %s on server '%s' executed. Response: %s"
+msgstr ""
+
+#: cogs/rewards.py:109
+#, python-format
+msgid "Attempt %d/3 to send reward for player %s failed: %s"
+msgstr ""
+
+#: cogs/rewards.py:117
+#, python-format
+msgid ""
+"Failed to send reward RCON command for player %s on server '%s' after 3 "
+"attempts."
+msgstr ""
+
+#: cogs/rewards.py:241
+#, python-format
+msgid ""
+"Player %s on server '%s' reached a new reward milestone at %.1f hours. "
+"Issuing reward."
+msgstr ""
+
+#: cogs/rewards.py:257
+#, python-format
+msgid "Player %s on server '%s' has been rewarded."
+msgstr ""
+
+#: cogs/status.py:142
+msgid "Players Online: {count}"
+msgstr ""
+
+#: cogs/status.py:167 cogs/status.py:381
+msgid "🌍 Cluster Status"
+msgstr ""
+
+#: cogs/status.py:168
+msgid "Consolidated status of all servers."
+msgstr ""
+
+#: cogs/status.py:233 cogs/status.py:550
+msgid "Online Players ({count})"
+msgstr ""
+
+#: cogs/status.py:239 cogs/status.py:558
+msgid "Online Players (0)"
+msgstr ""
+
+#: cogs/status.py:240 cogs/status.py:559
+msgid "No one is playing at the moment."
+msgstr ""
+
+#: cogs/status.py:252
+msgid "Servers"
+msgstr ""
+
+#: cogs/status.py:258
+msgid "Total CPU"
+msgstr ""
+
+#: cogs/status.py:261
+msgid "Total Memory"
+msgstr ""
+
+#: cogs/status.py:264
+msgid "Cluster status updated"
+msgstr ""
+
+#: cogs/status.py:503
+msgid "The server is operating normally."
+msgstr ""
+
+#: cogs/status.py:573
+msgid "Status updated"
+msgstr ""
+
+#: cogs/status.py:592
+msgid "Could not connect to the server. It may be offline or restarting."
+msgstr ""
+
+#: cogs/status.py:597
+msgid "Check the console or contact an administrator."
+msgstr ""
+
+#: cogs/trades.py:116
+msgid ""
+"🛒 **Purchase Request:** {label}\n"
+"💰 **Price:** {amount}x ({price_display})\n"
+"⏳ **Please wait 10 seconds** for synchronization. **DO NOT MOVE ITEMS IN "
+"BACKPACK!**"
+msgstr ""
+
+#: cogs/trades.py:133
+msgid "❌ Error: Character not found in database."
+msgstr ""
+
+#: cogs/trades.py:139
+msgid "❌ Insufficient funds! You need {amount}x {currency} in your backpack."
+msgstr ""
+
+#: cogs/trades.py:157
+msgid "❌ You must be online to complete the purchase."
+msgstr ""
+
+#: cogs/trades.py:167
+msgid ""
+"✅ **Purchase complete!** Your item **{label}** was delivered to your "
+"backpack."
+msgstr ""
+
+#: cogs/trades.py:174
+msgid "❌ A technical error occurred during processing. Please contact an Admin."
+msgstr ""
+
+#: cogs/warps.py:51
+msgid "📍 Warp Locations"
+msgstr ""
+
+#: cogs/warps.py:52
+msgid ""
+"These are the locations you can teleport to using `!warp <name>` in the "
+"in-game chat."
+msgstr ""
+
+#: cogs/warps.py:69
+msgid "No warps are currently configured."
+msgstr ""
+
+#: cogs/warps.py:202
+msgid ""
+"📍 **Available Warps in {server}:**\n"
+"{locations}\n"
+"\n"
+"Use `!warp <name>` in the in-game chat."
+msgstr ""
+
+#: cogs/warps.py:208
+msgid ""
+"🏠 **Home System:**\n"
+"Use `!sethome` to save your current position and `!home` to return."
+msgstr ""
+
+#: cogs/warps.py:246
+msgid "⏳ **SetHome on Cooldown:** Please wait **{minutes}m {seconds}s**."
+msgstr ""
+
+#: cogs/warps.py:265
+msgid ""
+"🏠 **Home Set!** Your location was saved in **{server}**.\n"
+"⚠️ *Note: There might be a slight difference in the exact position due to"
+" the server's automatic save cycle.*"
+msgstr ""
+
+#: cogs/warps.py:304
+msgid "⏳ **Home on Cooldown:** Please wait **{minutes}m {seconds}s**."
+msgstr ""
+
+#: cogs/warps.py:323
+msgid "🏠 Welcome back to your home in **{server}**!"
+msgstr ""
+
+#: cogs/warps.py:330
+msgid "❌ **Error:** You haven't set a home yet. Use `!sethome` first."
+msgstr ""
+
+#: cogs/warps.py:368
+msgid "⏳ **Warp on Cooldown:** Please wait **{minutes}m {seconds}s**."
+msgstr ""
+
+#: cogs/warps.py:381
+msgid "🚀 Teleported to **{destination}** in **{server}**!"
 msgstr ""
 

@@ -113,9 +113,11 @@ class TradesCog(commands.Cog, name="Trades"):
         try:
             price_display = item.get('price_label', f"ID: {item['price_id']}")
             await user.send(
-                f"🛒 **Pedido de Compra:** {item['label']}\n"
-                f"💰 **Preço:** {item['price_amount']}x ({price_display})\n"
-                f"⏳ **Aguarde 10 segundos** para sincronização. **NÃO MOVA ITENS NA MOCHILA!**"
+                self.bot._("🛒 **Purchase Request:** {label}\n💰 **Price:** {amount}x ({price_display})\n⏳ **Please wait 10 seconds** for synchronization. **DO NOT MOVE ITEMS IN BACKPACK!**").format(
+                    label=item['label'], 
+                    amount=item['price_amount'], 
+                    price_display=price_display
+                )
             )
         except Exception as e:
             logging.warning(f"Failed to send DM to {user.name}: {e}")
@@ -128,13 +130,16 @@ class TradesCog(commands.Cog, name="Trades"):
         try:
             char_id = get_char_id_by_name(db_path, char_name)
             if not char_id:
-                await user.send("❌ Erro ao localizar seu personagem no banco de dados.")
+                await user.send(self.bot._("❌ Error: Character not found in database."))
                 return
 
             backpack_item = get_item_in_backpack(db_path, char_id, item['price_id'])
             
             if not backpack_item or backpack_item['quantity'] < item['price_amount']:
-                await user.send(f"❌ Saldo insuficiente! Você precisa de {item['price_amount']}x {price_display}.")
+                await user.send(self.bot._("❌ Insufficient funds! You need {amount}x {currency} in your backpack.").format(
+                    amount=item['price_amount'], 
+                    currency=price_display
+                ))
                 return
 
             # 6. RCON Transaction
@@ -149,7 +154,7 @@ class TradesCog(commands.Cog, name="Trades"):
                     break
             
             if idx is None:
-                await user.send("❌ Você precisa estar online para comprar.")
+                await user.send(self.bot._("❌ You must be online to complete the purchase."))
                 return
 
             # A. Deduct
@@ -159,12 +164,14 @@ class TradesCog(commands.Cog, name="Trades"):
             # B. Spawn
             await status_cog.execute_rcon(server_name, f"con {idx} SpawnItem {item['item_id']} {item['quantity']}")
             
-            await user.send(f"✅ **Sucesso!** {item['label']} entregue.")
+            await user.send(self.bot._("✅ **Purchase complete!** Your item **{label}** was delivered to your backpack.").format(
+                label=item['label']
+            ))
             logging.info(f"TRADE SUCCESS: {char_name} bought {item_key}")
 
         except Exception as e:
             logging.error(f"Critical error in trade for {char_name}: {e}")
-            try: await user.send("❌ Erro técnico. Contate o ADM.")
+            try: await user.send(self.bot._("❌ A technical error occurred during processing. Please contact an Admin."))
             except: pass
 
 async def setup(bot):

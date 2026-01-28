@@ -53,15 +53,15 @@ class InactivityCog(commands.Cog, name="Inactivity"):
 
             # Format and Send Report
             embed = discord.Embed(
-                title=f"🕵️‍♂️ Relatório de Inatividade - {server_name}",
-                description=f"Listagem de bases cujo dono/clã está offline há mais de **{days} dias**.",
+                title=self.bot._("🕵️‍♂️ Inactivity Report - {server}").format(server=server_name),
+                description=self.bot._("Listing of bases whose owner/clan has been offline for more than **{days} days**.").format(days=days),
                 color=discord.Color.orange(),
                 timestamp=discord.utils.utcnow()
             )
 
             report_lines = []
             for item in inactive_data:
-                line = f"• **{item['owner']}**: `{item['pieces']}` peças\n  └ Last: {item['last_activity']}\n  └ `{item['location']}`"
+                line = f"• **{item['owner']}**: `{item['pieces']}` " + self.bot._("pieces") + f"\n  └ Last: {item['last_activity']}\n  └ `{item['location']}`"
                 report_lines.append(line)
 
             # Discord Embed Limit is 4096 chars. If larger, send multiple messages.
@@ -77,7 +77,11 @@ class InactivityCog(commands.Cog, name="Inactivity"):
                 chunks.append(current_chunk)
 
             for i, chunk in enumerate(chunks):
-                embed.description = f"Bases inativas (>{days} dias) - Parte {i+1}/{len(chunks)}\n\n" + chunk
+                embed.description = self.bot._("Inactive bases (>{days} days) - Part {part}/{total}\n\n").format(
+                    days=days, 
+                    part=i+1, 
+                    total=len(chunks)
+                ) + chunk
                 await channel.send(embed=embed)
 
             logging.info(f"Inactivity report sent for {server_name} ({len(inactive_data)} entries).")
