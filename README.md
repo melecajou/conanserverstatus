@@ -16,6 +16,13 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
     - `/checkvip @User`: Checks the VIP status, level, and expiration of a specific member.
     - `/setvipexpiry @User <days>`: Updates the expiration duration for an existing VIP member.
     - `/sync_roles`: Iterates through all player databases and assigns the configured registered role to any user who has linked their account but doesn't have the role yet.
+- **Killfeed System**: Monitors the live game database to announce player deaths.
+    - **Real-time Announcements**: Posts PvP and PvE deaths directly to Discord.
+    - **Smart Filtering**: Prevents duplicate messages from in-game bugs.
+- **PvP Ranking**: Maintains an automated leaderboard.
+    - **Per-Server Ranking**: Individual leaderboards for each map.
+    - **Unified Cluster Ranking**: Aggregated leaderboard combining scores from all servers.
+    - **Persistent Messages**: Auto-updating ranking embeds that don't clutter the channel.
 - **User Commands**:
     - `/register`: Generates a code to link your in-game character to your Discord account.
     - `/premium`: Checks your own current VIP status, level, and benefit expiration date.
@@ -186,6 +193,35 @@ GUILD_SYNC = {
     "CLEANUP_EMPTY_ROLES": True
 }
 ```
+
+**Killfeed & PvP Ranking Configuration:**
+1.  In `config.py`, set global database paths:
+    ```python
+    KILLFEED_RANKING_DB = "data/killfeed/ranking.db"
+    KILLFEED_SPAWNS_DB = "data/killfeed/spawns.db"
+    ```
+2.  Enable Killfeed for each server in the `SERVERS` list:
+    ```python
+            "KILLFEED_CONFIG": {
+                "ENABLED": True,
+                "CHANNEL_ID": 123456789012345678,        # For death announcements
+                "RANKING_CHANNEL_ID": 123456789012345678, # For the leaderboard
+                "LAST_EVENT_FILE": "data/killfeed/last_event_exilio.txt",
+                "POLL_INTERVAL": 20,
+                "PVP_ONLY": False
+            },
+    ```
+3.  (Optional) Enable Unified Cluster Ranking:
+    ```python
+    KILLFEED_UNIFIED_RANKINGS = [
+        {
+            "enabled": True,
+            "title": "🏆 Cluster PvP Ranking",
+            "channel_id": 123456789012345678,
+            "servers_to_include": ["Server Name 1", "Server Name 2"]
+        }
+    ]
+    ```
 
 **Inactivity Report Configuration:**
 To enable daily reports on abandoned bases:

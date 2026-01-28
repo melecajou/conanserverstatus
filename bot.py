@@ -48,6 +48,7 @@ COGS_TO_LOAD = [
     "cogs.guild_sync",
     "cogs.inactivity",
     "cogs.trades",
+    "cogs.killfeed",
 ]
 
 

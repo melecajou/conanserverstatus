@@ -29,4 +29,30 @@ This phase focused on adding powerful, automated features to assist with server 
 
 ## Phase 5: System Status Display (`StatusCog` Enhancement)
 
+
+
 The `StatusCog` was enhanced to parse the server's `ConanSandbox.log` file in real-time. The bot now extracts key performance metrics (Uptime, Server FPS, Memory, CPU) and displays them directly in the main status embed, providing an at-a-glance overview of the server's health. This involved adding a new `LOG_PATH` configuration, implementing robust log parsing with regex, and a significant debugging effort to resolve intermittent errors and variable shadowing. The new UI elements were also fully internationalized.
+
+
+
+## Phase 6: Killfeed & Ranking Integration (`KillfeedCog`)
+
+
+
+The standalone Killfeed bot was integrated as a modular Cog, centralizing all cluster management tools into a single bot instance.
+
+
+
+1.  **Data Migration & Preservation**: All historical PvP ranking data (`ranking.db`), NPC spawn definitions (`spawns.db`), and event tracking state were migrated to a dedicated `data/killfeed/` directory.
+
+2.  **Real-time Live Monitoring**: The `KillfeedCog` was configured to monitor the **live** `game.db` files using `read-only` mode and `nolock=1` parameters, ensuring immediate death announcements without affecting game server performance.
+
+3.  **Advanced PvP Rankings**:
+
+    *   **Per-Server Leaderboards**: Automated maintenance of top-10 PvP rankings for each map.
+
+    *   **Unified Cluster Ranking**: A new aggregate leaderboard that combines player scores across all maps in the cluster.
+
+    *   **Smart Message Management**: Uses persistent Discord embeds that are edited in place to provide a clean, live-updating ranking experience.
+
+4.  **Configuration Consolidation**: Consolidated two separate configuration systems into a single, comprehensive `config.py` for easier management.

@@ -16,6 +16,24 @@ STATUS_BOT_TOKEN = os.getenv("STATUS_BOT_TOKEN")
 # Set to None or 0 to disable this feature.
 REGISTERED_ROLE_ID = 123456789012345678
 
+# Killfeed Global Configuration
+# Paths to the ranking and NPC spawns databases.
+KILLFEED_RANKING_DB = "data/killfeed/ranking.db"
+KILLFEED_SPAWNS_DB = "data/killfeed/spawns.db"
+KILLFEED_STATE_FILE = "data/killfeed/ranking_state.json"
+
+# Unified Ranking Configuration (Optional)
+# Aggregates scores from multiple servers into a single leaderboard.
+KILLFEED_UNIFIED_RANKINGS = [
+    {
+        "enabled": False,
+        "title": "🏆 Cluster PvP Ranking",
+        "channel_id": 123456789012345678,
+        "servers_to_include": ["My Server 1 (Exiles)", "My Server 2 (Siptah)"],
+        "update_interval": 300,
+    }
+]
+
 # Cluster Status Configuration
 # Consolidates status from all servers into a single channel.
 CLUSTER_STATUS = {
@@ -69,8 +87,18 @@ SERVERS = [
             "LOG_PATH": "", # Optional: Absolute path to the ConanSandbox.log file for this server to show system stats. e.g., "/path/to/server/ConanSandbox/Saved/Logs/ConanSandbox.log",
 
             # Optional: Per-server database and log files.
-            # "PLAYER_DB_PATH": "data/playertracker_server1.db",
+            "PLAYER_DB_PATH": "data/playertracker_server1.db",
             # "LOG_FILE": "logs/rewards_server1.log",
+
+            "KILLFEED_CONFIG": {
+                "ENABLED": True,
+                "CHANNEL_ID": 123456789012345678,
+                "RANKING_CHANNEL_ID": 123456789012345679,
+                "LAST_EVENT_FILE": "data/killfeed/last_event_server1.txt",
+                "POLL_INTERVAL": 20,
+                "RANKING_UPDATE_INTERVAL": 300,
+                "PVP_ONLY": False
+            },
 
             "REWARD_CONFIG": {
                 "ENABLED": True,
