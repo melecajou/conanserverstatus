@@ -17,7 +17,7 @@ def parse_server_log(log_path: str) -> Dict[str, str]:
 
             # Uptime, CPU, Players, FPS from LogServerStats
             status_reports = re.findall(
-                r"LogServerStats: Status report\. Uptime=(\d+).*? Mem=\d+:\d+:(\d+):\d+.*? CPU=([\d\.]+).*? Players=(\d+).*? FPS=([\d\.]+)",
+                r"LogServerStats: Status report\. Uptime=(\d+).*? Mem=\d+:\d+:(\d+):\d+.*? CPU=([\d\.]+).*? Players=(\d+).*? FPS=([\d\.:]+)",
                 log_content,
             )
             if status_reports:
@@ -33,7 +33,11 @@ def parse_server_log(log_path: str) -> Dict[str, str]:
 
                 stats["cpu"] = f"{float(last_report[2]):.1f}%"
                 stats["players"] = last_report[3]
-                stats["fps"] = f"{float(last_report[4]):.1f}"
+                
+                # FPS is usually x:y:z, we want y
+                fps_parts = last_report[4].split(":")
+                fps_val = fps_parts[1] if len(fps_parts) > 1 else fps_parts[0]
+                stats["fps"] = f"{float(fps_val):.1f}"
 
             # Game Version from LogInit
             version_match = re.search(
