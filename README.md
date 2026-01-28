@@ -30,6 +30,9 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
     - `!home`: Teleports the player back to their saved home position.
     - **Note**: The position is read from the game database. There might be a slight delay in coordinate accuracy (up to 1 minute) depending on the server's automatic save cycle.
     - **Cooldowns**: Both `!sethome` and `!home` have configurable cooldowns.
+- **In-Game Trade System**: Players can purchase items using in-game currency (other items in their backpack) by typing `!buy <item_key>` in chat.
+    - **Safe Transactions**: The bot validates the player's inventory and deducts the price before spawning the item.
+    - **Notifications**: Users receive a Discord DM during the process and upon successful purchase.
 - **Guild Sync**: Automatically synchronizes in-game guild membership with Discord roles.
     - Creates roles like `🛡️ GuildName` automatically.
     - Assigns roles to registered members.
@@ -197,6 +200,24 @@ To enable daily reports on abandoned bases:
                 "CHANNEL_ID": 123456789012345678,
                 "SQL_PATH": "/home/steam/bots/ConanServerStatus/sql/inactive_structures.sql"
             }
+```
+
+**Trade System Configuration:**
+To allow players to buy items in-game:
+1.  In `config.py`, define the `TRADE_ITEMS` dictionary.
+2.  Each entry should have a unique key, the item ID to deliver, the price ID (currency item), the amount, and friendly labels.
+
+```python
+TRADE_ITEMS = {
+    "pocao": {
+        "item_id": 53003,
+        "quantity": 1,
+        "price_id": 11066,
+        "price_amount": 10,
+        "price_label": "Moedas de Prata",
+        "label": "Extrato de Aloe Puro"
+    }
+}
 ```
 
 **VIP System and Expiration:**
