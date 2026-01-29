@@ -34,10 +34,14 @@ def parse_server_log(log_path: str) -> Dict[str, str]:
                 stats["cpu"] = f"{float(last_report[2]):.1f}%"
                 stats["players"] = last_report[3]
                 
-                # FPS is usually x:y:z, we want y
+                # FPS values in log are actually frame times in ms. Real FPS = 1000 / frame_time.
+                # Format is min:avg:max, we want avg (index 1)
                 fps_parts = last_report[4].split(":")
-                fps_val = fps_parts[1] if len(fps_parts) > 1 else fps_parts[0]
-                stats["fps"] = f"{float(fps_val):.1f}"
+                frame_time = float(fps_parts[1] if len(fps_parts) > 1 else fps_parts[0])
+                if frame_time > 0:
+                    stats["fps"] = f"{1000.0 / frame_time:.1f}"
+                else:
+                    stats["fps"] = "0.0"
 
             # Game Version from LogInit
             version_match = re.search(
