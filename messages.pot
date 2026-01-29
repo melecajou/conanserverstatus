@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-01-28 18:56-0300\n"
+"POT-Creation-Date: 2026-01-29 17:28-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -111,35 +111,35 @@ msgid ""
 "\n"
 msgstr ""
 
-#: cogs/killfeed.py:165
+#: cogs/killfeed.py:140
 msgid "💀 **{killer}** killed **{victim}**!"
 msgstr ""
 
-#: cogs/killfeed.py:167
+#: cogs/killfeed.py:142
 msgid "the environment"
 msgstr ""
 
-#: cogs/killfeed.py:173
+#: cogs/killfeed.py:149
 msgid "☠️ **{victim}** was killed by **{npc}**!"
 msgstr ""
 
-#: cogs/killfeed.py:178
+#: cogs/killfeed.py:153
 msgid "📍 {server} | {date}"
 msgstr ""
 
-#: cogs/killfeed.py:221
+#: cogs/killfeed.py:192
 msgid "🏆 PvP Ranking: {server}"
 msgstr ""
 
-#: cogs/killfeed.py:223
+#: cogs/killfeed.py:194 cogs/killfeed.py:251
 msgid "No PvP ranking data available yet."
 msgstr ""
 
-#: cogs/killfeed.py:228
+#: cogs/killfeed.py:199 cogs/killfeed.py:256
 msgid "{emoji} **{player}** - Points: {score} (K: {kills} / D: {deaths})\n"
 msgstr ""
 
-#: cogs/killfeed.py:236
+#: cogs/killfeed.py:203 cogs/killfeed.py:261
 msgid "Last update: {date}"
 msgstr ""
 
@@ -213,59 +213,59 @@ msgstr ""
 msgid "Player %s on server '%s' has been rewarded."
 msgstr ""
 
-#: cogs/status.py:142
+#: cogs/status.py:143
 msgid "Players Online: {count}"
 msgstr ""
 
-#: cogs/status.py:167 cogs/status.py:381
+#: cogs/status.py:168 cogs/status.py:383
 msgid "🌍 Cluster Status"
 msgstr ""
 
-#: cogs/status.py:168
+#: cogs/status.py:169
 msgid "Consolidated status of all servers."
 msgstr ""
 
-#: cogs/status.py:233 cogs/status.py:550
+#: cogs/status.py:234 cogs/status.py:552
 msgid "Online Players ({count})"
 msgstr ""
 
-#: cogs/status.py:239 cogs/status.py:558
+#: cogs/status.py:240 cogs/status.py:560
 msgid "Online Players (0)"
 msgstr ""
 
-#: cogs/status.py:240 cogs/status.py:559
+#: cogs/status.py:241 cogs/status.py:561
 msgid "No one is playing at the moment."
 msgstr ""
 
-#: cogs/status.py:252
+#: cogs/status.py:254
 msgid "Servers"
 msgstr ""
 
-#: cogs/status.py:258
+#: cogs/status.py:260
 msgid "Total CPU"
 msgstr ""
 
-#: cogs/status.py:261
+#: cogs/status.py:263
 msgid "Total Memory"
 msgstr ""
 
-#: cogs/status.py:264
+#: cogs/status.py:266
 msgid "Cluster status updated"
 msgstr ""
 
-#: cogs/status.py:503
+#: cogs/status.py:505
 msgid "The server is operating normally."
 msgstr ""
 
-#: cogs/status.py:573
+#: cogs/status.py:575
 msgid "Status updated"
 msgstr ""
 
-#: cogs/status.py:592
+#: cogs/status.py:594
 msgid "Could not connect to the server. It may be offline or restarting."
 msgstr ""
 
-#: cogs/status.py:597
+#: cogs/status.py:599
 msgid "Check the console or contact an administrator."
 msgstr ""
 
