@@ -123,9 +123,10 @@ class StatusCog(commands.Cog, name="Status"):
             alias = server_conf.get("ALIAS", server_conf["NAME"])
             if server_data:
                 cluster_data.append(server_data)
-                server_statuses.append({"alias": alias, "online": True})
+                fps = server_data["system_stats"].get("fps")
+                server_statuses.append({"alias": alias, "online": True, "fps": fps})
             else:
-                server_statuses.append({"alias": alias, "online": False})
+                server_statuses.append({"alias": alias, "online": False, "fps": None})
 
         # Update consolidated cluster status if enabled
         if hasattr(config, "CLUSTER_STATUS") and config.CLUSTER_STATUS.get(
@@ -245,7 +246,8 @@ class StatusCog(commands.Cog, name="Status"):
         status_lines = []
         for s in server_statuses:
             icon = "✅" if s["online"] else "❌"
-            status_lines.append(f"{icon} {s['alias']}")
+            fps_str = f" ({s['fps']} FPS)" if s.get("fps") else ""
+            status_lines.append(f"{icon} {s['alias']}{fps_str}")
 
         if status_lines:
             embed.add_field(
