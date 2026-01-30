@@ -15,7 +15,8 @@ from utils.database import (
     get_global_player_data,
     DEFAULT_PLAYER_TRACKER_DB,
 )
-from utils.log_parser import parse_server_log
+from utils.log_parser import parse_log_lines
+from utils.log_watcher import LogWatcher
 
 
 class StatusCog(commands.Cog, name="Status"):
@@ -28,6 +29,10 @@ class StatusCog(commands.Cog, name="Status"):
         self.rcon_clients: Dict[str, Client] = {}
         self.rcon_locks: Dict[str, asyncio.Lock] = {}
         self.level_cache: Dict[str, int] = {} # Cache for player levels {char_name: level}
+
+        self.watchers: Dict[str, LogWatcher] = {}
+        self.server_stats: Dict[str, Dict[str, str]] = {}
+
         if not self.update_all_statuses_task.is_running():
             self.update_all_statuses_task.start()
 
@@ -489,7 +494,20 @@ class StatusCog(commands.Cog, name="Status"):
             "conan_players_updated", server_config, player_lines, rcon_client
         )
 
-        system_stats = parse_server_log(server_config.get("LOG_PATH"))
+        log_path = server_config.get("LOG_PATH")
+        if log_path:
+            if server_name not in self.watchers:
+                # Read last 50KB to try and find recent stats on first load
+                self.watchers[server_name] = LogWatcher(log_path, tail_bytes=50000)
+
+            new_lines = self.watchers[server_name].read_new_lines()
+            current_stats = self.server_stats.get(server_name)
+            updated_stats = parse_log_lines(new_lines, current_stats)
+            self.server_stats[server_name] = updated_stats
+            system_stats = updated_stats
+        else:
+            system_stats = {}
+
         online_players = []
         for line in player_lines:
             parts = line.split("|")

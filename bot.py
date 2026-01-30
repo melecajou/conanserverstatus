@@ -12,6 +12,16 @@ from utils.database import (
     migrate_to_global_db,
     DEFAULT_PLAYER_TRACKER_DB,
 )
+from utils.config_validator import validate_config
+
+# --- LOGGING SETUP ---
+logging.basicConfig(
+    level=logging.INFO, format="[%(asctime)s] [%(levelname)s] - %(message)s"
+)
+
+# --- CONFIG VALIDATION ---
+if not validate_config(config):
+    exit(1)
 
 # --- INTERNATIONALIZATION (i18n) SETUP ---
 lang = getattr(config, "LANGUAGE", "en")
@@ -21,11 +31,6 @@ try:
     _ = translation.gettext
 except FileNotFoundError:
     _ = gettext.gettext
-
-# --- LOGGING SETUP ---
-logging.basicConfig(
-    level=logging.INFO, format="[%(asctime)s] [%(levelname)s] - %(message)s"
-)
 
 # --- BOT SETUP ---
 intents = discord.Intents.default()

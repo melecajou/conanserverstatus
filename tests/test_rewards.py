@@ -43,10 +43,18 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
         """Set up the test environment for each test."""
         self.mock_bot = MagicMock()
         self.mock_bot._ = lambda s: s
-        self.mock_rcon_client = AsyncMock()
-        self.mock_rcon_client.send_cmd = AsyncMock(return_value=("Success", None))
+
+        # Setup Mock StatusCog for RCON execution
+        self.mock_status_cog = MagicMock()
+        self.mock_status_cog.execute_rcon = AsyncMock(return_value=("Success", None))
+
+        # Configure bot.get_cog to return our mock
+        self.mock_bot.get_cog = MagicMock(return_value=self.mock_status_cog)
+
+        self.mock_rcon_client = AsyncMock() # This is passed but unused by code
 
         self.db = await aiosqlite.connect(":memory:")
+        # Updated schema to match utils/database.py initialization
         await self.db.execute(
             """
             CREATE TABLE player_time (
@@ -54,6 +62,7 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
                 server_name TEXT,
                 online_minutes INTEGER DEFAULT 0,
                 last_rewarded_hour INTEGER DEFAULT 0,
+                last_reward_playtime INTEGER DEFAULT 0,
                 discord_id TEXT,
                 vip_level INTEGER DEFAULT 0,
                 PRIMARY KEY (platform_id, server_name)
@@ -61,7 +70,8 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
         """
         )
         await self.db.executemany(
-            "INSERT INTO player_time VALUES (?, ?, ?, ?, ?, ?)", PLAYER_DATA
+            "INSERT INTO player_time (platform_id, server_name, online_minutes, last_reward_playtime, discord_id, vip_level) VALUES (?, ?, ?, ?, ?, ?)",
+            PLAYER_DATA,
         )
         await self.db.commit()
 
@@ -73,9 +83,9 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
         await self.db.close()
 
     async def test_regular_player_receives_reward(self):
-        """
-        Tests that a regular player who has met the playtime requirement receives a reward.
-        """
+        # We need to mock _get_player_reward_status because it tries to read global DB
+        self.rewards_cog._get_player_reward_status = AsyncMock(return_value=(65, 0, 60))
+
         await self.rewards_cog._check_and_process_rewards(
             self.db,
             self.mock_rcon_client,
@@ -84,19 +94,20 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
             ONLINE_PLAYERS,
         )
 
-        self.mock_rcon_client.send_cmd.assert_any_call("con 1 SpawnItem 12345 10")
+        # Check that StatusCog.execute_rcon was called
+        self.mock_status_cog.execute_rcon.assert_any_call(SERVER_NAME, "con 1 SpawnItem 12345 10")
 
         async with self.db.cursor() as cur:
             await cur.execute(
-                "SELECT last_rewarded_hour FROM player_time WHERE platform_id = 'steam_1'"
+                "SELECT last_reward_playtime FROM player_time WHERE platform_id = 'steam_1'"
             )
             result = await cur.fetchone()
-            self.assertEqual(result[0], 1)
+            self.assertEqual(result[0], 65)
 
     async def test_vip_player_receives_reward(self):
-        """
-        Tests that a VIP player who has met their accelerated playtime requirement receives a reward.
-        """
+        # Mocking VIP player status (35 minutes played, interval 30)
+        self.rewards_cog._get_player_reward_status = AsyncMock(return_value=(35, 0, 30))
+
         await self.rewards_cog._check_and_process_rewards(
             self.db,
             self.mock_rcon_client,
@@ -105,19 +116,19 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
             ONLINE_PLAYERS,
         )
 
-        self.mock_rcon_client.send_cmd.assert_any_call("con 2 SpawnItem 12345 10")
+        self.mock_status_cog.execute_rcon.assert_any_call(SERVER_NAME, "con 2 SpawnItem 12345 10")
 
         async with self.db.cursor() as cur:
             await cur.execute(
-                "SELECT last_rewarded_hour FROM player_time WHERE platform_id = 'steam_2'"
+                "SELECT last_reward_playtime FROM player_time WHERE platform_id = 'steam_2'"
             )
             result = await cur.fetchone()
-            self.assertEqual(result[0], 1)
+            self.assertEqual(result[0], 35)
 
     async def test_player_does_not_receive_reward(self):
-        """
-        Tests that a player who has not met the playtime requirement does not receive a reward.
-        """
+        # Mocking player not yet eligible (55 mins played, interval 60)
+        self.rewards_cog._get_player_reward_status = AsyncMock(return_value=(55, 0, 60))
+
         await self.rewards_cog._check_and_process_rewards(
             self.db,
             self.mock_rcon_client,
@@ -128,15 +139,16 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
 
         async with self.db.cursor() as cur:
             await cur.execute(
-                "SELECT last_rewarded_hour FROM player_time WHERE platform_id = 'steam_3'"
+                "SELECT last_reward_playtime FROM player_time WHERE platform_id = 'steam_3'"
             )
             result = await cur.fetchone()
+            # Should remain 0
             self.assertEqual(result[0], 0)
 
     async def test_player_without_discord_id_is_skipped(self):
-        """
-        Tests that a player who has not linked their Discord account is skipped.
-        """
+        # Mocking return None (not registered)
+        self.rewards_cog._get_player_reward_status = AsyncMock(return_value=None)
+
         await self.rewards_cog._check_and_process_rewards(
             self.db,
             self.mock_rcon_client,
@@ -147,7 +159,7 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
 
         async with self.db.cursor() as cur:
             await cur.execute(
-                "SELECT last_rewarded_hour FROM player_time WHERE platform_id = 'steam_4'"
+                "SELECT last_reward_playtime FROM player_time WHERE platform_id = 'steam_4'"
             )
             result = await cur.fetchone()
             self.assertEqual(result[0], 0)
