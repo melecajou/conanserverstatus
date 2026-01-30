@@ -12,6 +12,7 @@ from utils.database import (
     get_item_in_backpack,
     find_discord_user_by_char_name
 )
+from utils.log_watcher import LogWatcher
 
 # Constants
 TRADE_SCAN_INTERVAL = 5
@@ -25,7 +26,7 @@ class TradesCog(commands.Cog, name="Trades"):
     def __init__(self, bot):
         self.bot = bot
         self._ = bot._
-        self.log_cursors = {}
+        self.watchers = {}
         self.process_trade_log_task.start()
 
     def cog_unload(self):
@@ -44,32 +45,15 @@ class TradesCog(commands.Cog, name="Trades"):
     async def _process_log_for_server(self, server_conf):
         log_path = server_conf.get("LOG_PATH")
         server_name = server_conf["NAME"]
-        if not log_path or not os.path.exists(log_path):
+        if not log_path:
             return
 
-        try:
-            current_size = os.path.getsize(log_path)
-            last_pos = self.log_cursors.get(server_name, 0)
+        if server_name not in self.watchers:
+            self.watchers[server_name] = LogWatcher(log_path)
 
-            if server_name not in self.log_cursors:
-                self.log_cursors[server_name] = current_size
-                return
-
-            if current_size < last_pos:
-                last_pos = 0
-
-            if current_size == last_pos:
-                return
-
-            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                f.seek(last_pos)
-                new_content = f.read()
-                self.log_cursors[server_name] = f.tell()
-
-                for line in new_content.splitlines():
-                    await self._process_log_line(line, server_conf)
-        except Exception as e:
-            logging.error(f"Error reading log for trade: {e}")
+        new_lines = self.watchers[server_name].read_new_lines()
+        for line in new_lines:
+            await self._process_log_line(line, server_conf)
 
     async def _process_log_line(self, line, server_conf):
         if "!buy" not in line:

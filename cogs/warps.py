@@ -14,6 +14,7 @@ from utils.database import (
     get_player_home,
     DEFAULT_PLAYER_TRACKER_DB
 )
+from utils.log_watcher import LogWatcher
 
 # Constants
 LOG_SCAN_INTERVAL_SECONDS = 5
@@ -33,8 +34,8 @@ class WarpsCog(commands.Cog, name="Warps"):
         self._ = bot._
         # Cooldown storage: {(char_name, server_name, command_type): expiration_datetime}
         self.cooldowns = {}
-        # Cursor storage: {server_name: file_position}
-        self.log_cursors = {}
+        # Watcher storage: {server_name: LogWatcher}
+        self.watchers = {}
         self.process_warp_log_task.start()
 
     def cog_unload(self):
@@ -92,41 +93,15 @@ class WarpsCog(commands.Cog, name="Warps"):
         log_path = server_conf.get("LOG_PATH")
         server_name = server_conf["NAME"]
 
-        if not log_path or not os.path.exists(log_path):
+        if not log_path:
             return
 
-        try:
-            current_size = os.path.getsize(log_path)
-            last_pos = self.log_cursors.get(server_name, 0)
+        if server_name not in self.watchers:
+            self.watchers[server_name] = LogWatcher(log_path)
 
-            # If file was rotated (shrunk) or first run (0), reset
-            # For first run, we want to start at the END to avoid processing old logs.
-            if server_name not in self.log_cursors:
-                self.log_cursors[server_name] = current_size
-                return
-            
-            if current_size < last_pos:
-                # Rotated
-                last_pos = 0
-
-            if current_size == last_pos:
-                # No new data
-                return
-
-            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                f.seek(last_pos)
-                new_content = f.read()
-                self.log_cursors[server_name] = f.tell()
-
-                if not new_content:
-                    return
-
-                lines = new_content.splitlines()
-                for line in lines:
-                    await self._process_log_line(line, server_conf, server_name)
-
-        except Exception as e:
-            logging.error(f"Error processing warp log for server {server_name}: {e}")
+        new_lines = self.watchers[server_name].read_new_lines()
+        for line in new_lines:
+            await self._process_log_line(line, server_conf, server_name)
 
     async def _process_log_line(self, line: str, server_conf: dict, server_name: str):
         """Parses a single log line for a warp command or list request."""
