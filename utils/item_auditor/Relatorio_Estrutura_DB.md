@@ -1,6 +1,6 @@
 # Relatório de Análise de Estrutura: Conan Exiles `game.db`
 
-Este documento detalha as descobertas sobre a estrutura do banco de dados SQLite `game.db`, especificamente no que tange ao rastreamento de itens, inventários e propriedade.
+Este documento detalha as descobertas sobre a estrutura do banco de dados SQLite `game.db`, especificamente no que tange ao rastreamento de itens, inventários, propriedade e identificação de objetos nomeados.
 
 ## 1. Tabelas Principais
 
@@ -23,7 +23,11 @@ A estrutura utiliza um sistema de IDs únicos para vincular objetos espalhados p
     *   `owner_id`: ID do Personagem ou Clã que é dono do objeto.
 *   **`actor_position`**: Localização e classe dos objetos.
     *   `id`: ID do objeto.
-    *   `class`: O caminho da classe Blueprint do Unreal Engine (ex: `BP_PL_Chest_Large_C`).
+    *   `class`: O caminho da classe Blueprint (ex: `/Game/.../BP_PL_Chest_Large_C`).
+*   **`properties`**: Armazena metadados e nomes personalizados de objetos.
+    *   `object_id`: ID do objeto vinculado.
+    *   `name`: Nome da propriedade técnica (ex: `BP_PL_Chest_Large_C.m_BuildableName`).
+    *   `value`: BLOB contendo o valor da propriedade (frequentemente strings em formato binário).
 
 ---
 
@@ -43,7 +47,17 @@ O fluxo é mais complexo:
 
 ---
 
-## 3. Extração de Dados e Parsing de Itens
+## 3. Identificação de Objetos por Nome Customizado
+
+Para identificar baús ou estações específicas que foram nomeadas pelos jogadores (ex: baú "Trading"):
+1.  **Propriedade de Nome**: O jogo utiliza a propriedade `m_BuildableName` precedida pelo nome da classe do objeto.
+2.  **Busca Binária**: Como o nome é armazenado em um BLOB, a busca deve ser feita via comparação Hexadecimal.
+    *   Exemplo: Para encontrar "Trading" (`54726164696E67`), usa-se `WHERE hex(value) LIKE '%54726164696E67%'`.
+3.  **Localização Única**: Identificar o `object_id` através desta tabela permite que o bot monitore apenas aquele inventário específico, independentemente de onde ele seja movido no mapa.
+
+---
+
+## 4. Extração de Dados e Parsing de Itens
 
 ### Parsing de BLOB Binário (Robusto)
 A lógica implementada nos scripts segue a estrutura de serialização do Unreal Engine para extrair quantidades de dentro do campo `data`:
@@ -56,7 +70,7 @@ Todos os scripts utilizam o modo **Read-Only** (`file:game.db?mode=ro`) para gar
 
 ---
 
-## 4. Tipos de Inventário Identificados
+## 5. Tipos de Inventário Identificados
 
 | ID (`inv_type`) | Localização |
 | :--- | :--- |
@@ -64,31 +78,17 @@ Todos os scripts utilizam o modo **Read-Only** (`file:game.db?mode=ro`) para gar
 | 1 | Equipamento/Armadura Vestida |
 | 2 | Atalhos (Hotbar) |
 | 4 | Recipientes (Baús, Bancadas, Fornalhas) |
-| 6 | Conhecimentos (Feats/Recipes) - Interno |
+| 6 | Inventário de Seguidores (Cavalos, Escravos) |
 | 7 | Atributos/Perks - Interno |
 | 12/13/14 | Slots de Máquinas e Estações de Trabalho |
 
 ---
 
-## 5. Ferramentas Disponíveis
+## 6. Ferramentas Disponíveis
 
 ### `backpack_viewer.py`
-Lista o inventário completo de um jogador, separado por categorias (Equipamento, Hotbar e Mochila).
-**Uso:**
-```bash
-python3 backpack_viewer.py [NomeDoJogador]
-```
-
+Lista o inventário completo de um jogador.
 ### `clan_auditor.py`
-Realiza uma auditoria completa de um clã, somando todos os itens presentes nos inventários de todos os membros e em todos os baús/bancadas pertencentes ao clã.
-**Uso:**
-```bash
-python3 clan_auditor.py "Nome do Clã"
-```
-
-### `item_auditor.py`
-Rastreia a localização exata de cada unidade de um item específico (pelo Template ID) em todo o servidor.
-**Uso:**
-```bash
-python3 item_auditor.py <template_id>
-```
+Auditoria completa de todos os bens de um clã.
+### `item_auditor.py` / `consultar_item.py`
+Rastreia um item específico em todo o servidor, agrupando por proprietário.

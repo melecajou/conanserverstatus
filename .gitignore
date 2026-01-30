@@ -34,3 +34,5 @@ scripts/sync_map_data.sh
 # Generated Data
 output/
 scripts/sync_status.sh
+data/killfeed/*.txt
+data/killfeed/*.json
