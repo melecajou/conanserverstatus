@@ -49,16 +49,22 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             json.dump(self.ranking_state, f, indent=4)
 
     def _get_last_event_time(self, file_path):
+        abs_path = os.path.abspath(file_path)
         try:
-            with open(file_path, 'r') as f:
-                return int(f.read().strip())
+            with open(abs_path, 'r') as f:
+                val = int(f.read().strip())
+                logging.info(f"[Killfeed] Read last event time {val} from {abs_path}")
+                return val
         except (FileNotFoundError, ValueError):
+            logging.warning(f"[Killfeed] Could not read last event time from {abs_path}. Defaulting to 0.")
             return 0
 
     def _set_last_event_time(self, new_time, file_path):
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w') as f:
+        abs_path = os.path.abspath(file_path)
+        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+        with open(abs_path, 'w') as f:
             f.write(str(new_time))
+        logging.info(f"[Killfeed] Saved new last event time {new_time} to {abs_path}")
 
     async def _update_player_score(self, server_name, killer_name, victim_name):
         try:
@@ -109,6 +115,8 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
 
         last_time = self._get_last_event_time(kf_config["LAST_EVENT_FILE"])
         new_max_time = last_time
+
+        logging.info(f"[Killfeed] Checking kills for {server_name} since timestamp {last_time}...")
 
         try:
             # Simplificando a conexão para evitar o erro 'unable to open database file'
