@@ -53,7 +53,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         try:
             with open(abs_path, 'r') as f:
                 val = int(f.read().strip())
-                logging.info(f"[Killfeed] Read last event time {val} from {abs_path}")
+                logging.debug(f"[Killfeed] Read last event time {val} from {abs_path}")
                 return val
         except (FileNotFoundError, ValueError):
             logging.warning(f"[Killfeed] Could not read last event time from {abs_path}. Defaulting to 0.")
@@ -64,7 +64,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         with open(abs_path, 'w') as f:
             f.write(str(new_time))
-        logging.info(f"[Killfeed] Saved new last event time {new_time} to {abs_path}")
+        logging.debug(f"[Killfeed] Saved new last event time {new_time} to {abs_path}")
 
     async def _update_player_score(self, server_name, killer_name, victim_name):
         try:
@@ -116,7 +116,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         last_time = self._get_last_event_time(kf_config["LAST_EVENT_FILE"])
         new_max_time = last_time
 
-        logging.info(f"[Killfeed] Checking kills for {server_name} since timestamp {last_time}...")
+        logging.debug(f"[Killfeed] Checking kills for {server_name} since timestamp {last_time}...")
 
         try:
             # Simplificando a conexão para evitar o erro 'unable to open database file'
