@@ -57,34 +57,84 @@ Para identificar baús ou estações específicas que foram nomeadas pelos jogad
 
 ---
 
-## 4. Extração de Dados e Parsing de Itens
+## 4. Extração de Dados e Parsing de Itens (BLOB)
 
-### Parsing de BLOB Binário (Robusto)
-A lógica implementada nos scripts segue a estrutura de serialização do Unreal Engine para extrair quantidades de dentro do campo `data`:
-1.  **Ancoragem por Template ID**: Busca-se o `TemplateID` (4 bytes) no BLOB.
-2.  **Contagem de Propriedades**: Lê-se o inteiro subsequente que indica o número de propriedades.
-3.  **Busca por Propriedade ID 1**: A propriedade com ID 1 representa a **Quantidade**.
+A estrutura do campo `data` (BLOB) segue um padrão de serialização por blocos. Para extrair informações, o algoritmo deve percorrer o binário identificando âncoras e contadores.
 
-### Segurança e Performance
-Todos os scripts utilizam o modo **Read-Only** (`file:game.db?mode=ro`) para garantir que o banco de dados não seja travado enquanto o servidor estiver online, evitando lag para os jogadores.
+### Estrutura do BLOB
+1.  **Header (16 bytes)**: Contém identificadores mágicos como `0xEFBEADDE` (`DEADBEEF`).
+2.  **Strings Iniciais**: Caminho da classe Blueprint e nome da instância (formato: `[4 bytes Comprimento][N bytes String ASCII]`).
+3.  **Bloco de Template**:
+    *   **Âncora (4 bytes)**: O `TemplateID` do item (ex: `10097` em Little Endian).
+    *   **Contador (4 bytes)**: Número de propriedades neste bloco.
+    *   **Pares de Propriedades**: Sequências de `[ID (4 bytes)][Valor (4 bytes)]`.
+4.  **Blocos Secundários**: Frequentemente iniciados diretamente por um **Contador** (4 bytes), seguidos pelos pares `[ID][Valor]`.
+
+### Mapeamento Técnico Confirmado
+
+| ID | Tipo | Descrição | Observação |
+| :--- | :--- | :--- | :--- |
+| **6** | Integer | **Dano Leve** | Inclui bônus de kits e artesãos. |
+| **7** | Integer | **Dano Pesado** | Inclui bônus de kits e artesãos. |
+| **8** | Float | **Durabilidade Atual** | Representa o HP restante do item. |
+| **7** | Float | **Durabilidade Máxima** | Definida por artesãos ou kits (ex: 880.87). |
+| **11** | Float | **Penetração Total** | Valor percentual final (ex: 0.5925 = 59.25%). |
+| **5** | Float | **Peso** | Peso atual (pode ser reduzido por artesãos/kits). |
+| **63** | Integer | **Bônus de Kit / Flag Mod** | Ativa o fundo rosa e bloqueia novos apetrechos. |
+| **40** | Integer | **ID do Modificador** | Template ID do Kit aplicado (ex: 92191 - Bulked Plating). |
+| **66** | Integer | **Crafter Tier** | Nível do artesão (Ex: 4 para T4). |
+| **67** | Integer | **Crafter Profession** | Profissão do artesão. |
+| **4** | Float | **Valor de Armadura** | Armor Rating total da peça. |
+| **71** | Integer | **Stat ID 1 (Bonus)** | Atributo do bônus (Ex: 17=Força, 19=Agil). |
+| **72** | Integer | **Stat ID 2 (Bonus)** | Segundo atributo de bônus. |
+| **29** | Float   | **Multiplier 1** | Valor/Multiplicador do bônus 1. |
+| **30** | Float   | **Multiplier 2** | Valor/Multiplicador do bônus 2. |
+| **14** | Integer | **Harvest Damage** | Dano de coleta para ferramentas. |
+| **54** | Integer | **Crafter ID Low** | ID único do criador (vínculo de bônus). |
+| **55** | Integer | **Crafter ID High** | Parte alta do ID do criador. |
+| **27** | Float   | **Bonus Str Dmg** | Modificador de dano de Força (3.0+). |
+| **28** | Float   | **Bonus Agi Dmg** | Modificador de dano de Agilidade (3.0+). |
+| **30** | Float   | **Bonus Follower Dmg** | Modificador de dano de Seguidor (3.0+). |
+| **31** | Float   | **Bonus Conc Dmg** | Modificador de dano Concussivo (3.0+). |
+| **1** | Integer | **Quantidade** | Presente apenas em itens empilháveis (Stackable). |
+
+### Lógica de "Gravação por Exceção"
+O banco de dados do Conan Exiles otimiza o espaço omitindo propriedades que possuam o valor padrão do `TemplateID`.
+*   **Itens Novos**: Propriedades como Durabilidade (ID 8) e Dano (ID 6/7) não constam no BLOB até que o item sofra desgaste ou modificação.
+*   **Kits**: Ao aplicar um kit, o jogo insere o ID do modificador (**ID 40**) e o valor do bônus (**ID 63**), além de atualizar o atributo final (ID 4 para armadura ou ID 11 para penetração).
+
+### Comandos RCON de Modificação (Tempo Real)
+A manipulação de itens com o servidor online é possível via comandos de console (`con {idx}`), evitando a necessidade de reiniciar o servidor para injetar itens customizados:
+
+*   **`SetInventoryItemIntStat <slot> <prop_id> <valor> <inv_type>`**:
+    *   Usado para IDs 6, 7 e 63.
+    *   Ex: `con 0 SetInventoryItemIntStat 1 63 12 2` (Aplica flag de kit no slot 1 da hotbar).
+*   **`SetInventoryItemFloatStat <slot> <prop_id> <valor> <inv_type>`**:
+    *   Usado para IDs 8 (Durabilidade) e 11 (Penetração).
+    *   Ex: `con 0 SetInventoryItemFloatStat 1 11 0.3540 2`.
 
 ---
 
-## 5. Tipos de Inventário Identificados
+## 5. Lógica de Duplicação e Mercado Virtual
+Para duplicar um item fielmente, o bot deve:
+1.  Ler o BLOB original e extrair o dicionário de propriedades (IDs e Valores).
+2.  Executar `SpawnItem` no destino.
+3.  Aguardar sincronização (ou forçar via `SaveWorld`).
+4.  Localizar o novo slot e injetar as propriedades salvas usando os comandos RCON acima.
+5.  **Nota sobre bônus de Artesão**: Replicar os IDs 54 e 55 (Crafter ID) é essencial para itens cujo bônus de atributo é calculado dinamicamente pelo jogo. Em itens do 3.0, deve-se observar também a injeção dos Floats 27-31 para bônus de dano de atributos.
+6.  **Nota sobre o ID 63**: Aplicar este ID garante a "assinatura visual" (fundo rosa) de modificação.
 
-| ID (`inv_type`) | Localização |
-| :--- | :--- |
-| 0 | Mochila (Backpack) |
-| 1 | Equipamento/Armadura Vestida |
-| 2 | Atalhos (Hotbar) |
-| 4 | Recipientes (Baús, Bancadas, Fornalhas) |
-| 6 | Inventário de Seguidores (Cavalos, Escravos) |
-| 7 | Atributos/Perks - Interno |
-| 12/13/14 | Slots de Máquinas e Estações de Trabalho |
+### Tabela de IDs de Atributos (para usar com 71/72)
+*   **14**: Vitality
+*   **15**: Grit
+*   **16**: Expertise
+*   **17**: Strength (Might)
+*   **19**: Agility (Athleticism)
+*   **27**: Authority
 
 ---
 
-## 6. Ferramentas Disponíveis
+## 8. Ferramentas Disponíveis
 
 ### `backpack_viewer.py`
 Lista o inventário completo de um jogador.
