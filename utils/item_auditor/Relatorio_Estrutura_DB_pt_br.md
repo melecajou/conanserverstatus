@@ -120,6 +120,7 @@ Para garantir 100% de fidelidade (incluindo itens de mods), a duplicação segue
 2.  **Filtro de Instância**: O único ID ignorado é o **ID 22 (Instance ID)**, para evitar conflitos de identidade no motor do jogo.
 3.  **Spawn e Injeção**: Um novo item base é spawnado via RCON e, após sincronização do banco (~5s), todas as propriedades capturadas são injetadas via comandos `SetInventoryItem...Stat`.
 4.  **Recálculo de Bônus**: Ao restaurar os IDs de Crafter (54/55) ou Tier/Profession (66/67), o jogo recalcula os bônus de lacaio automaticamente após o relog do jogador.
+5.  **Itens Estacáveis**: A quantidade (ID 1) é capturada e replicada normalmente, permitindo duplicar pilhas inteiras de recursos.
 
 ### Tabela de IDs de Atributos (para usar com 71/72)
 *   **14**: Vitality
