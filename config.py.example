@@ -50,6 +50,15 @@ GUILD_SYNC = {
     "CLEANUP_EMPTY_ROLES": True     # Delete role if guild becomes empty
 }
 
+# Marketplace Configuration
+# Enables asynchronous P2P trading using virtual currency.
+MARKETPLACE = {
+    "ENABLED": False,
+    "CURRENCY_ITEM_ID": 10000000, # Template ID of the in-game currency item
+    "CURRENCY_NAME": "Ecos Coin", # Friendly name for the virtual currency
+    "SYNC_WAIT_SECONDS": 5,       # Seconds to wait for game.db to sync before processing
+}
+
 # Trade / Shop Configuration
 # Define items that players can buy in-game using !buy <key>
 # price_id is the template ID of the item used as currency (e.g. Gold/Silver)

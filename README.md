@@ -40,6 +40,18 @@ This Discord bot monitors the status of one or more Conan Exiles servers. It is 
 - **In-Game Trade System**: Players can purchase items using in-game currency (other items in their backpack) by typing `!buy <item_key>` in chat.
     - **Safe Transactions**: The bot validates the player's inventory and deducts the price before spawning the item.
     - **Notifications**: Users receive a Discord DM during the process and upon successful purchase.
+- **Asynchronous Marketplace & Virtual Economy**: A comprehensive P2P marketplace where players can buy and sell items using a virtual currency.
+    - **Master Duplication**: Uses a "Universal DNA" extraction system to ensure items sold (including artisan bônus, kits, and 3.0+ attribute modifiers) are perfectly replicated for the buyer.
+    - **Custody System**: Items are safely removed from the game world and stored in the bot's database during listing.
+    - **Virtual Wallet**: Players can deposit physical in-game currency into a virtual balance and withdraw it back to physical items at any time.
+    - **In-Game Commands**:
+        - `!deposit <slot>`: Converts currency item in backpack to virtual balance.
+        - `!withdraw <amount>`: Converts virtual balance back to physical currency item.
+        - `!sell <slot> <price>`: Lists an item from backpack for sale.
+        - `!buy <id>`: Purchases a listing from the marketplace.
+        - `!balance`: Checks current virtual balance.
+        - `!market`: Lists the most recent active listings.
+    - **Audited Transactions**: Every financial and item movement is logged in a central audit table for administrator oversight.
 - **Guild Sync**: Automatically synchronizes in-game guild membership with Discord roles.
     - Creates roles like `🛡️ GuildName` automatically.
     - Assigns roles to registered members.
