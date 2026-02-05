@@ -54,6 +54,7 @@ COGS_TO_LOAD = [
     "cogs.inactivity",
     "cogs.trades",
     "cogs.killfeed",
+    "cogs.marketplace",
 ]
 
 

@@ -35,6 +35,44 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
             )
         """
             )
+
+            # Table: Player Wallets (Virtual Currency)
+            cur.execute(
+                """
+            CREATE TABLE IF NOT EXISTS player_wallets (
+                discord_id INTEGER PRIMARY KEY,
+                balance INTEGER DEFAULT 0
+            )
+        """
+            )
+
+            # Table: Market Listings (Items in custody)
+            cur.execute(
+                """
+            CREATE TABLE IF NOT EXISTS market_listings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                seller_discord_id INTEGER NOT NULL,
+                item_template_id INTEGER NOT NULL,
+                item_dna TEXT NOT NULL, -- JSON string containing all properties
+                price INTEGER NOT NULL,
+                status TEXT DEFAULT 'active', -- active, sold, canceled, delivered
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+            )
+
+            # Table: Market Audit Log
+            cur.execute(
+                """
+            CREATE TABLE IF NOT EXISTS market_audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                discord_id INTEGER,
+                action TEXT, -- DEPOSIT, SELL, BUY, CANCEL
+                details TEXT
+            )
+        """
+            )
             con.commit()
         logging.info(f"Global registry database '{db_path}' initialized successfully.")
     except Exception as e:
@@ -617,10 +655,56 @@ def get_char_id_by_name(db_path: str, char_name: str) -> Optional[int]:
             return row[0] if row else None
     except Exception as e:
         logging.error(f"Error getting char_id for {char_name}: {e}")
-    return None
+        return None
+    
+    
+def get_player_balance(discord_id: int, global_db_path: str = GLOBAL_DB_PATH) -> int:
+    """Retrieves the virtual currency balance for a player."""
+    try:
+        with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
+            cur = con.cursor()
+            cur.execute("SELECT balance FROM player_wallets WHERE discord_id = ?", (discord_id,))
+            row = cur.fetchone()
+            return row[0] if row else 0
+    except Exception as e:
+        logging.error(f"Error fetching balance for {discord_id}: {e}")
+        return 0
 
 
+def update_player_balance(discord_id: int, amount: int, global_db_path: str = GLOBAL_DB_PATH) -> bool:
+    """Adds (positive) or subtracts (negative) from a player's virtual balance."""
+    try:
+        with sqlite3.connect(global_db_path) as con:
+            cur = con.cursor()
+            cur.execute(
+                """
+                INSERT INTO player_wallets (discord_id, balance) 
+                VALUES (?, ?)
+                ON CONFLICT(discord_id) DO UPDATE SET balance = balance + excluded.balance
+                """,
+                (discord_id, amount),
+            )
+            con.commit()
+        return True
+    except Exception as e:
+        logging.error(f"Failed to update balance for {discord_id}: {e}")
+        return False
 
+
+def log_market_action(discord_id: int, action: str, details: str, global_db_path: str = GLOBAL_DB_PATH):
+    """Logs a marketplace transaction or wallet action for auditing."""
+    try:
+        with sqlite3.connect(global_db_path) as con:
+            cur = con.cursor()
+            cur.execute(
+                "INSERT INTO market_audit_log (discord_id, action, details) VALUES (?, ?, ?)",
+                (discord_id, action, details),
+            )
+            con.commit()
+    except Exception as e:
+        logging.error(f"Failed to log market action: {e}")
+    
+    
 def get_item_in_backpack(db_path: str, char_id: int, template_id: int) -> Optional[Dict[str, Any]]:
     """
     Searches for a specific item ID in a player's backpack (inv_type 0).
