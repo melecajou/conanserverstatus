@@ -74,29 +74,29 @@ A estrutura do campo `data` (BLOB) segue um padrão de serialização por blocos
 
 | ID | Tipo | Descrição | Observação |
 | :--- | :--- | :--- | :--- |
+| **1** | Integer | **Quantidade** | Presente apenas em itens empilháveis (Stackable). |
 | **6** | Integer | **Dano Leve** | Inclui bônus de kits e artesãos. |
 | **7** | Integer | **Dano Pesado** | Inclui bônus de kits e artesãos. |
-| **8** | Float | **Durabilidade Atual** | Representa o HP restante do item. |
-| **7** | Float | **Durabilidade Máxima** | Definida por artesãos ou kits (ex: 880.87). |
-| **11** | Float | **Penetração Total** | Valor percentual final (ex: 0.5925 = 59.25%). |
-| **5** | Float | **Peso** | Peso atual (pode ser reduzido por artesãos/kits). |
-| **63** | Integer | **Bônus de Kit / Flag Mod** | Ativa o fundo rosa e bloqueia novos apetrechos. |
-| **40** | Integer | **ID do Modificador** | Template ID do Kit aplicado (ex: 92191 - Bulked Plating). |
-| **66** | Integer | **Crafter Tier** | Nível do artesão (Ex: 4 para T4). |
-| **67** | Integer | **Crafter Profession** | Profissão do artesão. |
-| **4** | Float | **Valor de Armadura** | Armor Rating total da peça. |
-| **71** | Integer | **Stat ID 1 (Bonus)** | Atributo do bônus (Ex: 17=Força, 19=Agil). |
-| **72** | Integer | **Stat ID 2 (Bonus)** | Segundo atributo de bônus. |
-| **29** | Float   | **Multiplier 1** | Valor/Multiplicador do bônus 1. |
-| **30** | Float   | **Multiplier 2** | Valor/Multiplicador do bônus 2. |
 | **14** | Integer | **Harvest Damage** | Dano de coleta para ferramentas. |
+| **40** | Integer | **ID do Modificador** | Template ID do Kit aplicado (ex: 92191 - Bulked Plating). |
 | **54** | Integer | **Crafter ID Low** | ID único do criador (vínculo de bônus). |
 | **55** | Integer | **Crafter ID High** | Parte alta do ID do criador. |
+| **63** | Integer | **Bônus de Kit / Flag Mod** | Ativa o fundo rosa e bloqueia novos apetrechos. |
+| **66** | Integer | **Crafter Tier** | Nível do artesão (Ex: 4 para T4). |
+| **67** | Integer | **Crafter Profession** | Profissão do artesão. |
+| **71** | Integer | **Stat ID 1 (Bonus)** | Atributo do bônus (Ex: 17=Força, 19=Agil). |
+| **72** | Integer | **Stat ID 2 (Bonus)** | Segundo atributo de bônus. |
+| **4** | Float | **Valor de Armadura** | Armor Rating total da peça. |
+| **5** | Float | **Peso** | Peso atual (pode ser reduzido por artesãos/kits). |
+| **7** | Float | **Durabilidade Máxima** | Definida por artesãos ou kits (ex: 880.87). |
+| **8** | Float | **Durabilidade Atual** | Representa o HP restante do item. |
+| **11** | Float | **Penetração Total** | Valor percentual final (ex: 0.5925 = 59.25%). |
 | **27** | Float   | **Bonus Str Dmg** | Modificador de dano de Força (3.0+). |
 | **28** | Float   | **Bonus Agi Dmg** | Modificador de dano de Agilidade (3.0+). |
+| **29** | Float   | **Multiplier 1** | Valor/Multiplicador do bônus 1. |
 | **30** | Float   | **Bonus Follower Dmg** | Modificador de dano de Seguidor (3.0+). |
+| **30** | Float   | **Multiplier 2** | Valor/Multiplicador do bônus 2. |
 | **31** | Float   | **Bonus Conc Dmg** | Modificador de dano Concussivo (3.0+). |
-| **1** | Integer | **Quantidade** | Presente apenas em itens empilháveis (Stackable). |
 
 ### Lógica de "Gravação por Exceção"
 O banco de dados do Conan Exiles otimiza o espaço omitindo propriedades que possuam o valor padrão do `TemplateID`.
