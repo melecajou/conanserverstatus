@@ -120,6 +120,7 @@ To ensure 100% fidelity (including mod items), duplication follows a dynamic app
 2.  **Instance Filter**: The only ignored ID is **ID 22 (Instance ID)**, to avoid identity conflicts in the game engine.
 3.  **Spawn and Injection**: A new base item is spawned via RCON and, after database synchronization (~5s), all captured properties are injected via `SetInventoryItem...Stat` commands.
 4.  **Bonus Recalculation**: When restoring Crafter IDs (54/55) or Tier/Profession (66/67), the game automatically recalculates thrall bonuses after the player relogs.
+5.  **Stackable Items**: The quantity (ID 1) is captured and replicated normally, allowing duplication of entire resource stacks.
 
 ### Attribute ID Table (for use with 71/72)
 *   **14**: Vitality
