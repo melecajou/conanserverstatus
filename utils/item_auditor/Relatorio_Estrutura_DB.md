@@ -77,6 +77,8 @@ A estrutura do campo `data` (BLOB) segue um padrão de serialização por blocos
 | **1** | Integer | **Quantidade** | Presente apenas em itens empilháveis (Stackable). |
 | **6** | Integer | **Dano Leve** | Inclui bônus de kits e artesãos. |
 | **7** | Integer | **Dano Pesado** | Inclui bônus de kits e artesãos. |
+| **34** | Integer | **Dano Concussivo L.** | Dano de atordoamento (golpe leve). |
+| **35** | Integer | **Dano Concussivo P.** | Dano de atordoamento (golpe pesado). |
 | **14** | Integer | **Harvest Damage** | Dano de coleta para ferramentas. |
 | **40** | Integer | **Munição Ativa/Kit Aplicao** | Template ID da munição/kit aplicado (ex: 92191 - Bulked Plating). |
 | **54** | Integer | **Crafter ID Low** | ID único do criador (vínculo de bônus). |
