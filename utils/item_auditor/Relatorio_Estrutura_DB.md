@@ -78,25 +78,17 @@ A estrutura do campo `data` (BLOB) segue um padrão de serialização por blocos
 | **6** | Integer | **Dano Leve** | Inclui bônus de kits e artesãos. |
 | **7** | Integer | **Dano Pesado** | Inclui bônus de kits e artesãos. |
 | **14** | Integer | **Harvest Damage** | Dano de coleta para ferramentas. |
-| **40** | Integer | **ID do Modificador** | Template ID do Kit aplicado (ex: 92191 - Bulked Plating). |
+| **40** | Integer | **Munição Ativa/Kit Aplicao** | Template ID da munição/kit aplicado (ex: 92191 - Bulked Plating). |
 | **54** | Integer | **Crafter ID Low** | ID único do criador (vínculo de bônus). |
 | **55** | Integer | **Crafter ID High** | Parte alta do ID do criador. |
 | **63** | Integer | **Bônus de Kit / Flag Mod** | Ativa o fundo rosa e bloqueia novos apetrechos. |
 | **66** | Integer | **Crafter Tier** | Nível do artesão (Ex: 4 para T4). |
 | **67** | Integer | **Crafter Profession** | Profissão do artesão. |
-| **71** | Integer | **Stat ID 1 (Bonus)** | Atributo do bônus (Ex: 17=Força, 19=Agil). |
-| **72** | Integer | **Stat ID 2 (Bonus)** | Segundo atributo de bônus. |
 | **4** | Float | **Valor de Armadura** | Armor Rating total da peça. |
 | **5** | Float | **Peso** | Peso atual (pode ser reduzido por artesãos/kits). |
 | **7** | Float | **Durabilidade Máxima** | Definida por artesãos ou kits (ex: 880.87). |
 | **8** | Float | **Durabilidade Atual** | Representa o HP restante do item. |
 | **11** | Float | **Penetração Total** | Valor percentual final (ex: 0.5925 = 59.25%). |
-| **27** | Float   | **Bonus Str Dmg** | Modificador de dano de Força (3.0+). |
-| **28** | Float   | **Bonus Agi Dmg** | Modificador de dano de Agilidade (3.0+). |
-| **29** | Float   | **Multiplier 1** | Valor/Multiplicador do bônus 1. |
-| **30** | Float   | **Bonus Follower Dmg** | Modificador de dano de Seguidor (3.0+). |
-| **30** | Float   | **Multiplier 2** | Valor/Multiplicador do bônus 2. |
-| **31** | Float   | **Bonus Conc Dmg** | Modificador de dano Concussivo (3.0+). |
 
 ### Lógica de "Gravação por Exceção"
 O banco de dados do Conan Exiles otimiza o espaço omitindo propriedades que possuam o valor padrão do `TemplateID`.
@@ -119,9 +111,9 @@ A manipulação de itens com o servidor online é possível via comandos de cons
 Para duplicar um item fielmente, o bot deve:
 1.  Ler o BLOB original e extrair o dicionário de propriedades (IDs e Valores).
 2.  Executar `SpawnItem` no destino.
-3.  Aguardar sincronização (ou forçar via `SaveWorld`).
+3.  Aguardar sincronização (~5s).
 4.  Localizar o novo slot e injetar as propriedades salvas usando os comandos RCON acima.
-5.  **Nota sobre bônus de Artesão**: Replicar os IDs 54 e 55 (Crafter ID) é essencial para itens cujo bônus de atributo é calculado dinamicamente pelo jogo. Em itens do 3.0, deve-se observar também a injeção dos Floats 27-31 para bônus de dano de atributos.
+5.  **Nota sobre bônus de Artesão**: Para itens craftados, restaure o Crafter Tier (ID 66) e Profession (ID 67), e o jogo recalculará os bônus automaticamente.
 6.  **Nota sobre o ID 63**: Aplicar este ID garante a "assinatura visual" (fundo rosa) de modificação.
 
 ### Tabela de IDs de Atributos (para usar com 71/72)
