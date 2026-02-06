@@ -73,7 +73,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
     async def _process_log_line(self, line, server_conf):
         # 1. Handle Deposit
-        if "!deposit" in line:
+        if DEPOSIT_COMMAND_REGEX.search(line):
             dep_match = DEPOSIT_COMMAND_REGEX.search(line)
             char_match = CHAT_CHARACTER_REGEX.search(line)
             if dep_match and char_match:
@@ -82,7 +82,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 asyncio.create_task(self._handle_deposit(char_name, slot, server_conf))
         
         # 2. Handle Sell
-        elif "!sell" in line:
+        elif SELL_COMMAND_REGEX.search(line):
             sell_match = SELL_COMMAND_REGEX.search(line)
             char_match = CHAT_CHARACTER_REGEX.search(line)
             if sell_match and char_match:
@@ -92,7 +92,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 asyncio.create_task(self._handle_sell(char_name, slot, price, server_conf))
 
         # 3. Handle Buy
-        elif "!buy" in line:
+        elif BUY_COMMAND_REGEX.search(line):
             buy_match = BUY_COMMAND_REGEX.search(line)
             char_match = CHAT_CHARACTER_REGEX.search(line)
             if buy_match and char_match:
@@ -101,34 +101,34 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 asyncio.create_task(self._handle_buy(char_name, listing_id, server_conf))
 
         # 4. Handle Balance
-        elif "!balance" in line:
+        elif BALANCE_COMMAND_REGEX.search(line):
             char_match = CHAT_CHARACTER_REGEX.search(line)
             if char_match:
                 char_name = char_match.group(1).strip()
                 asyncio.create_task(self._handle_balance(char_name, server_conf))
 
-        # 5. Handle Market List
-        elif "!market" in line:
+        # 5. Handle Market Help
+        elif MARKET_HELP_COMMAND_REGEX.search(line):
+            char_match = CHAT_CHARACTER_REGEX.search(line)
+            if char_match:
+                char_name = char_match.group(1).strip()
+                asyncio.create_task(self._handle_market_help(char_name, server_conf))
+
+        # 6. Handle Market List
+        elif MARKET_COMMAND_REGEX.search(line):
             char_match = CHAT_CHARACTER_REGEX.search(line)
             if char_match:
                 char_name = char_match.group(1).strip()
                 asyncio.create_task(self._handle_market_list(char_name, server_conf))
 
-        # 6. Handle Withdraw
-        elif "!withdraw" in line:
+        # 7. Handle Withdraw
+        elif WITHDRAW_COMMAND_REGEX.search(line):
             withdraw_match = WITHDRAW_COMMAND_REGEX.search(line)
             char_match = CHAT_CHARACTER_REGEX.search(line)
             if withdraw_match and char_match:
                 amount = int(withdraw_match.group(1))
                 char_name = char_match.group(1).strip()
                 asyncio.create_task(self._handle_withdraw(char_name, amount, server_conf))
-
-        # 7. Handle Market Help
-        elif "!markethelp" in line:
-            char_match = CHAT_CHARACTER_REGEX.search(line)
-            if char_match:
-                char_name = char_match.group(1).strip()
-                asyncio.create_task(self._handle_market_help(char_name, server_conf))
 
     async def _handle_market_help(self, char_name, server_conf):
         """Sends marketplace command guide to the player."""
@@ -138,7 +138,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         user = await self.bot.fetch_user(int(discord_id))
         if not user: return
 
-        help_msg = self.bot._(
+        help_msg = _(
             "🏪 **Marketplace Guide**\n"
             "Use virtual coins to buy and sell items with other players.\n\n"
             "💰 **Economy:**\n"
@@ -171,7 +171,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         # 2. Check Balance
         balance = get_player_balance(int(discord_id))
         if balance < amount:
-            try: await user.send(self.bot._("❌ Insufficient funds for withdrawal. Balance: {balance}").format(balance=balance))
+            try: await user.send(_("❌ Insufficient funds for withdrawal. Balance: {balance}").format(balance=balance))
             except: pass
             return
 
@@ -188,7 +188,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     if m: idx = m.group(1); break
             
             if idx is None:
-                await user.send(self.bot._("❌ You must be online to withdraw."))
+                await user.send(_("❌ You must be online to withdraw."))
                 return
 
             # A. Deduct from Virtual Wallet
@@ -199,7 +199,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 
                 log_market_action(int(discord_id), "WITHDRAW", f"Withdrew {amount} of virtual currency to physical item.")
                 new_balance = get_player_balance(int(discord_id))
-                await user.send(self.bot._("✅ **Withdrawal Successful!**\n📤 **Amount:** {qty}\n💰 **Remaining Balance:** {balance} {currency}").format(
+                await user.send(_("✅ **Withdrawal Successful!**\n📤 **Amount:** {qty}\n💰 **Remaining Balance:** {balance} {currency}").format(
                     qty=amount, balance=new_balance, currency=config.MARKETPLACE["CURRENCY_NAME"]
                 ))
                 logging.info(f"MARKET: {char_name} withdrew {amount} coins.")
@@ -217,7 +217,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         user = await self.bot.fetch_user(int(discord_id))
         if user:
             balance = get_player_balance(int(discord_id))
-            await user.send(self.bot._("💰 **Your Wallet:** {balance} {currency}").format(
+            await user.send(_("💰 **Your Wallet:** {balance} {currency}").format(
                 balance=balance, currency=config.MARKETPLACE["CURRENCY_NAME"]
             ))
 
@@ -237,14 +237,14 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 rows = cur.fetchall()
             
             if not rows:
-                await user.send(self.bot._("🏪 **Marketplace:** No active listings at the moment."))
+                await user.send(_("🏪 **Marketplace:** No active listings at the moment."))
                 return
 
-            msg = self.bot._("🏪 **Active Marketplace Listings (Last 10):**\n")
+            msg = _("🏪 **Active Marketplace Listings (Last 10):**\n")
             for row in rows:
                 msg += f"🔹 **#{row['id']}** | ID: {row['item_template_id']} | 💰 {row['price']} {config.MARKETPLACE['CURRENCY_NAME']}\n"
             
-            msg += self.bot._("\nType `!buy <id>` in-game to purchase.")
+            msg += _("\nType `!buy <id>` in-game to purchase.")
             await user.send(msg)
         except Exception as e:
             logging.error(f"Error listing market: {e}")
@@ -274,12 +274,12 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             return
 
         if not listing:
-            try: await user.send(self.bot._("❌ Error: Listing #{id} not found or already sold.").format(id=listing_id))
+            try: await user.send(_("❌ Error: Listing #{id} not found or already sold.").format(id=listing_id))
             except: pass
             return
 
         if int(listing['seller_discord_id']) == int(discord_id):
-            try: await user.send(self.bot._("❌ Error: You cannot buy your own listing."))
+            try: await user.send(_("❌ Error: You cannot buy your own listing."))
             except: pass
             return
 
@@ -296,7 +296,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 exists = con.execute("SELECT 1 FROM item_inventory WHERE owner_id=? AND template_id=? AND inv_type IN (0, 2)", (char_id, template_id)).fetchone()
             
             if exists:
-                try: await user.send(self.bot._("❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery.").format(tid=template_id))
+                try: await user.send(_("❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery.").format(tid=template_id))
                 except: pass
                 return
         except Exception as e:
@@ -305,7 +305,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         # 4. Check Balance
         buyer_balance = get_player_balance(int(discord_id))
         if buyer_balance < price:
-            try: await user.send(self.bot._("❌ Insufficient funds! Price: {price} {currency}. Your balance: {balance}.").format(
+            try: await user.send(_("❌ Insufficient funds! Price: {price} {currency}. Your balance: {balance}.").format(
                 price=price, currency=config.MARKETPLACE["CURRENCY_NAME"], balance=buyer_balance
             ))
             except: pass
@@ -342,7 +342,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 with sqlite3.connect(GLOBAL_DB_PATH) as con:
                     con.execute("UPDATE market_listings SET status = 'active' WHERE id = ?", (listing_id,))
                     con.commit()
-                await user.send(self.bot._("❌ You logged out! Purchase canceled and refunded."))
+                await user.send(_("❌ You logged out! Purchase canceled and refunded."))
                 return
 
             # Capture inventory state BEFORE spawn (with quantities)
@@ -396,10 +396,10 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 
                 log_market_action(int(discord_id), "BUY", f"Bought listing #{listing_id} (Item {template_id}) from {seller_discord_id} for {price}")
                 logging.info(f"MARKET: {char_name} bought listing #{listing_id} (Item {template_id}) for {price}.")
-                await user.send(self.bot._("✅ **Purchase Complete!** Item delivered to your inventory. Please **relog** to see full artisan bonuses."))
+                await user.send(_("✅ **Purchase Complete!** Item delivered to your inventory. Please **relog** to see full artisan bonuses."))
             else:
                 logging.error(f"MARKET FAIL: Spawned item {template_id} but could not find it in DB for DNA injection.")
-                await user.send(self.bot._("⚠️ Purchase successful, but item synchronization failed. Please contact an admin with Listing ID #{id}.").format(id=listing_id))
+                await user.send(_("⚠️ Purchase successful, but item synchronization failed. Please contact an admin with Listing ID #{id}.").format(id=listing_id))
 
         except Exception as e:
             logging.error(f"Critical error during purchase transaction for {char_name}: {e}")
@@ -420,13 +420,13 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if not user: return
 
         if price <= 0:
-            try: await user.send(self.bot._("❌ Error: Price must be greater than 0."))
+            try: await user.send(_("❌ Error: Price must be greater than 0."))
             except: pass
             return
 
         # 2. Inform user and wait for sync
         try:
-            await user.send(self.bot._("📦 **Sell Request:** Listing item in slot {slot} for {price} {currency}. Please wait {sync}s...").format(
+            await user.send(_("📦 **Sell Request:** Listing item in slot {slot} for {price} {currency}. Please wait {sync}s...").format(
                 slot=slot, price=price, currency=config.MARKETPLACE["CURRENCY_NAME"], sync=sync_time
             ))
         except: pass
@@ -443,7 +443,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 row = con.execute(query, (char_id, slot)).fetchone()
 
             if not row:
-                await user.send(self.bot._("❌ Error: Item not found in slot {slot}.").format(slot=slot))
+                await user.send(_("❌ Error: Item not found in slot {slot}.").format(slot=slot))
                 return
 
             template_id, blob_data = row
@@ -486,7 +486,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     if m: idx = m.group(1); break
             
             if idx is None:
-                await user.send(self.bot._("❌ You must be online to sell items."))
+                await user.send(_("❌ You must be online to sell items."))
                 return
 
             # Delete item: Quantity (ID 1) to 0
@@ -505,7 +505,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
             log_market_action(int(discord_id), "SELL", f"Listed item {template_id} from slot {slot} for {price}. Listing ID: {listing_id}")
             
-            await user.send(self.bot._("✅ **Item Listed!**\n🆔 **Listing ID:** {id}\n💰 **Price:** {price} {currency}\n📖 Type `!buy {id}` to purchase (other players).").format(
+            await user.send(_("✅ **Item Listed!**\n🆔 **Listing ID:** {id}\n💰 **Price:** {price} {currency}\n📖 Type `!buy {id}` to purchase (other players).").format(
                 id=listing_id, price=price, currency=config.MARKETPLACE["CURRENCY_NAME"]
             ))
             logging.info(f"MARKET: {char_name} listed item {template_id} for {price} (ID: {listing_id})")
@@ -533,7 +533,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
         # 2. Inform user and wait for sync
         try:
-            await user.send(self.bot._("💰 **Deposit Request:** Initialized for slot {slot}. Please wait {sync}s for synchronization. **DO NOT MOVE THE ITEM!**").format(slot=slot, sync=sync_time))
+            await user.send(_("💰 **Deposit Request:** Initialized for slot {slot}. Please wait {sync}s for synchronization. **DO NOT MOVE THE ITEM!**").format(slot=slot, sync=sync_time))
         except: pass
 
         await asyncio.sleep(sync_time)
@@ -549,12 +549,12 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 row = con.execute(query, (char_id, slot)).fetchone()
 
             if not row:
-                await user.send(self.bot._("❌ Error: No item found in slot {slot}.").format(slot=slot))
+                await user.send(_("❌ Error: No item found in slot {slot}.").format(slot=slot))
                 return
 
             template_id, blob_data = row
             if template_id != currency_id:
-                await user.send(self.bot._("❌ Error: Item in slot {slot} is not the accepted currency.").format(slot=slot))
+                await user.send(_("❌ Error: Item in slot {slot} is not the accepted currency.").format(slot=slot))
                 return
 
             # 4. Extract Quantity
@@ -588,7 +588,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     if m: idx = m.group(1); break
             
             if idx is None:
-                await user.send(self.bot._("❌ You must be online to deposit."))
+                await user.send(_("❌ You must be online to deposit."))
                 return
 
             # A. Delete physical item (Quantity to 0)
@@ -599,7 +599,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             if update_player_balance(int(discord_id), quantity):
                 log_market_action(int(discord_id), "DEPOSIT", f"Deposited {quantity} of item {template_id} from slot {slot}")
                 new_balance = get_player_balance(int(discord_id))
-                await user.send(self.bot._("✅ **Deposit Successful!**\n📥 **Amount:** {qty}\n💰 **New Balance:** {balance} {currency}").format(
+                await user.send(_("✅ **Deposit Successful!**\n📥 **Amount:** {qty}\n💰 **New Balance:** {balance} {currency}").format(
                     qty=quantity, balance=new_balance, currency=config.MARKETPLACE["CURRENCY_NAME"]
                 ))
                 logging.info(f"MARKET: {char_name} deposited {quantity} coins.")
