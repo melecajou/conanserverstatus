@@ -36,7 +36,8 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
 
         # Mock StatusCog
         self.mock_status_cog = MagicMock()
-        self.mock_status_cog.execute_rcon = AsyncMock(return_value=("Success", None))
+        # Mock get_player_list instead of execute_rcon
+        self.mock_status_cog.get_player_list = AsyncMock(return_value=("5 | TestPlayer | A | B | steam_id", None))
         self.mock_status_cog.execute_safe_command = AsyncMock(
             return_value=("Success", None)
         )
@@ -79,7 +80,7 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
     async def test_handle_warp_success(self):
         """Test processing a !warp command."""
         # Mock getting player info via StatusCog (used by WarpsCog._get_player_info)
-        self.mock_status_cog.execute_rcon.return_value = (
+        self.mock_status_cog.get_player_list.return_value = (
             "5 | TestPlayer | A | B | steam_id",
             None,
         )
@@ -100,7 +101,7 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
 
     async def test_handle_warp_cooldown(self):
         """Test warp cooldown."""
-        self.mock_status_cog.execute_rcon.return_value = (
+        self.mock_status_cog.get_player_list.return_value = (
             "5 | TestPlayer | A | B | steam_id",
             None,
         )
@@ -122,7 +123,7 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
 
     async def test_handle_home_success(self):
         """Test processing a !home command."""
-        self.mock_status_cog.execute_rcon.return_value = (
+        self.mock_status_cog.get_player_list.return_value = (
             "5 | TestPlayer | A | B | steam_id",
             None,
         )
