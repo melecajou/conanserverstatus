@@ -31,6 +31,8 @@ BALANCE_COMMAND_REGEX = re.compile(r"!balance")
 MARKET_COMMAND_REGEX = re.compile(r"!market")
 # !withdraw <amount>
 WITHDRAW_COMMAND_REGEX = re.compile(r"!withdraw\s+(\d+)")
+# !markethelp
+MARKET_HELP_COMMAND_REGEX = re.compile(r"!markethelp")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
 
 class MarketplaceCog(commands.Cog, name="Marketplace"):
@@ -120,6 +122,37 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 amount = int(withdraw_match.group(1))
                 char_name = char_match.group(1).strip()
                 asyncio.create_task(self._handle_withdraw(char_name, amount, server_conf))
+
+        # 7. Handle Market Help
+        elif "!markethelp" in line:
+            char_match = CHAT_CHARACTER_REGEX.search(line)
+            if char_match:
+                char_name = char_match.group(1).strip()
+                asyncio.create_task(self._handle_market_help(char_name, server_conf))
+
+    async def _handle_market_help(self, char_name, server_conf):
+        """Sends marketplace command guide to the player."""
+        db_path = server_conf["DB_PATH"]
+        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        if not discord_id: return
+        user = await self.bot.fetch_user(int(discord_id))
+        if not user: return
+
+        help_msg = self.bot._(
+            "🏪 **Marketplace Guide**\n"
+            "Use virtual coins to buy and sell items with other players.\n\n"
+            "💰 **Economy:**\n"
+            "🔹 `!deposit <slot>` - Convert physical coins in your backpack to virtual balance.\n"
+            "🔹 `!withdraw <amount>` - Convert virtual balance back to physical items.\n"
+            "🔹 `!balance` - Check your virtual wallet.\n\n"
+            "🛒 **Trading:**\n"
+            "🔹 `!market` - List the 10 most recent items for sale.\n"
+            "🔹 `!sell <slot> <price>` - Put an item from your backpack up for sale.\n"
+            "🔹 `!buy <id>` - Purchase an item using your virtual balance.\n\n"
+            "⚠️ **Note:** When buying artisan items, please relog to see the full bonuses."
+        )
+        try: await user.send(help_msg)
+        except: pass
 
     async def _handle_withdraw(self, char_name, amount, server_conf):
         """Converts virtual balance back to physical currency item via RCON SpawnItem."""

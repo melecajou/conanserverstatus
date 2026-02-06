@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-02-05 21:01-0300\n"
+"POT-Creation-Date: 2026-02-05 21:13-0300\n"
 "PO-Revision-Date: 2025-08-18 10:43-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -151,91 +151,111 @@ msgid "Last update: {date}"
 msgstr ""
 
 #: cogs/marketplace.py:141
+msgid ""
+"🏪 **Marketplace Guide**\n"
+"Use virtual coins to buy and sell items with other players.\n"
+"\n"
+"💰 **Economy:**\n"
+"🔹 `!deposit <slot>` - Convert physical coins in your backpack to virtual "
+"balance.\n"
+"🔹 `!withdraw <amount>` - Convert virtual balance back to physical items.\n"
+"🔹 `!balance` - Check your virtual wallet.\n"
+"\n"
+"🛒 **Trading:**\n"
+"🔹 `!market` - List the 10 most recent items for sale.\n"
+"🔹 `!sell <slot> <price>` - Put an item from your backpack up for sale.\n"
+"🔹 `!buy <id>` - Purchase an item using your virtual balance.\n"
+"\n"
+"⚠️ **Note:** When buying artisan items, please relog to see the full "
+"bonuses."
+msgstr ""
+
+#: cogs/marketplace.py:174
 msgid "❌ Insufficient funds for withdrawal. Balance: {balance}"
 msgstr ""
 
-#: cogs/marketplace.py:158
+#: cogs/marketplace.py:191
 msgid "❌ You must be online to withdraw."
 msgstr ""
 
-#: cogs/marketplace.py:169
+#: cogs/marketplace.py:202
 msgid ""
 "✅ **Withdrawal Successful!**\n"
 "📤 **Amount:** {qty}\n"
 "💰 **Remaining Balance:** {balance} {currency}"
 msgstr ""
 
-#: cogs/marketplace.py:187
+#: cogs/marketplace.py:220
 msgid "💰 **Your Wallet:** {balance} {currency}"
 msgstr ""
 
-#: cogs/marketplace.py:207
+#: cogs/marketplace.py:240
 msgid "🏪 **Marketplace:** No active listings at the moment."
 msgstr ""
 
-#: cogs/marketplace.py:210
+#: cogs/marketplace.py:243
 msgid "🏪 **Active Marketplace Listings (Last 10):**\n"
 msgstr ""
 
-#: cogs/marketplace.py:214
+#: cogs/marketplace.py:247
 msgid ""
 "\n"
 "Type `!buy <id>` in-game to purchase."
 msgstr ""
 
-#: cogs/marketplace.py:244
+#: cogs/marketplace.py:277
 msgid "❌ Error: Listing #{id} not found or already sold."
 msgstr ""
 
-#: cogs/marketplace.py:249
+#: cogs/marketplace.py:282
 msgid "❌ Error: You cannot buy your own listing."
 msgstr ""
 
-#: cogs/marketplace.py:266
+#: cogs/marketplace.py:299
 msgid ""
 "❌ **Stacking Alert:** You already have item ID {tid} in your inventory. "
 "Please store it in a chest before buying to ensure a clean delivery."
 msgstr ""
 
-#: cogs/marketplace.py:275
+#: cogs/marketplace.py:308
 msgid "❌ Insufficient funds! Price: {price} {currency}. Your balance: {balance}."
 msgstr ""
 
-#: cogs/marketplace.py:312
+#: cogs/marketplace.py:345
 msgid "❌ You logged out! Purchase canceled and refunded."
 msgstr ""
 
-#: cogs/marketplace.py:366
+#: cogs/marketplace.py:399
 msgid ""
 "✅ **Purchase Complete!** Item delivered to your inventory. Please "
 "**relog** to see full artisan bonuses."
 msgstr ""
 
-#: cogs/marketplace.py:369
+#: cogs/marketplace.py:402
 msgid ""
 "⚠️ Purchase successful, but item synchronization failed. Please contact "
 "an admin with Listing ID #{id}."
 msgstr ""
 
-#: cogs/marketplace.py:390
+#: cogs/marketplace.py:423
 msgid "❌ Error: Price must be greater than 0."
 msgstr ""
 
-#: cogs/marketplace.py:396
+#: cogs/marketplace.py:429
 msgid ""
 "📦 **Sell Request:** Listing item in slot {slot} for {price} {currency}. "
 "Please wait {sync}s..."
 msgstr ""
 
-#: cogs/marketplace.py:413
+#: cogs/marketplace.py:446
 msgid "❌ Error: Item not found in slot {slot}."
 msgstr ""
 
-#: cogs/marketplace.py:456
+#: cogs/marketplace.py:489
 msgid "❌ You must be online to sell items."
 msgstr ""
 
-#: cogs/marketplace.py:475
+#: cogs/marketplace.py:508
 msgid ""
 "✅ **Item Listed!**\n"
 "🆔 **Listing ID:** {id}\n"
@@ -243,25 +263,25 @@ msgid ""
 "📖 Type `!buy {id}` to purchase (other players)."
 msgstr ""
 
-#: cogs/marketplace.py:503
+#: cogs/marketplace.py:536
 msgid ""
 "💰 **Deposit Request:** Initialized for slot {slot}. Please wait {sync}s "
 "for synchronization. **DO NOT MOVE THE ITEM!**"
 msgstr ""
 
-#: cogs/marketplace.py:519
+#: cogs/marketplace.py:552
 msgid "❌ Error: No item found in slot {slot}."
 msgstr ""
 
-#: cogs/marketplace.py:524
+#: cogs/marketplace.py:557
 msgid "❌ Error: Item in slot {slot} is not the accepted currency."
 msgstr ""
 
-#: cogs/marketplace.py:558
+#: cogs/marketplace.py:591
 msgid "❌ You must be online to deposit."
 msgstr ""
 
-#: cogs/marketplace.py:569
+#: cogs/marketplace.py:602
 msgid ""
 "✅ **Deposit Successful!**\n"
 "📥 **Amount:** {qty}\n"
