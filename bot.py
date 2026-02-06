@@ -62,7 +62,7 @@ async def setup_hook():
     """A coroutine to be called to setup the bot."""
     # Initialize global registry
     initialize_global_db()
-    
+
     # Collect all server DB paths for migration
     server_dbs = []
     for server_config in config.SERVERS:

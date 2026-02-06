@@ -2,7 +2,7 @@ import pytest
 import aiosqlite
 import asyncio
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, ANY
 
 from cogs.rewards import RewardsCog
 
@@ -38,6 +38,7 @@ ONLINE_PLAYERS = [
     {"idx": "4", "char_name": "Player Four", "platform_id": "steam_4"},
 ]
 
+
 class TestRewardsCog(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Set up the test environment for each test."""
@@ -47,16 +48,18 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
         # Setup Mock StatusCog for RCON execution
         self.mock_status_cog = MagicMock()
         self.mock_status_cog.execute_rcon = AsyncMock(return_value=("Success", None))
+        self.mock_status_cog.execute_safe_command = AsyncMock(
+            return_value=("Success", None)
+        )
 
         # Configure bot.get_cog to return our mock
         self.mock_bot.get_cog = MagicMock(return_value=self.mock_status_cog)
 
-        self.mock_rcon_client = AsyncMock() # This is passed but unused by code
+        self.mock_rcon_client = AsyncMock()  # This is passed but unused by code
 
         self.db = await aiosqlite.connect(":memory:")
         # Updated schema to match utils/database.py initialization
-        await self.db.execute(
-            """
+        await self.db.execute("""
             CREATE TABLE player_time (
                 platform_id TEXT,
                 server_name TEXT,
@@ -67,8 +70,7 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
                 vip_level INTEGER DEFAULT 0,
                 PRIMARY KEY (platform_id, server_name)
             )
-        """
-        )
+        """)
         await self.db.executemany(
             "INSERT INTO player_time (platform_id, server_name, online_minutes, last_reward_playtime, discord_id, vip_level) VALUES (?, ?, ?, ?, ?, ?)",
             PLAYER_DATA,
@@ -94,8 +96,10 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
             ONLINE_PLAYERS,
         )
 
-        # Check that StatusCog.execute_rcon was called
-        self.mock_status_cog.execute_rcon.assert_any_call(SERVER_NAME, "con 1 SpawnItem 12345 10")
+        # Check that StatusCog.execute_safe_command was called for Player One
+        self.mock_status_cog.execute_safe_command.assert_any_call(
+            SERVER_NAME, "Player One", ANY
+        )
 
         async with self.db.cursor() as cur:
             await cur.execute(
@@ -116,7 +120,9 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
             ONLINE_PLAYERS,
         )
 
-        self.mock_status_cog.execute_rcon.assert_any_call(SERVER_NAME, "con 2 SpawnItem 12345 10")
+        self.mock_status_cog.execute_safe_command.assert_any_call(
+            SERVER_NAME, "Player Two", ANY
+        )
 
         async with self.db.cursor() as cur:
             await cur.execute(

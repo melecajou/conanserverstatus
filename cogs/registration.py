@@ -18,6 +18,7 @@ LOG_LINES_TO_READ = 20
 REGISTRATION_COMMAND_REGEX = re.compile(r"!register (\w+)")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
 
+
 class RegistrationCog(commands.Cog, name="Registration"):
     """Handles player registration and account linking."""
 
@@ -57,9 +58,9 @@ class RegistrationCog(commands.Cog, name="Registration"):
                     "Hello! To link your game account to your Discord account, please enter the following command in the in-game chat:\n\n"
                 )
                 + f"```!register {registration_code}```\n"
-                + self.bot._(
-                    "This code will expire in {minutes} minutes."
-                ).format(minutes=REGISTRATION_EXPIRY_MINUTES)
+                + self.bot._("This code will expire in {minutes} minutes.").format(
+                    minutes=REGISTRATION_EXPIRY_MINUTES
+                )
             )
             await interaction.user.send(message)
             await interaction.followup.send(
@@ -121,37 +122,38 @@ class RegistrationCog(commands.Cog, name="Registration"):
     async def finduser(self, interaction: discord.Interaction, char_name: str):
         """Finds a discord user by character name."""
         await interaction.response.defer(ephemeral=True)
-        
+
         from utils.database import find_discord_user_by_char_name
-        
+
         found_discord_id = None
-        
+
         # Search across all servers
         for server_conf in config.SERVERS:
             db_path = server_conf.get("DB_PATH")
-            if not db_path: continue
-            
+            if not db_path:
+                continue
+
             discord_id = find_discord_user_by_char_name(db_path, char_name)
             if discord_id:
                 found_discord_id = discord_id
                 break
-        
+
         if found_discord_id:
             try:
                 user = await self.bot.fetch_user(found_discord_id)
                 await interaction.followup.send(
                     f"✅ O personagem **{char_name}** pertence ao usuário: {user.mention} (`{user.name}`)",
-                    ephemeral=True
+                    ephemeral=True,
                 )
             except discord.NotFound:
                 await interaction.followup.send(
                     f"⚠️ Encontrei o ID Discord `{found_discord_id}` para **{char_name}**, mas o usuário não está acessível (pode ter saído do servidor).",
-                    ephemeral=True
+                    ephemeral=True,
                 )
         else:
             await interaction.followup.send(
                 f"❌ Não encontrei nenhum usuário vinculado ao personagem **{char_name}**.",
-                ephemeral=True
+                ephemeral=True,
             )
 
     @app_commands.command(
@@ -179,22 +181,24 @@ class RegistrationCog(commands.Cog, name="Registration"):
             return
 
         await interaction.response.defer(ephemeral=True)
-        
+
         count = 0
         import sqlite3
-        
+
         # Collect all unique Discord IDs from all configured servers
         linked_discord_ids = set()
-        
+
         for server in config.SERVERS:
             player_db = server.get("PLAYER_DB_PATH")
             if not player_db or not os.path.exists(player_db):
                 continue
-                
+
             try:
                 with sqlite3.connect(player_db) as conn:
                     cursor = conn.cursor()
-                    cursor.execute("SELECT DISTINCT discord_id FROM player_time WHERE discord_id IS NOT NULL")
+                    cursor.execute(
+                        "SELECT DISTINCT discord_id FROM player_time WHERE discord_id IS NOT NULL"
+                    )
                     rows = cursor.fetchall()
                     for row in rows:
                         if row[0]:
@@ -213,7 +217,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
                     await member.add_roles(role)
                     count += 1
             except discord.NotFound:
-                continue # User not in server
+                continue  # User not in server
             except Exception as e:
                 logging.error(f"Error syncing role for {discord_id}: {e}")
 
@@ -255,10 +259,10 @@ class RegistrationCog(commands.Cog, name="Registration"):
                 return
 
             if current_size < last_pos:
-                last_pos = 0 # Rotated
+                last_pos = 0  # Rotated
 
             if current_size == last_pos:
-                return # No new data
+                return  # No new data
 
             with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
                 f.seek(last_pos)
@@ -290,9 +294,10 @@ class RegistrationCog(commands.Cog, name="Registration"):
             return
 
         code = code_match.group(1).strip()
-        if code in pending_registrations and "char_name" not in pending_registrations[
-            code
-        ]:
+        if (
+            code in pending_registrations
+            and "char_name" not in pending_registrations[code]
+        ):
             char_match = CHAT_CHARACTER_REGEX.search(line)
             if char_match:
                 char_name = char_match.group(1).strip()
@@ -304,7 +309,13 @@ class RegistrationCog(commands.Cog, name="Registration"):
                 pending_registrations[code]["char_name"] = char_name
 
                 await self._link_account_and_notify(
-                    code, discord_id, char_name, player_db_path, game_db_path, server_name, guild_id
+                    code,
+                    discord_id,
+                    char_name,
+                    player_db_path,
+                    game_db_path,
+                    server_name,
+                    guild_id,
                 )
 
     async def _link_account_and_notify(
@@ -321,7 +332,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
         logging.info(
             f"Registration code {code} used by character {char_name}. Attempting to link..."
         )
-        
+
         # Link in server-specific DB (ensures platform_id is known locally)
         success_local = link_discord_to_character(
             player_tracker_db_path=player_db_path,
@@ -334,11 +345,15 @@ class RegistrationCog(commands.Cog, name="Registration"):
         if success_local:
             # Get the platform_id that was just identified
             import sqlite3
+
             platform_id = None
             try:
                 with sqlite3.connect(player_db_path) as con:
                     cur = con.cursor()
-                    cur.execute("SELECT platform_id FROM player_time WHERE server_name = ? AND discord_id = ?", (server_name, str(discord_id)))
+                    cur.execute(
+                        "SELECT platform_id FROM player_time WHERE server_name = ? AND discord_id = ?",
+                        (server_name, str(discord_id)),
+                    )
                     row = cur.fetchone()
                     if row:
                         platform_id = row[0]
@@ -354,7 +369,11 @@ class RegistrationCog(commands.Cog, name="Registration"):
             )
 
             # Apply Role
-            if guild_id and hasattr(config, "REGISTERED_ROLE_ID") and config.REGISTERED_ROLE_ID:
+            if (
+                guild_id
+                and hasattr(config, "REGISTERED_ROLE_ID")
+                and config.REGISTERED_ROLE_ID
+            ):
                 try:
                     guild = self.bot.get_guild(guild_id)
                     if guild:
@@ -362,7 +381,9 @@ class RegistrationCog(commands.Cog, name="Registration"):
                         role = guild.get_role(config.REGISTERED_ROLE_ID)
                         if member and role:
                             await member.add_roles(role)
-                            logging.info(f"Assigned role {role.name} to {member.display_name}")
+                            logging.info(
+                                f"Assigned role {role.name} to {member.display_name}"
+                            )
                 except Exception as e:
                     logging.error(f"Failed to assign role to {discord_id}: {e}")
 
