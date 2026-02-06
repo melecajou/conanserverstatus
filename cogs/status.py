@@ -637,8 +637,8 @@ class StatusCog(commands.Cog, name="Status"):
             platform_ids = [p["platform_id"] for p in online_players]
 
             # Try to get fresh levels
-            levels_data = get_batch_player_levels(
-                server_config.get("DB_PATH"), char_names
+            levels_data = await asyncio.to_thread(
+                get_batch_player_levels, server_config.get("DB_PATH"), char_names
             )
 
             if levels_data is not None:
@@ -655,12 +655,15 @@ class StatusCog(commands.Cog, name="Status"):
                     f"Using cached levels for {server_name} due to DB read error."
                 )
 
-            player_data_map = get_batch_player_data(
+            player_data_map = await asyncio.to_thread(
+                get_batch_player_data,
                 server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB),
                 platform_ids,
                 server_name,
             )
-            global_data_map = get_global_player_data(platform_ids)
+            global_data_map = await asyncio.to_thread(
+                get_global_player_data, platform_ids
+            )
 
             server_data["levels_map"] = levels_map
             server_data["player_data_map"] = player_data_map
