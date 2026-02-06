@@ -601,7 +601,7 @@ class StatusCog(commands.Cog, name="Status"):
                 # Read last 50KB to try and find recent stats on first load
                 self.watchers[server_name] = LogWatcher(log_path, tail_bytes=50000)
 
-            new_lines = self.watchers[server_name].read_new_lines()
+            new_lines = await self.watchers[server_name].read_new_lines()
             current_stats = self.server_stats.get(server_name)
             updated_stats = parse_log_lines(new_lines, current_stats)
             self.server_stats[server_name] = updated_stats
