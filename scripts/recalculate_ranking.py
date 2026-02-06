@@ -26,7 +26,8 @@ def reset_ranking_db():
     os.makedirs(os.path.dirname(RANKING_DB), exist_ok=True)
     con = sqlite3.connect(RANKING_DB)
     cur = con.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS scores (
             server_name TEXT,
             player_name TEXT,
@@ -35,7 +36,8 @@ def reset_ranking_db():
             score INTEGER DEFAULT 0,
             PRIMARY KEY (server_name, player_name)
         )
-    """)
+    """
+    )
     con.commit()
     con.close()
 

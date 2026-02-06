@@ -520,13 +520,13 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                         await status_cog.execute_safe_command(
                             server_name,
                             char_name,
-                            lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}"
+                            lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}",
                         )
                     for p_id, v in dna.get("float", {}).items():
                         await status_cog.execute_safe_command(
                             server_name,
                             char_name,
-                            lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemFloatStat {new_slot} {p_id} {v} {inv_type}"
+                            lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemFloatStat {new_slot} {p_id} {v} {inv_type}",
                         )
                 except Exception as e:
                     logging.error(

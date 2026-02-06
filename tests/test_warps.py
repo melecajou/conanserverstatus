@@ -20,14 +20,13 @@ SERVER_CONF = {
     "PLAYER_DB_PATH": ":memory:",
     "WARP_CONFIG": {
         "ENABLED": True,
-        "LOCATIONS": {
-            "town": "100 100 100"
-        },
+        "LOCATIONS": {"town": "100 100 100"},
         "HOME_ENABLED": True,
         "COOLDOWN_MINUTES": 5,
-        "HOME_COOLDOWN_MINUTES": 15
-    }
+        "HOME_COOLDOWN_MINUTES": 15,
+    },
 }
+
 
 class TestWarpsCog(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -38,7 +37,9 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
         # Mock StatusCog
         self.mock_status_cog = MagicMock()
         self.mock_status_cog.execute_rcon = AsyncMock(return_value=("Success", None))
-        self.mock_status_cog.execute_safe_command = AsyncMock(return_value=("Success", None))
+        self.mock_status_cog.execute_safe_command = AsyncMock(
+            return_value=("Success", None)
+        )
         self.mock_status_cog.rcon_clients = {SERVER_NAME: AsyncMock()}
 
         self.mock_bot.get_cog.return_value = self.mock_status_cog
@@ -54,7 +55,9 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
         # Mock DB functions
         self.get_global_player_data_patcher = patch("cogs.warps.get_global_player_data")
         self.mock_get_global_player_data = self.get_global_player_data_patcher.start()
-        self.mock_get_global_player_data.return_value = {"steam_id": {"discord_id": 12345}}
+        self.mock_get_global_player_data.return_value = {
+            "steam_id": {"discord_id": 12345}
+        }
 
         self.get_char_coords_patcher = patch("cogs.warps.get_character_coordinates")
         self.mock_get_char_coords = self.get_char_coords_patcher.start()
@@ -76,9 +79,14 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
     async def test_handle_warp_success(self):
         """Test processing a !warp command."""
         # Mock getting player info via StatusCog (used by WarpsCog._get_player_info)
-        self.mock_status_cog.execute_rcon.return_value = ("5 | TestPlayer | A | B | steam_id", None)
+        self.mock_status_cog.execute_rcon.return_value = (
+            "5 | TestPlayer | A | B | steam_id",
+            None,
+        )
 
-        await self.warps_cog._handle_warp("TestPlayer", "town", SERVER_CONF, SERVER_NAME)
+        await self.warps_cog._handle_warp(
+            "TestPlayer", "town", SERVER_CONF, SERVER_NAME
+        )
 
         # Verify execute_safe_command was called
         self.mock_status_cog.execute_safe_command.assert_called_with(
@@ -92,22 +100,32 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
 
     async def test_handle_warp_cooldown(self):
         """Test warp cooldown."""
-        self.mock_status_cog.execute_rcon.return_value = ("5 | TestPlayer | A | B | steam_id", None)
+        self.mock_status_cog.execute_rcon.return_value = (
+            "5 | TestPlayer | A | B | steam_id",
+            None,
+        )
 
         # First warp
-        await self.warps_cog._handle_warp("TestPlayer", "town", SERVER_CONF, SERVER_NAME)
+        await self.warps_cog._handle_warp(
+            "TestPlayer", "town", SERVER_CONF, SERVER_NAME
+        )
         self.mock_status_cog.execute_safe_command.assert_called()
         self.mock_status_cog.execute_safe_command.reset_mock()
 
         # Second warp (immediate)
-        await self.warps_cog._handle_warp("TestPlayer", "town", SERVER_CONF, SERVER_NAME)
+        await self.warps_cog._handle_warp(
+            "TestPlayer", "town", SERVER_CONF, SERVER_NAME
+        )
 
         # Should NOT call execute_safe_command due to cooldown
         self.mock_status_cog.execute_safe_command.assert_not_called()
 
     async def test_handle_home_success(self):
         """Test processing a !home command."""
-        self.mock_status_cog.execute_rcon.return_value = ("5 | TestPlayer | A | B | steam_id", None)
+        self.mock_status_cog.execute_rcon.return_value = (
+            "5 | TestPlayer | A | B | steam_id",
+            None,
+        )
         self.mock_get_home.return_value = (500, 500, 500)
 
         await self.warps_cog._handle_home("TestPlayer", SERVER_CONF)

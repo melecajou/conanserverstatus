@@ -24,9 +24,10 @@ TRADE_CONFIG = {
         "price_id": 100,
         "price_amount": 10,
         "item_id": 200,
-        "quantity": 1
+        "quantity": 1,
     }
 }
+
 
 class TestTradesCog(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -37,7 +38,9 @@ class TestTradesCog(IsolatedAsyncioTestCase):
         # Mock StatusCog
         self.mock_status_cog = MagicMock()
         self.mock_status_cog.execute_rcon = AsyncMock(return_value=("Success", None))
-        self.mock_status_cog.execute_safe_command = AsyncMock(return_value=("Success", None))
+        self.mock_status_cog.execute_safe_command = AsyncMock(
+            return_value=("Success", None)
+        )
         self.mock_status_cog.rcon_clients = {SERVER_NAME: AsyncMock()}
 
         self.mock_bot.get_cog.return_value = self.mock_status_cog
@@ -46,7 +49,9 @@ class TestTradesCog(IsolatedAsyncioTestCase):
         self.config_servers_patcher = patch("config.SERVERS", [SERVER_CONF])
         self.config_servers_patcher.start()
 
-        self.config_trades_patcher = patch("config.TRADE_ITEMS", TRADE_CONFIG, create=True)
+        self.config_trades_patcher = patch(
+            "config.TRADE_ITEMS", TRADE_CONFIG, create=True
+        )
         self.config_trades_patcher.start()
 
         # Patch tasks loop
@@ -54,7 +59,9 @@ class TestTradesCog(IsolatedAsyncioTestCase):
             self.trades_cog = TradesCog(self.mock_bot)
 
         # Mock DB functions
-        self.find_discord_user_patcher = patch("cogs.trades.find_discord_user_by_char_name")
+        self.find_discord_user_patcher = patch(
+            "cogs.trades.find_discord_user_by_char_name"
+        )
         self.mock_find_discord_user = self.find_discord_user_patcher.start()
         self.mock_find_discord_user.return_value = "12345"
 
@@ -83,7 +90,10 @@ class TestTradesCog(IsolatedAsyncioTestCase):
         # Setup: Enough funds
         self.mock_get_backpack.return_value = {"quantity": 20, "slot": 5}
         # Mock ListPlayers response for execute_rcon check (if any manual check remains)
-        self.mock_status_cog.execute_rcon.return_value = ("5 | TestPlayer | A | B | steam_id", None)
+        self.mock_status_cog.execute_rcon.return_value = (
+            "5 | TestPlayer | A | B | steam_id",
+            None,
+        )
 
         await self.trades_cog._handle_buy("TestPlayer", "sword", SERVER_CONF)
 
@@ -113,7 +123,7 @@ class TestTradesCog(IsolatedAsyncioTestCase):
 
     async def test_handle_buy_insufficient_funds(self):
         """Test purchase failure due to insufficient funds."""
-        self.mock_get_backpack.return_value = {"quantity": 5, "slot": 5} # Needs 10
+        self.mock_get_backpack.return_value = {"quantity": 5, "slot": 5}  # Needs 10
 
         await self.trades_cog._handle_buy("TestPlayer", "sword", SERVER_CONF)
 
@@ -128,4 +138,6 @@ class TestTradesCog(IsolatedAsyncioTestCase):
         line = "ChatWindow: Character TestPlayer (uid: 123) said: !buy sword"
         await self.trades_cog._process_log_line(line, SERVER_CONF)
 
-        self.trades_cog._handle_buy.assert_called_with("TestPlayer", "sword", SERVER_CONF)
+        self.trades_cog._handle_buy.assert_called_with(
+            "TestPlayer", "sword", SERVER_CONF
+        )

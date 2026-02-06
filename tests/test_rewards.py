@@ -59,7 +59,8 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
 
         self.db = await aiosqlite.connect(":memory:")
         # Updated schema to match utils/database.py initialization
-        await self.db.execute("""
+        await self.db.execute(
+            """
             CREATE TABLE player_time (
                 platform_id TEXT,
                 server_name TEXT,
@@ -70,7 +71,8 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
                 vip_level INTEGER DEFAULT 0,
                 PRIMARY KEY (platform_id, server_name)
             )
-        """)
+        """
+        )
         await self.db.executemany(
             "INSERT INTO player_time (platform_id, server_name, online_minutes, last_reward_playtime, discord_id, vip_level) VALUES (?, ?, ?, ?, ?, ?)",
             PLAYER_DATA,

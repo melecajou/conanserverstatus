@@ -19,6 +19,7 @@ SERVER_CONF = {
     "DB_PATH": ":memory:",
 }
 
+
 class TestStatusCog(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.mock_bot = MagicMock()
@@ -78,7 +79,7 @@ class TestStatusCog(IsolatedAsyncioTestCase):
         with self.assertRaises(RCONConnectionError):
             await self.status_cog.execute_rcon(SERVER_NAME, "status", max_retries=2)
 
-        self.assertEqual(self.mock_client.connect.call_count, 3) # Initial + 2 retries
+        self.assertEqual(self.mock_client.connect.call_count, 3)  # Initial + 2 retries
 
     async def test_execute_safe_command_success(self):
         """Test successful safe command execution."""
@@ -89,8 +90,8 @@ class TestStatusCog(IsolatedAsyncioTestCase):
         self.status_cog.execute_rcon = AsyncMock()
         # Ensure data has enough parts (>4)
         self.status_cog.execute_rcon.side_effect = [
-            ("5 | TestPlayer | A | B | steam_id", None), # ListPlayers response
-            ("Command Executed", None)                  # Command response
+            ("5 | TestPlayer | A | B | steam_id", None),  # ListPlayers response
+            ("Command Executed", None),  # Command response
         ]
 
         await self.status_cog.execute_safe_command(
@@ -100,7 +101,9 @@ class TestStatusCog(IsolatedAsyncioTestCase):
         self.assertEqual(self.status_cog.execute_rcon.call_count, 2)
         self.status_cog.execute_rcon.assert_any_call(SERVER_NAME, "ListPlayers")
         # Ensure correct index was used
-        self.status_cog.execute_rcon.assert_any_call(SERVER_NAME, "kick 5", max_retries=0)
+        self.status_cog.execute_rcon.assert_any_call(
+            SERVER_NAME, "kick 5", max_retries=0
+        )
 
     async def test_execute_safe_command_retry_loop(self):
         """Test safe command execution retrying the whole loop when command fails."""
@@ -113,10 +116,10 @@ class TestStatusCog(IsolatedAsyncioTestCase):
 
         self.status_cog.execute_rcon = AsyncMock()
         self.status_cog.execute_rcon.side_effect = [
-            ("5 | TestPlayer | A | B | steam_id", None), # Loop 1: ListPlayers
-            RCONConnectionError("Failed"),              # Loop 1: Command fails
-            ("6 | TestPlayer | A | B | steam_id", None), # Loop 2: ListPlayers
-            ("Command Executed", None)                  # Loop 2: Command succeeds
+            ("5 | TestPlayer | A | B | steam_id", None),  # Loop 1: ListPlayers
+            RCONConnectionError("Failed"),  # Loop 1: Command fails
+            ("6 | TestPlayer | A | B | steam_id", None),  # Loop 2: ListPlayers
+            ("Command Executed", None),  # Loop 2: Command succeeds
         ]
 
         await self.status_cog.execute_safe_command(
@@ -133,7 +136,9 @@ class TestStatusCog(IsolatedAsyncioTestCase):
 
     async def test_execute_safe_command_player_not_found(self):
         """Test safe command failing when player is not found."""
-        self.status_cog.execute_rcon = AsyncMock(return_value=("99 | OtherGuy | A | B | id", None))
+        self.status_cog.execute_rcon = AsyncMock(
+            return_value=("99 | OtherGuy | A | B | id", None)
+        )
 
         with self.assertRaises(ValueError):
             await self.status_cog.execute_safe_command(
