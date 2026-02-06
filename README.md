@@ -206,11 +206,33 @@ GUILD_SYNC = {
 }
 ```
 
+**Announcements Configuration:**
+To enable scheduled announcements for a specific server:
+1.  Add the `ANNOUNCEMENTS` block to the server's configuration in `config.py`.
+2.  Set `ENABLED` to `True` and define your `TIMEZONE` (e.g., "America/New_York").
+3.  Add messages to the `SCHEDULE` list, specifying the `DAY`, `HOUR` (0-23), and `MESSAGE`.
+
+```python
+            "ANNOUNCEMENTS": {
+                "ENABLED": True,
+                "CHANNEL_ID": 112233445566778899,
+                "TIMEZONE": "America/Sao_Paulo",
+                "SCHEDULE": [
+                    {
+                        "DAY": "Wednesday",
+                        "HOUR": 19,
+                        "MESSAGE": "📢 Double XP is now active on the PvP server!"
+                    }
+                ]
+            },
+```
+
 **Killfeed & PvP Ranking Configuration:**
 1.  In `config.py`, set global database paths:
     ```python
     KILLFEED_RANKING_DB = "data/killfeed/ranking.db"
     KILLFEED_SPAWNS_DB = "data/killfeed/spawns.db"
+    KILLFEED_STATE_FILE = "data/killfeed/ranking_state.json"
     ```
 2.  Enable Killfeed for each server in the `SERVERS` list:
     ```python
@@ -248,6 +270,38 @@ To enable daily reports on abandoned bases:
                 "CHANNEL_ID": 123456789012345678,
                 "SQL_PATH": "/home/steam/bots/ConanServerStatus/sql/inactive_structures.sql"
             }
+```
+
+**Building Watcher Configuration:**
+To enable automated reports on building piece counts:
+1.  Add the `BUILDING_WATCHER` block to the server's configuration in `config.py`.
+2.  Set `ENABLED` to `True`.
+3.  Provide the `SQL_PATH` (absolute path to `buildings.sql`) and `DB_BACKUP_PATH` (absolute path to a backup of `game.db` to avoid locking the live database).
+4.  Set the `BUILD_LIMIT`.
+
+```python
+            "BUILDING_WATCHER": {
+                "ENABLED": True,
+                "CHANNEL_ID": 223344556677889900,
+                "SQL_PATH": "/home/steam/bots/ConanServerStatus/sql/buildings.sql",
+                "DB_BACKUP_PATH": "/path/to/your/server/ConanSandbox/Saved/game_backup.db",
+                "BUILD_LIMIT": 2000
+            },
+```
+
+**Marketplace Configuration:**
+To enable the P2P marketplace and virtual economy:
+1.  In `config.py`, add the `MARKETPLACE` block.
+2.  Set `ENABLED` to `True`.
+3.  Define the `CURRENCY_ITEM_ID` (the physical item to use as money) and `CURRENCY_NAME`.
+
+```python
+MARKETPLACE = {
+    "ENABLED": True,
+    "CURRENCY_ITEM_ID": 10000000,
+    "CURRENCY_NAME": "Ecos Coin",
+    "SYNC_WAIT_SECONDS": 5 # Time to wait for game database synchronization
+}
 ```
 
 **Trade System Configuration:**
