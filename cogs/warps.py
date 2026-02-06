@@ -12,7 +12,7 @@ from utils.database import (
     get_character_coordinates,
     save_player_home,
     get_player_home,
-    DEFAULT_PLAYER_TRACKER_DB
+    DEFAULT_PLAYER_TRACKER_DB,
 )
 from utils.log_watcher import LogWatcher
 
@@ -50,8 +50,10 @@ class WarpsCog(commands.Cog, name="Warps"):
         """Slash command to show available warps."""
         embed = discord.Embed(
             title=self.bot._("📍 Warp Locations"),
-            description=self.bot._("These are the locations you can teleport to using `!warp <name>` in the in-game chat."),
-            color=discord.Color.blue()
+            description=self.bot._(
+                "These are the locations you can teleport to using `!warp <name>` in the in-game chat."
+            ),
+            color=discord.Color.blue(),
         )
 
         for server_conf in config.SERVERS:
@@ -61,13 +63,13 @@ class WarpsCog(commands.Cog, name="Warps"):
                 if locations:
                     loc_list = ", ".join([f"`{name}`" for name in locations.keys()])
                     embed.add_field(
-                        name=server_conf["NAME"],
-                        value=loc_list,
-                        inline=False
+                        name=server_conf["NAME"], value=loc_list, inline=False
                     )
 
         if not embed.fields:
-            await interaction.response.send_message(self.bot._("No warps are currently configured."), ephemeral=True)
+            await interaction.response.send_message(
+                self.bot._("No warps are currently configured."), ephemeral=True
+            )
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -108,7 +110,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         char_match = CHAT_CHARACTER_REGEX.search(line)
         if not char_match:
             return
-        
+
         char_name = char_match.group(1).strip()
 
         # 1. Check for Warp List Command (!warps / !warplist)
@@ -138,8 +140,9 @@ class WarpsCog(commands.Cog, name="Warps"):
         Returns: (idx, platform_id) or (None, None)
         """
         status_cog = self.bot.get_cog("Status")
-        if not status_cog: return None, None
-        
+        if not status_cog:
+            return None, None
+
         try:
             response, _ = await status_cog.execute_rcon(server_name, "ListPlayers")
             lines = response.split("\n")
@@ -157,14 +160,19 @@ class WarpsCog(commands.Cog, name="Warps"):
     async def _handle_list_request(self, char_name: str, server_conf: dict):
         """Sends the list of available warps to the player via Discord DM."""
         status_cog = self.bot.get_cog("Status")
-        if not status_cog: return
+        if not status_cog:
+            return
 
         server_name = server_conf["NAME"]
         rcon_client = status_cog.rcon_clients.get(server_name)
-        if not rcon_client: return
+        if not rcon_client:
+            return
 
-        _, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
-        if not platform_id: return
+        _, platform_id = await self._get_player_info(
+            rcon_client, char_name, server_name
+        )
+        if not platform_id:
+            return
 
         player_data = get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
@@ -173,19 +181,22 @@ class WarpsCog(commands.Cog, name="Warps"):
             warp_config = server_conf.get("WARP_CONFIG", {})
             locations = warp_config.get("LOCATIONS", {})
             loc_names = ", ".join([f"`{name}`" for name in locations.keys()])
-            
-            msg = self.bot._("📍 **Available Warps in {server}:**\n{locations}\n\nUse `!warp <name>` in the in-game chat.").format(
-                server=server_conf['NAME'],
-                locations=loc_names
-            )
-            
+
+            msg = self.bot._(
+                "📍 **Available Warps in {server}:**\n{locations}\n\nUse `!warp <name>` in the in-game chat."
+            ).format(server=server_conf["NAME"], locations=loc_names)
+
             if warp_config.get("HOME_ENABLED"):
-                msg += "\n\n" + self.bot._("🏠 **Home System:**\nUse `!sethome` to save your current position and `!home` to return.")
+                msg += "\n\n" + self.bot._(
+                    "🏠 **Home System:**\nUse `!sethome` to save your current position and `!home` to return."
+                )
 
             try:
                 user = await self.bot.fetch_user(discord_id)
-                if user: await user.send(msg)
-            except: pass
+                if user:
+                    await user.send(msg)
+            except:
+                pass
 
     async def _handle_sethome(self, char_name: str, server_conf: dict):
         """Saves the current character position as their home."""
@@ -196,10 +207,14 @@ class WarpsCog(commands.Cog, name="Warps"):
         status_cog = self.bot.get_cog("Status")
         server_name = server_conf["NAME"]
         rcon_client = status_cog.rcon_clients.get(server_name) if status_cog else None
-        if not rcon_client: return
+        if not rcon_client:
+            return
 
-        _, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
-        if not platform_id: return
+        _, platform_id = await self._get_player_info(
+            rcon_client, char_name, server_name
+        )
+        if not platform_id:
+            return
 
         player_data = get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
@@ -215,14 +230,19 @@ class WarpsCog(commands.Cog, name="Warps"):
             expiration = self.cooldowns[cooldown_key]
             if now < expiration:
                 rem = int((expiration - now).total_seconds())
-                logging.info(f"Player {char_name} tried !sethome but is on cooldown ({rem}s remaining).")
+                logging.info(
+                    f"Player {char_name} tried !sethome but is on cooldown ({rem}s remaining)."
+                )
                 try:
                     user = await self.bot.fetch_user(discord_id)
-                    if user: await user.send(self.bot._("⏳ **SetHome on Cooldown:** Please wait **{minutes}m {seconds}s**.").format(
-                        minutes=rem // 60,
-                        seconds=rem % 60
-                    ))
-                except: pass
+                    if user:
+                        await user.send(
+                            self.bot._(
+                                "⏳ **SetHome on Cooldown:** Please wait **{minutes}m {seconds}s**."
+                            ).format(minutes=rem // 60, seconds=rem % 60)
+                        )
+                except:
+                    pass
                 return
 
         # Get coordinates from game.db
@@ -231,19 +251,28 @@ class WarpsCog(commands.Cog, name="Warps"):
 
         if coords:
             x, y, z = coords
-            player_db_path = server_conf.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB)
-            if save_player_home(player_db_path, platform_id, server_conf["NAME"], x, y, z):
+            player_db_path = server_conf.get(
+                "PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB
+            )
+            if save_player_home(
+                player_db_path, platform_id, server_conf["NAME"], x, y, z
+            ):
                 self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
                 try:
                     user = await self.bot.fetch_user(discord_id)
                     if user:
-                        await user.send(self.bot._("🏠 **Home Set!** Your location was saved in **{server}**.\n⚠️ *Note: There might be a slight difference in the exact position due to the server's automatic save cycle.*").format(
-                            server=server_conf['NAME']
-                        ))
-                except: pass
+                        await user.send(
+                            self.bot._(
+                                "🏠 **Home Set!** Your location was saved in **{server}**.\n⚠️ *Note: There might be a slight difference in the exact position due to the server's automatic save cycle.*"
+                            ).format(server=server_conf["NAME"])
+                        )
+                except:
+                    pass
                 logging.info(f"Player {char_name} set home at {x}, {y}, {z}")
         else:
-            logging.warning(f"Could not find coordinates for {char_name} in {game_db_path}")
+            logging.warning(
+                f"Could not find coordinates for {char_name} in {game_db_path}"
+            )
 
     async def _handle_home(self, char_name: str, server_conf: dict):
         """Teleports the player to their saved home position."""
@@ -254,10 +283,14 @@ class WarpsCog(commands.Cog, name="Warps"):
         status_cog = self.bot.get_cog("Status")
         server_name = server_conf["NAME"]
         rcon_client = status_cog.rcon_clients.get(server_name) if status_cog else None
-        if not rcon_client: return
+        if not rcon_client:
+            return
 
-        idx, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
-        if not idx or not platform_id: return
+        idx, platform_id = await self._get_player_info(
+            rcon_client, char_name, server_name
+        )
+        if not idx or not platform_id:
+            return
 
         player_data = get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
@@ -273,14 +306,19 @@ class WarpsCog(commands.Cog, name="Warps"):
             expiration = self.cooldowns[cooldown_key]
             if now < expiration:
                 rem = int((expiration - now).total_seconds())
-                logging.info(f"Player {char_name} tried !home but is on cooldown ({rem}s remaining).")
+                logging.info(
+                    f"Player {char_name} tried !home but is on cooldown ({rem}s remaining)."
+                )
                 try:
                     user = await self.bot.fetch_user(discord_id)
-                    if user: await user.send(self.bot._("⏳ **Home on Cooldown:** Please wait **{minutes}m {seconds}s**.").format(
-                        minutes=rem // 60,
-                        seconds=rem % 60
-                    ))
-                except: pass
+                    if user:
+                        await user.send(
+                            self.bot._(
+                                "⏳ **Home on Cooldown:** Please wait **{minutes}m {seconds}s**."
+                            ).format(minutes=rem // 60, seconds=rem % 60)
+                        )
+                except:
+                    pass
                 return
 
         # Get home from DB
@@ -290,26 +328,46 @@ class WarpsCog(commands.Cog, name="Warps"):
         if home_coords:
             x, y, z = home_coords
             try:
-                await status_cog.execute_rcon(server_name, f"con {idx} TeleportPlayer {x} {y} {z}")
+                # Use execute_safe_command for safe execution
+                await status_cog.execute_safe_command(
+                    server_name,
+                    char_name,
+                    lambda i: f"con {i} TeleportPlayer {x} {y} {z}",
+                )
+
                 logging.info(f"Teleported {char_name} to home")
                 self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
                 try:
                     user = await self.bot.fetch_user(discord_id)
-                    if user: await user.send(self.bot._("🏠 Welcome back to your home in **{server}**!").format(server=server_name))
-                except: pass
+                    if user:
+                        await user.send(
+                            self.bot._(
+                                "🏠 Welcome back to your home in **{server}**!"
+                            ).format(server=server_name)
+                        )
+                except:
+                    pass
             except Exception as e:
                 logging.error(f"Home teleport error: {e}")
         else:
             try:
                 user = await self.bot.fetch_user(discord_id)
-                if user: await user.send(self.bot._("❌ **Error:** You haven't set a home yet. Use `!sethome` first."))
-            except: pass
+                if user:
+                    await user.send(
+                        self.bot._(
+                            "❌ **Error:** You haven't set a home yet. Use `!sethome` first."
+                        )
+                    )
+            except:
+                pass
 
-    async def _handle_warp(self, char_name: str, destination: str, server_conf: dict, server_name: str):
+    async def _handle_warp(
+        self, char_name: str, destination: str, server_conf: dict, server_name: str
+    ):
         """Validates and executes the warp."""
         warp_config = server_conf.get("WARP_CONFIG", {})
         locations = warp_config.get("LOCATIONS", {})
-        
+
         if destination not in locations:
             return
 
@@ -318,10 +376,14 @@ class WarpsCog(commands.Cog, name="Warps"):
 
         status_cog = self.bot.get_cog("Status")
         rcon_client = status_cog.rcon_clients.get(server_name) if status_cog else None
-        if not rcon_client: return
+        if not rcon_client:
+            return
 
-        idx, platform_id = await self._get_player_info(rcon_client, char_name, server_name)
-        if not idx or not platform_id: return
+        idx, platform_id = await self._get_player_info(
+            rcon_client, char_name, server_name
+        )
+        if not idx or not platform_id:
+            return
 
         player_data = get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
@@ -337,27 +399,39 @@ class WarpsCog(commands.Cog, name="Warps"):
             expiration = self.cooldowns[cooldown_key]
             if now < expiration:
                 rem = int((expiration - now).total_seconds())
-                logging.info(f"Player {char_name} tried !warp {destination} but is on cooldown ({rem}s remaining).")
+                logging.info(
+                    f"Player {char_name} tried !warp {destination} but is on cooldown ({rem}s remaining)."
+                )
                 try:
                     user = await self.bot.fetch_user(discord_id)
-                    if user: await user.send(self.bot._("⏳ **Warp on Cooldown:** Please wait **{minutes}m {seconds}s**.").format(
-                        minutes=rem // 60,
-                        seconds=rem % 60
-                    ))
-                except: pass
+                    if user:
+                        await user.send(
+                            self.bot._(
+                                "⏳ **Warp on Cooldown:** Please wait **{minutes}m {seconds}s**."
+                            ).format(minutes=rem // 60, seconds=rem % 60)
+                        )
+                except:
+                    pass
                 return
 
         try:
-            await status_cog.execute_rcon(server_name, f"con {idx} TeleportPlayer {coords}")
+            # Use execute_safe_command for safe execution
+            await status_cog.execute_safe_command(
+                server_name, char_name, lambda i: f"con {i} TeleportPlayer {coords}"
+            )
+
             logging.info(f"Teleported {char_name} to {destination}")
             self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
             try:
                 user = await self.bot.fetch_user(discord_id)
-                if user: await user.send(self.bot._("🚀 Teleported to **{destination}** in **{server}**!").format(
-                    destination=destination,
-                    server=server_name
-                ))
-            except: pass
+                if user:
+                    await user.send(
+                        self.bot._(
+                            "🚀 Teleported to **{destination}** in **{server}**!"
+                        ).format(destination=destination, server=server_name)
+                    )
+            except:
+                pass
         except Exception as e:
             logging.error(f"Warp error: {e}")
 

@@ -43,9 +43,9 @@ class RewardsCog(commands.Cog, name="Rewards"):
                     {
                         "idx": parts[0].strip(),
                         "char_name": parts[1].strip(),
-        "platform_id": parts[4].strip(),
-    }
-    )
+                        "platform_id": parts[4].strip(),
+                    }
+                )
         return online_players
 
     async def _update_playtime(
@@ -87,39 +87,31 @@ class RewardsCog(commands.Cog, name="Rewards"):
         """
         item_id = reward_config["REWARD_ITEM_ID"]
         quantity = reward_config["REWARD_QUANTITY"]
-        command = f"con {player['idx']} SpawnItem {item_id} {quantity}"
 
         status_cog = self.bot.get_cog("Status")
         if not status_cog:
             logging.error("StatusCog not found for reward execution.")
             return False
 
-        for attempt in range(3):
-            try:
-                response, _ = await status_cog.execute_rcon(server_name, command)
-                logging.info(
-                    self._(
-                        "Reward command '%s' for player %s on server '%s' executed. Response: %s"
-                    )
-                    % (command, player["char_name"], server_name, response.strip())
-                )
-                return True
-            except Exception as e:
-                logging.warning(
-                    self._(
-                        "Attempt %d/3 to send reward for player %s failed: %s"
-                    )
-                    % (attempt + 1, player["char_name"], e)
-                )
-                await asyncio.sleep(2)  # Wait before retrying
-
-        logging.error(
-            self._(
-                "Failed to send reward RCON command for player %s on server '%s' after 3 attempts."
+        try:
+            # Use execute_safe_command to handle race conditions and retries
+            await status_cog.execute_safe_command(
+                server_name,
+                player["char_name"],
+                lambda idx: f"con {idx} SpawnItem {item_id} {quantity}",
             )
-            % (player["char_name"], server_name)
-        )
-        return False
+
+            logging.info(
+                self._("Reward issued to player %s on server '%s' (Item: %s, Qty: %s)")
+                % (player["char_name"], server_name, item_id, quantity)
+            )
+            return True
+        except Exception as e:
+            logging.error(
+                self._("Failed to issue reward for player %s on server '%s': %s")
+                % (player["char_name"], server_name, e)
+            )
+            return False
 
     async def _get_player_reward_status(
         self,
@@ -148,30 +140,36 @@ class RewardsCog(commands.Cog, name="Rewards"):
                 (platform_id, server_name),
             )
             result = await cur.fetchone()
-        
+
         if not result:
             return None
-            
+
         online_minutes, last_reward_playtime = result
 
         # 2. Get global discord_id and VIP level
         import sqlite3
         from datetime import datetime
         from utils.database import GLOBAL_DB_PATH
-        
+
         discord_id = None
         vip_level = 0
         vip_expiry = None
-        
+
         try:
             with sqlite3.connect(f"file:{GLOBAL_DB_PATH}?mode=ro", uri=True) as g_con:
                 g_con.row_factory = sqlite3.Row
                 g_cur = g_con.cursor()
-                g_cur.execute("SELECT discord_id FROM user_identities WHERE platform_id = ?", (platform_id,))
+                g_cur.execute(
+                    "SELECT discord_id FROM user_identities WHERE platform_id = ?",
+                    (platform_id,),
+                )
                 res_id = g_cur.fetchone()
                 if res_id:
                     discord_id = res_id["discord_id"]
-                    g_cur.execute("SELECT vip_level, vip_expiry_date FROM discord_vips WHERE discord_id = ?", (discord_id,))
+                    g_cur.execute(
+                        "SELECT vip_level, vip_expiry_date FROM discord_vips WHERE discord_id = ?",
+                        (discord_id,),
+                    )
                     res_vip = g_cur.fetchone()
                     if res_vip:
                         vip_level = res_vip["vip_level"]
@@ -188,14 +186,16 @@ class RewardsCog(commands.Cog, name="Rewards"):
                 # Assuming date is stored in ISO format (YYYY-MM-DD HH:MM:SS)
                 expiry_dt = datetime.fromisoformat(vip_expiry)
                 if datetime.now() > expiry_dt:
-                    logging.debug(f"VIP Rewards expired for player {platform_id} (Discord: {discord_id}). Treating as Level 0 for rewards.")
+                    logging.debug(
+                        f"VIP Rewards expired for player {platform_id} (Discord: {discord_id}). Treating as Level 0 for rewards."
+                    )
                     vip_level = 0
             except (ValueError, TypeError):
-                logging.warning(f"Invalid expiry date format for Discord ID {discord_id}: {vip_expiry}")
+                logging.warning(
+                    f"Invalid expiry date format for Discord ID {discord_id}: {vip_expiry}"
+                )
 
-        reward_interval = reward_intervals.get(
-            vip_level, reward_intervals.get(0, 120)
-        )
+        reward_interval = reward_intervals.get(vip_level, reward_intervals.get(0, 120))
 
         return online_minutes, last_reward_playtime, reward_interval
 
@@ -233,7 +233,7 @@ class RewardsCog(commands.Cog, name="Rewards"):
                 continue
 
             online_minutes, last_reward_playtime, reward_interval = reward_status
-            
+
             # Check if enough time has passed since the last reward
             if (online_minutes - last_reward_playtime) >= reward_interval:
                 total_hours_played = online_minutes / 60.0

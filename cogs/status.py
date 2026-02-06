@@ -4,9 +4,9 @@ import discord
 import logging
 import re
 import struct
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Callable
 
-from aiomcrcon import Client, RCONConnectionError
+from aiomcrcon import Client, RCONConnectionError, IncorrectPasswordError
 
 import config
 from utils.database import (
@@ -28,7 +28,9 @@ class StatusCog(commands.Cog, name="Status"):
         self.status_messages: Dict[int, discord.Message] = {}
         self.rcon_clients: Dict[str, Client] = {}
         self.rcon_locks: Dict[str, asyncio.Lock] = {}
-        self.level_cache: Dict[str, int] = {} # Cache for player levels {char_name: level}
+        self.level_cache: Dict[str, int] = (
+            {}
+        )  # Cache for player levels {char_name: level}
 
         self.watchers: Dict[str, LogWatcher] = {}
         self.server_stats: Dict[str, Dict[str, str]] = {}
@@ -61,10 +63,11 @@ class StatusCog(commands.Cog, name="Status"):
         for client in self.rcon_clients.values():
             await client.close()
 
-    async def execute_rcon(self, server_name: str, command: str) -> Tuple[str, str]:
+    async def execute_rcon(
+        self, server_name: str, command: str, max_retries: int = 3
+    ) -> Tuple[str, str]:
         """
-        Executes an RCON command on the specified server with locking to prevent
-        race conditions.
+        Executes an RCON command on the specified server with locking and retry logic.
         """
         client = self.rcon_clients.get(server_name)
         lock = self.rcon_locks.get(server_name)
@@ -72,23 +75,106 @@ class StatusCog(commands.Cog, name="Status"):
         if not client or not lock:
             raise ValueError(f"RCON client or lock not found for server: {server_name}")
 
-        async with lock:
+        last_exception = None
+        for attempt in range(max_retries + 1):
+            async with lock:
+                try:
+                    await client.connect()
+                    return await client.send_cmd(command)
+                except (
+                    struct.error,
+                    RCONConnectionError,
+                    IncorrectPasswordError,
+                    asyncio.TimeoutError,
+                ) as e:
+                    logging.warning(
+                        f"RCON attempt {attempt + 1}/{max_retries + 1} failed for {server_name}: {e}"
+                    )
+                    last_exception = e
+                    # Force close to ensure fresh connection on next retry
+                    try:
+                        await client.close()
+                    except:
+                        pass
+                    if attempt < max_retries:
+                        await asyncio.sleep(1)  # Wait before retry
+                except Exception as e:
+                    # Unexpected error, close and re-raise
+                    logging.error(f"Unexpected RCON error for {server_name}: {e}")
+                    await client.close()
+                    raise e
+
+        raise last_exception or RCONConnectionError(
+            f"Failed to execute RCON command after {max_retries} retries."
+        )
+
+    async def execute_safe_command(
+        self, server_name: str, char_name: str, command_template: Callable[[str], str]
+    ) -> Tuple[str, str]:
+        """
+        Safely executes a command that requires a player index.
+        It fetches the player list, finds the index, and executes the command.
+        If the command fails (e.g. invalid index due to player re-logging), it retries the whole process.
+
+        Args:
+            server_name: The server to execute on.
+            char_name: The character name to find.
+            command_template: A function that takes the index (str) and returns the full RCON command string.
+        """
+        max_loop_retries = 3
+
+        for attempt in range(max_loop_retries):
+            # 1. Get Player List (this internally retries connection errors)
             try:
-                await client.connect()
-                return await client.send_cmd(command)
-            except struct.error:
-                # This happens when the server is starting up and sends an incomplete packet
-                await client.close() # Force a clean state
-                raise RCONConnectionError("Incomplete RCON packet received.")
-            except asyncio.TimeoutError:
-                # RCON connection timed out (server likely down or lagging heavily)
-                await client.close()
-                raise RCONConnectionError("RCON timed out.")
+                response, _ = await self.execute_rcon(server_name, "ListPlayers")
             except Exception as e:
-                # If it's a connection error, aiomcrcon might need a clean state
-                logging.warning(f"RCON execution failed for {server_name}: {e}")
-                await client.close()
+                logging.warning(
+                    f"Safe execution failed at ListPlayers step for {char_name}: {e}"
+                )
+                if attempt < max_loop_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
                 raise e
+
+            # 2. Find Index
+            idx = None
+            lines = response.split("\n")
+            for line in lines:
+                parts = line.split("|")
+                if len(parts) > 4:
+                    if parts[1].strip() == char_name:
+                        idx = parts[0].strip()
+                        break
+
+            if not idx:
+                raise ValueError(
+                    f"Player {char_name} not found online on {server_name}."
+                )
+
+            # 3. Execute Command
+            full_command = command_template(idx)
+            try:
+                # We disable internal retries for this specific call because if it fails,
+                # we want to restart the whole loop (re-fetch index) rather than just retry the command
+                # with a potentially stale index.
+                return await self.execute_rcon(server_name, full_command, max_retries=0)
+            except (
+                struct.error,
+                RCONConnectionError,
+                IncorrectPasswordError,
+                asyncio.TimeoutError,
+            ) as e:
+                logging.warning(
+                    f"Safe execution attempt {attempt + 1} failed for {char_name} (idx {idx}): {e}. Retrying loop."
+                )
+                if attempt < max_loop_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+                raise e
+
+        raise RCONConnectionError(
+            f"Failed to safe-execute command for {char_name} after {max_loop_retries} loops."
+        )
 
     @tasks.loop(minutes=1)
     async def update_all_statuses_task(self):
@@ -209,11 +295,13 @@ class StatusCog(commands.Cog, name="Status"):
                 p_data = player_data_map.get(
                     player["platform_id"], {"online_minutes": 0, "is_registered": False}
                 )
-                
+
                 # Registration status from global data
                 is_registered = False
                 if player["platform_id"] in global_data_map:
-                    is_registered = bool(global_data_map[player["platform_id"]]["discord_id"])
+                    is_registered = bool(
+                        global_data_map[player["platform_id"]]["discord_id"]
+                    )
                 else:
                     is_registered = p_data["is_registered"]
 
@@ -311,7 +399,7 @@ class StatusCog(commands.Cog, name="Status"):
         export_data = {
             "last_updated": datetime.now().isoformat(),
             "total_players": sum(len(s["online_players"]) for s in cluster_data),
-            "servers": []
+            "servers": [],
         }
 
         # Create a map for quick lookup of online status
@@ -322,22 +410,28 @@ class StatusCog(commands.Cog, name="Status"):
             online_players = []
             for p in s["online_players"]:
                 level = s["levels_map"].get(p["char_name"], 0)
-                p_data = s["player_data_map"].get(p["platform_id"], {"online_minutes": 0})
-                
-                online_players.append({
-                    "char_name": p["char_name"],
-                    "level": level,
-                    "playtime_minutes": p_data["online_minutes"]
-                })
+                p_data = s["player_data_map"].get(
+                    p["platform_id"], {"online_minutes": 0}
+                )
 
-            export_data["servers"].append({
-                "name": s["name"],
-                "alias": s["alias"],
-                "online": status_map.get(s["alias"], False),
-                "players_count": len(online_players),
-                "players": online_players,
-                "stats": s["system_stats"]
-            })
+                online_players.append(
+                    {
+                        "char_name": p["char_name"],
+                        "level": level,
+                        "playtime_minutes": p_data["online_minutes"],
+                    }
+                )
+
+            export_data["servers"].append(
+                {
+                    "name": s["name"],
+                    "alias": s["alias"],
+                    "online": status_map.get(s["alias"], False),
+                    "players_count": len(online_players),
+                    "players": online_players,
+                    "stats": s["system_stats"],
+                }
+            )
 
         # Ensure output directory exists
         output_path = os.path.join("output", "status.json")
@@ -358,7 +452,7 @@ class StatusCog(commands.Cog, name="Status"):
         """
         await self.bot.wait_until_ready()
         await self.async_init()  # Initialize RCON clients
-        
+
         # 1. Find messages for individual servers
         for server_conf in config.SERVERS:
             if not server_conf.get("ENABLED", True):
@@ -375,7 +469,7 @@ class StatusCog(commands.Cog, name="Status"):
                     ):
                         self.status_messages[channel_id] = msg
                         break
-        
+
         # 2. Find message for Cluster Status
         if hasattr(config, "CLUSTER_STATUS") and config.CLUSTER_STATUS.get("ENABLED"):
             cluster_channel_id = config.CLUSTER_STATUS.get("CHANNEL_ID")
@@ -385,7 +479,10 @@ class StatusCog(commands.Cog, name="Status"):
                     if (
                         msg.author.id == self.bot.user.id
                         and msg.embeds
-                        and (msg.embeds[0].title == self._("🌍 Cluster Status") or "Cluster" in msg.embeds[0].title)
+                        and (
+                            msg.embeds[0].title == self._("🌍 Cluster Status")
+                            or "Cluster" in msg.embeds[0].title
+                        )
                     ):
                         self.status_messages[cluster_channel_id] = msg
                         break
@@ -411,7 +508,7 @@ class StatusCog(commands.Cog, name="Status"):
                 for line in response.split("\n")
                 if line.strip().startswith(tuple("0123456789"))
             ]
-        except RCONConnectionError as e:
+        except (RCONConnectionError, IncorrectPasswordError, asyncio.TimeoutError) as e:
             logging.warning(f"RCON connection failed for {server_name}: {e}")
             return None
         except Exception as e:
@@ -446,13 +543,15 @@ class StatusCog(commands.Cog, name="Status"):
             p_data = player_data_map.get(
                 player["platform_id"], {"online_minutes": 0, "is_registered": False}
             )
-            
+
             # Registration status comes from global data now
             is_registered = False
             if global_data_map and player["platform_id"] in global_data_map:
-                is_registered = bool(global_data_map[player["platform_id"]]["discord_id"])
+                is_registered = bool(
+                    global_data_map[player["platform_id"]]["discord_id"]
+                )
             else:
-                is_registered = p_data["is_registered"] # Fallback
+                is_registered = p_data["is_registered"]  # Fallback
 
             online_minutes = p_data["online_minutes"]
 
@@ -536,12 +635,12 @@ class StatusCog(commands.Cog, name="Status"):
         if online_players:
             char_names = [p["char_name"] for p in online_players]
             platform_ids = [p["platform_id"] for p in online_players]
-            
+
             # Try to get fresh levels
             levels_data = get_batch_player_levels(
                 server_config.get("DB_PATH"), char_names
             )
-            
+
             if levels_data is not None:
                 # Update cache with new data
                 for char, lvl in levels_data.items():
@@ -549,8 +648,12 @@ class StatusCog(commands.Cog, name="Status"):
                 levels_map = levels_data
             else:
                 # DB Error: Use cached levels
-                levels_map = {name: self.level_cache.get(name, 0) for name in char_names}
-                logging.warning(f"Using cached levels for {server_name} due to DB read error.")
+                levels_map = {
+                    name: self.level_cache.get(name, 0) for name in char_names
+                }
+                logging.warning(
+                    f"Using cached levels for {server_name} due to DB read error."
+                )
 
             player_data_map = get_batch_player_data(
                 server_config.get("PLAYER_DB_PATH", DEFAULT_PLAYER_TRACKER_DB),

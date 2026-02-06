@@ -3,7 +3,9 @@ import logging
 from typing import Dict, List, Optional
 
 
-def parse_log_lines(lines: List[str], current_stats: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+def parse_log_lines(
+    lines: List[str], current_stats: Optional[Dict[str, str]] = None
+) -> Dict[str, str]:
     """
     Parses a list of log lines to extract system stats, updating the provided stats dictionary.
 

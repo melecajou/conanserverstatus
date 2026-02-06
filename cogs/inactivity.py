@@ -7,6 +7,7 @@ from datetime import datetime
 import config
 from utils.database import get_inactive_structures
 
+
 class InactivityCog(commands.Cog, name="Inactivity"):
     """Periodically generates reports on inactive players and their structures."""
 
@@ -33,7 +34,9 @@ class InactivityCog(commands.Cog, name="Inactivity"):
             server_name = server_conf["NAME"]
 
             if not all([channel_id, game_db_path]):
-                logging.error(f"Inactivity Report for '{server_name}' missing configuration.")
+                logging.error(
+                    f"Inactivity Report for '{server_name}' missing configuration."
+                )
                 continue
 
             channel = self.bot.get_channel(channel_id)
@@ -42,7 +45,7 @@ class InactivityCog(commands.Cog, name="Inactivity"):
                 continue
 
             logging.info(f"Generating inactivity report for {server_name}...")
-            
+
             # Fetch data using the provided SQL
             inactive_data = get_inactive_structures(game_db_path, sql_path, days)
 
@@ -53,15 +56,23 @@ class InactivityCog(commands.Cog, name="Inactivity"):
 
             # Format and Send Report
             embed = discord.Embed(
-                title=self.bot._("🕵️‍♂️ Inactivity Report - {server}").format(server=server_name),
-                description=self.bot._("Listing of bases whose owner/clan has been offline for more than **{days} days**.").format(days=days),
+                title=self.bot._("🕵️‍♂️ Inactivity Report - {server}").format(
+                    server=server_name
+                ),
+                description=self.bot._(
+                    "Listing of bases whose owner/clan has been offline for more than **{days} days**."
+                ).format(days=days),
                 color=discord.Color.orange(),
-                timestamp=discord.utils.utcnow()
+                timestamp=discord.utils.utcnow(),
             )
 
             report_lines = []
             for item in inactive_data:
-                line = f"• **{item['owner']}**: `{item['pieces']}` " + self.bot._("pieces") + f"\n  └ Last: {item['last_activity']}\n  └ `{item['location']}`"
+                line = (
+                    f"• **{item['owner']}**: `{item['pieces']}` "
+                    + self.bot._("pieces")
+                    + f"\n  └ Last: {item['last_activity']}\n  └ `{item['location']}`"
+                )
                 report_lines.append(line)
 
             # Discord Embed Limit is 4096 chars. If larger, send multiple messages.
@@ -77,18 +88,22 @@ class InactivityCog(commands.Cog, name="Inactivity"):
                 chunks.append(current_chunk)
 
             for i, chunk in enumerate(chunks):
-                embed.description = self.bot._("Inactive bases (>{days} days) - Part {part}/{total}\n\n").format(
-                    days=days, 
-                    part=i+1, 
-                    total=len(chunks)
-                ) + chunk
+                embed.description = (
+                    self.bot._(
+                        "Inactive bases (>{days} days) - Part {part}/{total}\n\n"
+                    ).format(days=days, part=i + 1, total=len(chunks))
+                    + chunk
+                )
                 await channel.send(embed=embed)
 
-            logging.info(f"Inactivity report sent for {server_name} ({len(inactive_data)} entries).")
+            logging.info(
+                f"Inactivity report sent for {server_name} ({len(inactive_data)} entries)."
+            )
 
     @inactivity_report_task.before_loop
     async def before_inactivity_report_task(self):
         await self.bot.wait_until_ready()
+
 
 async def setup(bot):
     await bot.add_cog(InactivityCog(bot))

@@ -4,6 +4,7 @@ import os
 import shutil
 from utils.log_watcher import LogWatcher
 
+
 class TestLogWatcher(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -32,7 +33,7 @@ class TestLogWatcher(unittest.TestCase):
 
     def test_read_multiple_lines(self):
         watcher = LogWatcher(self.log_path)
-        watcher.read_new_lines() # Init
+        watcher.read_new_lines()  # Init
 
         with open(self.log_path, "a", encoding="utf-8") as f:
             f.write("Line 3\nLine 4\n")
@@ -42,7 +43,7 @@ class TestLogWatcher(unittest.TestCase):
 
     def test_rotation(self):
         watcher = LogWatcher(self.log_path)
-        watcher.read_new_lines() # Init
+        watcher.read_new_lines()  # Init
 
         # Simulate rotation (overwrite with smaller content)
         with open(self.log_path, "w", encoding="utf-8") as f:

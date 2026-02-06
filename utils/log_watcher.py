@@ -2,11 +2,13 @@ import os
 import logging
 from typing import List
 
+
 class LogWatcher:
     """
     Watches a log file for new lines.
     Handles file rotation (when size shrinks) and tracks the read position.
     """
+
     def __init__(self, file_path: str, tail_bytes: int = 0):
         """
         Args:

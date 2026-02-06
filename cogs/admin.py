@@ -26,7 +26,11 @@ class AdminCog(commands.Cog, name="Admin"):
     )
     @app_commands.default_permissions(administrator=True)
     async def setvip(
-        self, interaction: discord.Interaction, member: discord.Member, level: int, days: int = None
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        level: int,
+        days: int = None,
     ):
         """Sets the VIP level for a Discord member globally."""
         if level < 0:
@@ -41,6 +45,7 @@ class AdminCog(commands.Cog, name="Admin"):
             expiry_date = expiry_dt.isoformat()
 
         from utils.database import set_global_vip
+
         success = set_global_vip(member.id, level, expiry_date)
 
         if success:
@@ -51,7 +56,7 @@ class AdminCog(commands.Cog, name="Admin"):
                 msg += f" (Expira em {days} dias para recompensas)"
             else:
                 msg += " (Vitalício)"
-            
+
             await interaction.response.send_message(msg)
         else:
             await interaction.response.send_message(
@@ -68,6 +73,7 @@ class AdminCog(commands.Cog, name="Admin"):
     async def premium(self, interaction: discord.Interaction):
         """Checks the user's own VIP status."""
         from utils.database import get_global_vip
+
         data = get_global_vip(interaction.user.id)
 
         if not data or data["vip_level"] == 0:
@@ -78,10 +84,10 @@ class AdminCog(commands.Cog, name="Admin"):
 
         level = data["vip_level"]
         expiry = data["vip_expiry"]
-        
+
         msg = f"💎 **Seu Status Premium:**\n"
         msg += f"• **Nível:** {level}\n"
-        
+
         if expiry:
             expiry_dt = datetime.fromisoformat(expiry)
             msg += f"• **Vantagem de Recompensas expira em:** {expiry_dt.strftime('%d/%m/%Y %H:%M')}\n"
@@ -100,20 +106,22 @@ class AdminCog(commands.Cog, name="Admin"):
     async def checkvip(self, interaction: discord.Interaction, member: discord.Member):
         """Checks the VIP status of another member."""
         from utils.database import get_global_vip
+
         data = get_global_vip(member.id)
 
         if not data or data["vip_level"] == 0:
             await interaction.response.send_message(
-                f"ℹ️ O usuário **{member.display_name}** não possui nível VIP.", ephemeral=True
+                f"ℹ️ O usuário **{member.display_name}** não possui nível VIP.",
+                ephemeral=True,
             )
             return
 
         level = data["vip_level"]
         expiry = data["vip_expiry"]
-        
+
         msg = f"🔍 **Status VIP de {member.display_name}:**\n"
         msg += f"• **Nível:** {level}\n"
-        
+
         if expiry:
             expiry_dt = datetime.fromisoformat(expiry)
             msg += f"• **Expiração (Recompensas):** {expiry_dt.strftime('%d/%m/%Y %H:%M')}\n"
@@ -130,16 +138,19 @@ class AdminCog(commands.Cog, name="Admin"):
     async def listvips(self, interaction: discord.Interaction):
         """Lists all current VIPs."""
         from utils.database import get_all_vips
+
         vips = get_all_vips()
 
         if not vips:
-            await interaction.response.send_message("❌ Nenhum jogador VIP encontrado.", ephemeral=True)
+            await interaction.response.send_message(
+                "❌ Nenhum jogador VIP encontrado.", ephemeral=True
+            )
             return
 
         embed = discord.Embed(
             title="💎 Lista de Jogadores VIP",
             color=discord.Color.gold(),
-            timestamp=discord.utils.utcnow()
+            timestamp=discord.utils.utcnow(),
         )
 
         for v in vips:
@@ -160,7 +171,7 @@ class AdminCog(commands.Cog, name="Admin"):
             embed.add_field(
                 name=name,
                 value=f"**Nível:** {v['vip_level']}\n**Status:** {status}",
-                inline=True
+                inline=True,
             )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -170,28 +181,32 @@ class AdminCog(commands.Cog, name="Admin"):
         description="Updates the expiration days for an existing VIP (Admin only).",
     )
     @app_commands.describe(
-        member="The member to update.",
-        days="New duration in days from now."
+        member="The member to update.", days="New duration in days from now."
     )
     @app_commands.default_permissions(administrator=True)
-    async def setvipexpiry(self, interaction: discord.Interaction, member: discord.Member, days: int):
+    async def setvipexpiry(
+        self, interaction: discord.Interaction, member: discord.Member, days: int
+    ):
         """Updates the expiry of a VIP member."""
         if days < 0:
-            await interaction.response.send_message("O número de dias não pode ser negativo.", ephemeral=True)
+            await interaction.response.send_message(
+                "O número de dias não pode ser negativo.", ephemeral=True
+            )
             return
 
         from utils.database import update_vip_expiry
+
         success = update_vip_expiry(member.id, days)
 
         if success:
             await interaction.response.send_message(
                 f"✅ Prazo de recompensas para **{member.display_name}** atualizado para **{days} dias** a partir de agora.",
-                ephemeral=True
+                ephemeral=True,
             )
         else:
             await interaction.response.send_message(
                 f"❌ Erro: O usuário **{member.display_name}** não foi encontrado na base VIP ou ocorreu um erro.",
-                ephemeral=True
+                ephemeral=True,
             )
 
 
