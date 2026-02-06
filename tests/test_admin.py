@@ -9,6 +9,7 @@ import config
 # Test data
 SERVER_NAME = "Test Server"
 
+
 class TestAdminCog(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Set up the test environment for each test."""
@@ -38,13 +39,15 @@ class TestAdminCog(IsolatedAsyncioTestCase):
 
         # Mock utils.database.set_global_vip to avoid real DB writes
         with patch("utils.database.set_global_vip", return_value=True) as mock_set_vip:
-             await self.admin_cog.setvip.callback(self.admin_cog, self.mock_interaction, mock_member, 1)
+            await self.admin_cog.setvip.callback(
+                self.admin_cog, self.mock_interaction, mock_member, 1
+            )
 
-             # Check if it was called with correct ID and Level
-             mock_set_vip.assert_called_once()
-             args = mock_set_vip.call_args[0]
-             self.assertEqual(args[0], 123)
-             self.assertEqual(args[1], 1)
+            # Check if it was called with correct ID and Level
+            mock_set_vip.assert_called_once()
+            args = mock_set_vip.call_args[0]
+            self.assertEqual(args[0], 123)
+            self.assertEqual(args[1], 1)
 
         self.mock_interaction.response.send_message.assert_called()
         msg = self.mock_interaction.response.send_message.call_args[0][0]
@@ -59,7 +62,9 @@ class TestAdminCog(IsolatedAsyncioTestCase):
         mock_member.display_name = "Fail User"
 
         with patch("utils.database.set_global_vip", return_value=False):
-             await self.admin_cog.setvip.callback(self.admin_cog, self.mock_interaction, mock_member, 1)
+            await self.admin_cog.setvip.callback(
+                self.admin_cog, self.mock_interaction, mock_member, 1
+            )
 
         self.mock_interaction.response.send_message.assert_called()
         args, kwargs = self.mock_interaction.response.send_message.call_args
@@ -73,7 +78,9 @@ class TestAdminCog(IsolatedAsyncioTestCase):
         mock_member = MagicMock()
         mock_member.id = 123
 
-        await self.admin_cog.setvip.callback(self.admin_cog, self.mock_interaction, mock_member, -1)
+        await self.admin_cog.setvip.callback(
+            self.admin_cog, self.mock_interaction, mock_member, -1
+        )
 
         self.mock_interaction.response.send_message.assert_called_with(
             "The VIP level cannot be negative.", ephemeral=True

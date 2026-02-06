@@ -3,15 +3,16 @@ import sys
 import struct
 import csv
 
-def load_item_names(csv_path='ItemTable.csv'):
+
+def load_item_names(csv_path="ItemTable.csv"):
     """
     Loads item names from ItemTable.csv and returns a dictionary.
     """
     names = {}
     try:
-        with open(csv_path, 'r', encoding='utf-8') as f:
+        with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            next(reader, None) # skip header
+            next(reader, None)  # skip header
             for row in reader:
                 if len(row) >= 2:
                     try:
@@ -19,18 +20,19 @@ def load_item_names(csv_path='ItemTable.csv'):
                         # Format: NSLOCTEXT("", "ItemTable_ID_Name", "Real Name")
                         raw_name = row[1]
                         name = raw_name.split('", "')[-1].rstrip('")')
-                        
+
                         # Treatment: unescape characters and remove XX_ prefix
                         name = name.replace("\\'", "'").replace('\\"', '"')
                         if name.startswith("XX_"):
                             name = name[3:]
-                        
+
                         names[item_id] = name
                     except ValueError:
                         continue
     except Exception as e:
         print(f"Warning: Could not load {csv_path}: {e}")
     return names
+
 
 def format_class_name(class_path):
     """
@@ -39,14 +41,15 @@ def format_class_name(class_path):
     """
     if not class_path:
         return "Unknown"
-    return class_path.split('.')[-1].replace('BP_PL_', '').replace('_C', '')
+    return class_path.split(".")[-1].replace("BP_PL_", "").replace("_C", "")
+
 
 def get_item_report(template_id):
     """
-    Queries the database for a specific item ID and generates an aggregated 
+    Queries the database for a specific item ID and generates an aggregated
     report grouped by Clan or individual Player.
     """
-    db_path = 'game.db'
+    db_path = "game.db"
     item_names = load_item_names()
     item_name = item_names.get(int(template_id), "Unknown Name")
 
@@ -102,7 +105,16 @@ def get_item_report(template_id):
     report = {}
 
     for row in rows:
-        inv_type, data, class_path, char_inv, guild_inv, guild_bldg, char_bldg, guild_char_bldg = row
+        (
+            inv_type,
+            data,
+            class_path,
+            char_inv,
+            guild_inv,
+            guild_bldg,
+            char_bldg,
+            guild_char_bldg,
+        ) = row
 
         # Quantity extraction logic (Robust):
         # We search for the Template ID in the blob to anchor our parsing.
@@ -112,26 +124,30 @@ def get_item_report(template_id):
             try:
                 # Ensure template_id is treated as int for packing
                 tid = int(template_id)
-                packed_id = struct.pack('<I', tid)
+                packed_id = struct.pack("<I", tid)
                 offset = data.find(packed_id)
-                
+
                 while offset != -1:
                     cursor = offset + 4
                     if cursor + 4 <= len(data):
-                        prop_count = struct.unpack('<I', data[cursor:cursor+4])[0]
+                        prop_count = struct.unpack("<I", data[cursor : cursor + 4])[0]
                         cursor += 4
-                        
-                        if prop_count < 100: # Sanity check
+
+                        if prop_count < 100:  # Sanity check
                             if cursor + (prop_count * 8) <= len(data):
                                 for _ in range(prop_count):
-                                    prop_id = struct.unpack('<I', data[cursor:cursor+4])[0]
+                                    prop_id = struct.unpack(
+                                        "<I", data[cursor : cursor + 4]
+                                    )[0]
                                     cursor += 4
-                                    prop_val = struct.unpack('<I', data[cursor:cursor+4])[0]
+                                    prop_val = struct.unpack(
+                                        "<I", data[cursor : cursor + 4]
+                                    )[0]
                                     cursor += 4
-                                    
-                                    if prop_id == 1: # 1 is Quantity
+
+                                    if prop_id == 1:  # 1 is Quantity
                                         quantity = prop_val
-                                break 
+                                break
                     offset = data.find(packed_id, offset + 1)
             except Exception:
                 pass
@@ -142,31 +158,31 @@ def get_item_report(template_id):
         # Prioritizes Clans (Guilds) over individual players.
         # If a player belongs to a clan, the item is attributed to the clan.
         final_owner = (
-            guild_bldg or 
-            guild_char_bldg or 
-            guild_inv or 
-            char_bldg or 
-            char_inv or 
-            "Unknown"
+            guild_bldg
+            or guild_char_bldg
+            or guild_inv
+            or char_bldg
+            or char_inv
+            or "Unknown"
         )
 
         if final_owner not in report:
             report[final_owner] = {"Total": 0, "Details": []}
-        
+
         # Determine the specific location/container
         location_label = ""
-        if inv_type == 0: 
+        if inv_type == 0:
             player_name = char_inv if char_inv else "Unknown"
             location_label = f"Inventory ({player_name})"
-        elif inv_type == 1: 
+        elif inv_type == 1:
             player_name = char_inv if char_inv else "Unknown"
             location_label = f"Hotbar ({player_name})"
-        elif inv_type == 4: 
+        elif inv_type == 4:
             container_name = format_class_name(class_path)
             location_label = f"Container ({container_name})"
-        elif inv_type == 6: 
+        elif inv_type == 6:
             location_label = "Follower Inventory"
-        else: 
+        else:
             location_label = f"Type {inv_type}"
 
         report[final_owner]["Total"] += quantity
@@ -185,6 +201,7 @@ def get_item_report(template_id):
     print("-" * 90)
 
     conn.close()
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

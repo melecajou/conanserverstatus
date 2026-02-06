@@ -2,9 +2,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from bot import COGS_TO_LOAD
 
+
 # Mock the discord.py Bot class
 class MockBot(MagicMock):
     pass
+
 
 @pytest.fixture
 def bot():
@@ -12,6 +14,7 @@ def bot():
     mock_bot = MockBot()
     mock_bot.load_extension = AsyncMock()
     return mock_bot
+
 
 @pytest.mark.asyncio
 async def test_load_all_cogs(bot):

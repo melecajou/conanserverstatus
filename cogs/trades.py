@@ -10,7 +10,7 @@ import config
 from utils.database import (
     get_char_id_by_name,
     get_item_in_backpack,
-    find_discord_user_by_char_name
+    find_discord_user_by_char_name,
 )
 from utils.log_watcher import LogWatcher
 
@@ -19,6 +19,7 @@ TRADE_SCAN_INTERVAL = 5
 # Format: !buy item_key
 BUY_COMMAND_REGEX = re.compile(r"!buy\s+(\w+)")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
+
 
 class TradesCog(commands.Cog, name="Trades"):
     """Handles in-game trade/shop commands."""
@@ -71,7 +72,7 @@ class TradesCog(commands.Cog, name="Trades"):
         db_path = server_conf["DB_PATH"]
         server_name = server_conf["NAME"]
         user = None
-        
+
         # 1. Check Config
         trade_config = getattr(config, "TRADE_ITEMS", {})
         if item_key not in trade_config:
@@ -85,22 +86,25 @@ class TradesCog(commands.Cog, name="Trades"):
             if not discord_id:
                 logging.info(f"Unregistered player {char_name} tried to buy {item_key}")
                 return
-            
+
             user = await self.bot.fetch_user(int(discord_id))
         except Exception as e:
             logging.warning(f"Could not find or contact user for {char_name}: {e}")
             return
 
-        if not user: return
+        if not user:
+            return
 
         # 3. Initial DM Warning
         try:
-            price_display = item.get('price_label', f"ID: {item['price_id']}")
+            price_display = item.get("price_label", f"ID: {item['price_id']}")
             await user.send(
-                self.bot._("🛒 **Purchase Request:** {label}\n💰 **Price:** {amount}x ({price_display})\n⏳ **Please wait 10 seconds** for synchronization. **DO NOT MOVE ITEMS IN BACKPACK!**").format(
-                    label=item['label'], 
-                    amount=item['price_amount'], 
-                    price_display=price_display
+                self.bot._(
+                    "🛒 **Purchase Request:** {label}\n💰 **Price:** {amount}x ({price_display})\n⏳ **Please wait 10 seconds** for synchronization. **DO NOT MOVE ITEMS IN BACKPACK!**"
+                ).format(
+                    label=item["label"],
+                    amount=item["price_amount"],
+                    price_display=price_display,
                 )
             )
         except Exception as e:
@@ -114,49 +118,59 @@ class TradesCog(commands.Cog, name="Trades"):
         try:
             char_id = get_char_id_by_name(db_path, char_name)
             if not char_id:
-                await user.send(self.bot._("❌ Error: Character not found in database."))
+                await user.send(
+                    self.bot._("❌ Error: Character not found in database.")
+                )
                 return
 
-            backpack_item = get_item_in_backpack(db_path, char_id, item['price_id'])
-            
-            if not backpack_item or backpack_item['quantity'] < item['price_amount']:
-                await user.send(self.bot._("❌ Insufficient funds! You need {amount}x {currency} in your backpack.").format(
-                    amount=item['price_amount'], 
-                    currency=price_display
-                ))
+            backpack_item = get_item_in_backpack(db_path, char_id, item["price_id"])
+
+            if not backpack_item or backpack_item["quantity"] < item["price_amount"]:
+                await user.send(
+                    self.bot._(
+                        "❌ Insufficient funds! You need {amount}x {currency} in your backpack."
+                    ).format(amount=item["price_amount"], currency=price_display)
+                )
                 return
 
-            # 6. RCON Transaction
+            # 6. RCON Transaction (Safely Split)
             status_cog = self.bot.get_cog("Status")
-            if not status_cog: return
-
-            resp_list, _ = await status_cog.execute_rcon(server_name, "ListPlayers")
-            idx = None
-            for line in resp_list.split('\n'):
-                if char_name in line:
-                    idx = line.split('|')[0].strip()
-                    break
-            
-            if idx is None:
-                await user.send(self.bot._("❌ You must be online to complete the purchase."))
+            if not status_cog:
                 return
 
-            # A. Deduct
-            new_qty = backpack_item['quantity'] - item['price_amount']
-            await status_cog.execute_rcon(server_name, f"con {idx} SetInventoryItemIntStat {backpack_item['slot']} 1 {new_qty} 0")
-            
-            # B. Spawn
-            await status_cog.execute_rcon(server_name, f"con {idx} SpawnItem {item['item_id']} {item['quantity']}")
-            
-            await user.send(self.bot._("✅ **Purchase complete!** Your item **{label}** was delivered to your backpack.").format(
-                label=item['label']
-            ))
+            # A. Deduct (Safe Command)
+            new_qty = backpack_item["quantity"] - item["price_amount"]
+            await status_cog.execute_safe_command(
+                server_name,
+                char_name,
+                lambda idx: f"con {idx} SetInventoryItemIntStat {backpack_item['slot']} 1 {new_qty} 0",
+            )
+
+            # B. Spawn (Safe Command)
+            await status_cog.execute_safe_command(
+                server_name,
+                char_name,
+                lambda idx: f"con {idx} SpawnItem {item['item_id']} {item['quantity']}",
+            )
+
+            await user.send(
+                self.bot._(
+                    "✅ **Purchase complete!** Your item **{label}** was delivered to your backpack."
+                ).format(label=item["label"])
+            )
             logging.info(f"TRADE SUCCESS: {char_name} bought {item_key}")
 
         except Exception as e:
             logging.error(f"Critical error in trade for {char_name}: {e}")
-            try: await user.send(self.bot._("❌ A technical error occurred during processing. Please contact an Admin."))
-            except: pass
+            try:
+                await user.send(
+                    self.bot._(
+                        "❌ A technical error occurred during processing. Please contact an Admin."
+                    )
+                )
+            except:
+                pass
+
 
 async def setup(bot):
     await bot.add_cog(TradesCog(bot))
