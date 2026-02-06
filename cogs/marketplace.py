@@ -14,6 +14,8 @@ from utils.database import (
     get_player_balance,
     update_player_balance,
     log_market_action,
+    prepare_withdrawal_transaction,
+    complete_withdrawal_transaction,
     GLOBAL_DB_PATH,
 )
 from utils.log_watcher import LogWatcher
@@ -36,6 +38,7 @@ MARKET_HELP_COMMAND_REGEX = re.compile(r"!markethelp")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
 
 MAX_TRANSACTION_VALUE = 65535
+
 
 class MarketplaceCog(commands.Cog, name="Marketplace"):
     """Asynchronous P2P Marketplace and Virtual Economy."""
@@ -190,9 +193,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if amount > MAX_TRANSACTION_VALUE:
             try:
                 await user.send(
-                    self.bot._("❌ Error: Withdrawal amount cannot exceed {max}.").format(
-                        max=MAX_TRANSACTION_VALUE
-                    )
+                    self.bot._(
+                        "❌ Error: Withdrawal amount cannot exceed {max}."
+                    ).format(max=MAX_TRANSACTION_VALUE)
                 )
             except:
                 pass
@@ -211,61 +214,86 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 pass
             return
 
-        # 3. Execute Transaction
+        # 3. Prepare Transaction (Atomic Deduct + Log)
+        tx_id = await asyncio.to_thread(
+            prepare_withdrawal_transaction,
+            int(discord_id),
+            amount,
+            char_name,
+            server_name,
+        )
+
+        if tx_id is None:
+            # Re-fetch balance to be sure or just general error
+            try:
+                await user.send(
+                    self.bot._(
+                        "❌ Insufficient funds or database error. Transaction cancelled."
+                    )
+                )
+            except:
+                pass
+            return
+
+        # 4. Execute Transaction
         try:
             status_cog = self.bot.get_cog("Status")
             if not status_cog:
-                return
+                raise Exception("Status Cog not loaded.")
 
-            # Using execute_safe_command replaces manual list/find/execute logic
-            try:
-                # A. Deduct from Virtual Wallet
-                if await asyncio.to_thread(
-                    update_player_balance, int(discord_id), -amount
-                ):
-                    # B. Spawn physical item
-                    print(f"MARKET: Withdrawal of {amount} for {char_name}")
+            # B. Spawn physical item
+            print(f"MARKET: Withdrawal of {amount} for {char_name} (TX ID: {tx_id})")
 
-                    await status_cog.execute_safe_command(
-                        server_name,
-                        char_name,
-                        lambda idx: f"con {idx} SpawnItem {currency_id} {amount}",
-                    )
+            # This can raise exception (RCON fail)
+            await status_cog.execute_safe_command(
+                server_name,
+                char_name,
+                lambda idx: f"con {idx} SpawnItem {currency_id} {amount}",
+            )
 
-                    await asyncio.to_thread(
-                        log_market_action,
-                        int(discord_id),
-                        "WITHDRAW",
-                        f"Withdrew {amount} of virtual currency to physical item.",
-                    )
-                    new_balance = await asyncio.to_thread(
-                        get_player_balance, int(discord_id)
-                    )
-                    await user.send(
-                        self.bot._(
-                            "✅ **Withdrawal Successful!**\n📤 **Amount:** {qty}\n💰 **Remaining Balance:** {balance} {currency}"
-                        ).format(
-                            qty=amount,
-                            balance=new_balance,
-                            currency=config.MARKETPLACE["CURRENCY_NAME"],
-                        )
-                    )
-                    logging.info(f"MARKET: {char_name} withdrew {amount} coins.")
-                else:
-                    await user.send("❌ Internal error during withdrawal.")
+            # 5. Complete Transaction
+            await asyncio.to_thread(
+                complete_withdrawal_transaction, tx_id, "COMPLETED"
+            )
 
-            except Exception as e:
-                # Safe execution failed (e.g. player offline) - Refund logic?
-                logging.error(f"Withdraw failed for {char_name}: {e}")
-                await asyncio.to_thread(
-                    update_player_balance, int(discord_id), amount
-                )  # Refund
-                await user.send(
-                    self.bot._("❌ Error: You must be online to withdraw. Refunded.")
+            await asyncio.to_thread(
+                log_market_action,
+                int(discord_id),
+                "WITHDRAW",
+                f"Withdrew {amount} of virtual currency to physical item (TX {tx_id}).",
+            )
+            new_balance = await asyncio.to_thread(get_player_balance, int(discord_id))
+            await user.send(
+                self.bot._(
+                    "✅ **Withdrawal Successful!**\n📤 **Amount:** {qty}\n💰 **Remaining Balance:** {balance} {currency}"
+                ).format(
+                    qty=amount,
+                    balance=new_balance,
+                    currency=config.MARKETPLACE["CURRENCY_NAME"],
                 )
+            )
+            logging.info(
+                f"MARKET: {char_name} withdrew {amount} coins (TX {tx_id})."
+            )
 
         except Exception as e:
-            logging.error(f"Critical error in withdraw for {char_name}: {e}")
+            # 6. Handle Failure (Critical - No Auto Refund)
+            logging.critical(
+                f"CRITICAL: Withdrawal Transaction #{tx_id} for {char_name} (Discord: {discord_id}) failed during RCON. ERROR: {e}"
+            )
+            await asyncio.to_thread(
+                complete_withdrawal_transaction, tx_id, "ERROR_REVIEW"
+            )
+            try:
+                await user.send(
+                    self.bot._(
+                        "⚠️ **Transaction Pending Review:** An error occurred during item delivery. "
+                        "Your funds have been deducted, but the system could not confirm delivery. "
+                        "An admin has been alerted to manually verify and process this. **DO NOT PANIC.**"
+                    )
+                )
+            except:
+                pass
 
     async def _handle_balance(self, char_name, server_conf):
         """Sends current virtual balance to player via DM."""

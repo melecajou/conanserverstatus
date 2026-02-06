@@ -96,6 +96,17 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         self.mock_update_balance = self.update_balance_patcher.start()
         self.mock_update_balance.return_value = True
 
+        self.prepare_tx_patcher = patch(
+            "cogs.marketplace.prepare_withdrawal_transaction"
+        )
+        self.mock_prepare_tx = self.prepare_tx_patcher.start()
+        self.mock_prepare_tx.return_value = 777
+
+        self.complete_tx_patcher = patch(
+            "cogs.marketplace.complete_withdrawal_transaction"
+        )
+        self.mock_complete_tx = self.complete_tx_patcher.start()
+
         self.log_action_patcher = patch("cogs.marketplace.log_market_action")
         self.mock_log_action = self.log_action_patcher.start()
 
@@ -125,6 +136,8 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         self.get_char_id_patcher.stop()
         self.get_balance_patcher.stop()
         self.update_balance_patcher.stop()
+        self.prepare_tx_patcher.stop()
+        self.complete_tx_patcher.stop()
         self.log_action_patcher.stop()
         self.aiosqlite_patcher.stop()
 
@@ -133,13 +146,14 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         amount = 100
         await self.market_cog._handle_withdraw("TestPlayer", amount, SERVER_CONF)
 
-        self.mock_update_balance.assert_called_with(12345, -100)
+        self.mock_prepare_tx.assert_called_with(12345, 100, "TestPlayer", "Test Server")
         self.mock_status_cog.execute_safe_command.assert_called_with(
             SERVER_NAME, "TestPlayer", ANY
         )
         cmd = self.mock_status_cog.execute_safe_command.call_args[0][2]("5")
         # Spawn 999 (Currency) Amount 100
         self.assertIn("SpawnItem 999 100", cmd)
+        self.mock_complete_tx.assert_called_with(777, "COMPLETED")
 
     async def test_handle_deposit_success(self):
         """Test successful deposit."""

@@ -1,4 +1,3 @@
-
 import pytest
 import asyncio
 from unittest import IsolatedAsyncioTestCase
@@ -17,8 +16,9 @@ SERVER_CONF = {
     "STATUS_CHANNEL_ID": 123456789,
     "LOG_PATH": None,
     "DB_PATH": ":memory:",
-    "PLAYER_DB_PATH": ":memory:"
+    "PLAYER_DB_PATH": ":memory:",
 }
+
 
 class TestStatusEmbed(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -45,24 +45,28 @@ class TestStatusEmbed(IsolatedAsyncioTestCase):
         """Test _get_server_status_embed with online players."""
 
         # Mock _get_player_lines
-        self.status_cog._get_player_lines = AsyncMock(return_value=[
-            "0 | Player1 | X | Y | Pid1"
-        ])
+        self.status_cog._get_player_lines = AsyncMock(
+            return_value=["0 | Player1 | X | Y | Pid1"]
+        )
 
         # Mock database calls
         # Note: Since we use asyncio.to_thread(func, ...), we patch 'cogs.status.func'
         # The mock will be called by to_thread.
 
         levels_mock = MagicMock(return_value={"Player1": 60})
-        player_data_mock = MagicMock(return_value={"Pid1": {"online_minutes": 120, "is_registered": True}})
+        player_data_mock = MagicMock(
+            return_value={"Pid1": {"online_minutes": 120, "is_registered": True}}
+        )
         global_data_mock = MagicMock(return_value={"Pid1": {"discord_id": 12345}})
 
-        with patch("cogs.status.get_batch_player_levels", levels_mock), \
-             patch("cogs.status.get_batch_player_data", player_data_mock), \
-             patch("cogs.status.get_global_player_data", global_data_mock):
+        with patch("cogs.status.get_batch_player_levels", levels_mock), patch(
+            "cogs.status.get_batch_player_data", player_data_mock
+        ), patch("cogs.status.get_global_player_data", global_data_mock):
 
             rcon_client = MagicMock()
-            embed, count, server_data = await self.status_cog._get_server_status_embed(SERVER_CONF, rcon_client)
+            embed, count, server_data = await self.status_cog._get_server_status_embed(
+                SERVER_CONF, rcon_client
+            )
 
             # Assertions
             self.assertEqual(count, 1)
@@ -72,15 +76,17 @@ class TestStatusEmbed(IsolatedAsyncioTestCase):
 
             # Check Embed content
             self.assertIn("Player1", embed.fields[0].value)
-            self.assertIn("(60)", embed.fields[0].value) # Level
-            self.assertIn("2h 0m", embed.fields[0].value) # Playtime
+            self.assertIn("(60)", embed.fields[0].value)  # Level
+            self.assertIn("2h 0m", embed.fields[0].value)  # Playtime
 
     async def test_get_server_status_embed_offline(self):
         """Test _get_server_status_embed when server is offline."""
         self.status_cog._get_player_lines = AsyncMock(return_value=None)
 
         rcon_client = MagicMock()
-        embed, count, server_data = await self.status_cog._get_server_status_embed(SERVER_CONF, rcon_client)
+        embed, count, server_data = await self.status_cog._get_server_status_embed(
+            SERVER_CONF, rcon_client
+        )
 
         self.assertEqual(count, 0)
         self.assertIsNone(server_data)

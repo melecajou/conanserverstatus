@@ -16,39 +16,32 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
             cur = con.cursor()
 
             # Table: User Identities (Platform ID -> Discord ID)
-            cur.execute(
-                """
+            cur.execute("""
             CREATE TABLE IF NOT EXISTS user_identities (
                 platform_id TEXT PRIMARY KEY,
                 discord_id INTEGER NOT NULL
             )
-        """
-            )
+        """)
 
             # Table: Discord VIPs (Discord ID -> VIP Level & Expiry)
-            cur.execute(
-                """
+            cur.execute("""
             CREATE TABLE IF NOT EXISTS discord_vips (
                 discord_id INTEGER PRIMARY KEY,
                 vip_level INTEGER DEFAULT 0,
                 vip_expiry_date TEXT
             )
-        """
-            )
+        """)
 
             # Table: Player Wallets (Virtual Currency)
-            cur.execute(
-                """
+            cur.execute("""
             CREATE TABLE IF NOT EXISTS player_wallets (
                 discord_id INTEGER PRIMARY KEY,
                 balance INTEGER DEFAULT 0
             )
-        """
-            )
+        """)
 
             # Table: Market Listings (Items in custody)
-            cur.execute(
-                """
+            cur.execute("""
             CREATE TABLE IF NOT EXISTS market_listings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 seller_discord_id INTEGER NOT NULL,
@@ -58,12 +51,10 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
                 status TEXT DEFAULT 'active', -- active, sold, canceled, delivered
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """
-            )
+        """)
 
             # Table: Market Audit Log
-            cur.execute(
-                """
+            cur.execute("""
             CREATE TABLE IF NOT EXISTS market_audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -71,8 +62,21 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
                 action TEXT, -- DEPOSIT, SELL, BUY, CANCEL
                 details TEXT
             )
-        """
+        """)
+
+            # Table: Withdraw Transactions (Two-Phase Commit)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS withdraw_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                discord_id INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
+                char_name TEXT,
+                server_name TEXT,
+                status TEXT DEFAULT 'PENDING', -- PENDING, COMPLETED, FAILED, ERROR_REVIEW
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
             con.commit()
         logging.info(f"Global registry database '{db_path}' initialized successfully.")
     except Exception as e:
@@ -326,8 +330,7 @@ def initialize_player_tracker_db(db_path: str):
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         con = sqlite3.connect(db_path)
         cur = con.cursor()
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS player_time (
                 platform_id TEXT NOT NULL,
                 server_name TEXT NOT NULL,
@@ -335,8 +338,7 @@ def initialize_player_tracker_db(db_path: str):
                 last_rewarded_hour INTEGER DEFAULT 0,
                 PRIMARY KEY (platform_id, server_name)
             )
-        """
-        )
+        """)
         cur.execute("PRAGMA table_info(player_time)")
         columns = [info[1] for info in cur.fetchall()]
         if "discord_id" not in columns:
@@ -351,8 +353,7 @@ def initialize_player_tracker_db(db_path: str):
             cur.execute(
                 "ALTER TABLE player_time ADD COLUMN last_reward_playtime INTEGER DEFAULT 0"
             )
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS player_homes (
                 platform_id TEXT NOT NULL,
                 server_name TEXT NOT NULL,
@@ -361,8 +362,7 @@ def initialize_player_tracker_db(db_path: str):
                 z REAL NOT NULL,
                 PRIMARY KEY (platform_id, server_name)
             )
-        """
-        )
+        """)
         con.commit()
         con.close()
         logging.info(
@@ -734,6 +734,75 @@ def update_player_balance(
         return True
     except Exception as e:
         logging.error(f"Failed to update balance for {discord_id}: {e}")
+        return False
+
+
+def prepare_withdrawal_transaction(
+    discord_id: int,
+    amount: int,
+    char_name: str,
+    server_name: str,
+    global_db_path: str = GLOBAL_DB_PATH,
+) -> Optional[int]:
+    """
+    Atomically checks balance, deducts amount, and creates a pending transaction record.
+    Returns the transaction ID if successful, or None if insufficient funds/error.
+    """
+    try:
+        with sqlite3.connect(global_db_path) as con:
+            cur = con.cursor()
+
+            # 1. Check Balance
+            cur.execute(
+                "SELECT balance FROM player_wallets WHERE discord_id = ?", (discord_id,)
+            )
+            row = cur.fetchone()
+            current_balance = row[0] if row else 0
+
+            if current_balance < amount:
+                return None
+
+            # 2. Deduct Funds
+            # We use an UPDATE here because we know the user exists (balance check succeeded)
+            # But strictly speaking, if they had 0 balance and row was None, current_balance is 0.
+            # If amount > 0, it returns None.
+            # If they exist, we update.
+            cur.execute(
+                "UPDATE player_wallets SET balance = balance - ? WHERE discord_id = ?",
+                (amount, discord_id),
+            )
+
+            # 3. Create Transaction Record
+            cur.execute(
+                """
+                INSERT INTO withdraw_transactions (discord_id, amount, char_name, server_name, status)
+                VALUES (?, ?, ?, ?, 'PENDING')
+                """,
+                (discord_id, amount, char_name, server_name),
+            )
+            tx_id = cur.lastrowid
+            con.commit()
+            return tx_id
+    except Exception as e:
+        logging.error(f"Failed to prepare withdrawal for {discord_id}: {e}")
+        return None
+
+
+def complete_withdrawal_transaction(
+    tx_id: int, status: str, global_db_path: str = GLOBAL_DB_PATH
+) -> bool:
+    """Updates the status of a withdrawal transaction."""
+    try:
+        with sqlite3.connect(global_db_path) as con:
+            cur = con.cursor()
+            cur.execute(
+                "UPDATE withdraw_transactions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, tx_id),
+            )
+            con.commit()
+        return True
+    except Exception as e:
+        logging.error(f"Failed to complete withdrawal transaction {tx_id}: {e}")
         return False
 
 

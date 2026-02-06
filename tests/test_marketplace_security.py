@@ -21,13 +21,14 @@ MARKET_CONFIG = {
     "ENABLED": True,
     "CURRENCY_ITEM_ID": 999,
     "CURRENCY_NAME": "Coins",
-    "SYNC_WAIT_SECONDS": 0
+    "SYNC_WAIT_SECONDS": 0,
 }
+
 
 class TestMarketplaceSecurity(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.mock_bot = MagicMock()
-        self.mock_bot._ = lambda s: s # Mock translation
+        self.mock_bot._ = lambda s: s  # Mock translation
         self.mock_bot.wait_until_ready = AsyncMock()
 
         self.mock_status_cog = MagicMock()
@@ -37,7 +38,9 @@ class TestMarketplaceSecurity(IsolatedAsyncioTestCase):
         self.config_servers_patcher = patch("config.SERVERS", [SERVER_CONF])
         self.config_servers_patcher.start()
 
-        self.config_market_patcher = patch("config.MARKETPLACE", MARKET_CONFIG, create=True)
+        self.config_market_patcher = patch(
+            "config.MARKETPLACE", MARKET_CONFIG, create=True
+        )
         self.config_market_patcher.start()
 
         # Patch tasks loop
@@ -45,13 +48,17 @@ class TestMarketplaceSecurity(IsolatedAsyncioTestCase):
             self.market_cog = MarketplaceCog(self.mock_bot)
 
         # Mock DB functions
-        self.find_discord_user_patcher = patch("cogs.marketplace.find_discord_user_by_char_name")
+        self.find_discord_user_patcher = patch(
+            "cogs.marketplace.find_discord_user_by_char_name"
+        )
         self.mock_find_user = self.find_discord_user_patcher.start()
         self.mock_find_user.return_value = "12345"
 
         self.get_balance_patcher = patch("cogs.marketplace.get_player_balance")
         self.mock_get_balance = self.get_balance_patcher.start()
-        self.mock_get_balance.return_value = 1000000 # High balance to ensure check fails on limit, not funds
+        self.mock_get_balance.return_value = (
+            1000000  # High balance to ensure check fails on limit, not funds
+        )
 
         self.update_balance_patcher = patch("cogs.marketplace.update_player_balance")
         self.mock_update_balance = self.update_balance_patcher.start()
@@ -108,7 +115,7 @@ class TestMarketplaceSecurity(IsolatedAsyncioTestCase):
 
         # Let's Assert that the user is told about the limit.
         self.assertIn("Error", sent_msg)
-        self.assertIn("65535", sent_msg) # Expecting the limit to be mentioned
+        self.assertIn("65535", sent_msg)  # Expecting the limit to be mentioned
 
     async def test_withdraw_exceeds_limit(self):
         """Test that withdrawing an amount exceeding the limit is rejected."""

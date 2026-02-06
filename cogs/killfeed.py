@@ -79,8 +79,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
             con = sqlite3.connect(db_path)
             cur = con.cursor()
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS scores (
                     server_name TEXT,
                     player_name TEXT,
@@ -89,8 +88,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                     score INTEGER DEFAULT 0,
                     PRIMARY KEY (server_name, player_name)
                 )
-            """
-            )
+            """)
             cur.execute(
                 "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
                 (server_name, killer_name),
