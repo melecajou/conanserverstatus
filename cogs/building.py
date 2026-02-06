@@ -39,50 +39,115 @@ def get_vip_level_for_player(platform_id):
 
 def get_owner_details(owner_id, game_db_path, player_db_path):
     """Gets owner details (name, vip_level, type) from the game and player DBs."""
-    if not os.path.exists(game_db_path):
-        return None, 0, "unknown"
+    # Wrapper for backward compatibility or single use cases, implemented via batch
+    result = get_batch_owner_details([owner_id], game_db_path, player_db_path)
+    return result.get(owner_id, (None, 0, "unknown"))
+
+
+def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
+    """
+    Gets owner details (name, vip_level, type) for a batch of owner_ids.
+    Returns a dictionary: {owner_id: (name, vip_level, type)}
+    """
+    results = {oid: (None, 0, "unknown") for oid in owner_ids}
+    if not owner_ids or not os.path.exists(game_db_path):
+        return results
 
     try:
         with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
 
-            # Check if it's a guild
-            cur.execute("SELECT name FROM guilds WHERE guildId = ?", (owner_id,))
-            guild_result = cur.fetchone()
-            if guild_result:
-                guild_name = guild_result[0]
-                cur.execute(
-                    "SELECT playerId FROM characters WHERE guild = ?", (owner_id,)
-                )
-                members = cur.fetchall()
-                max_vip = 0
-                if members:
-                    for member_pid in members:
-                        platform_id = get_platform_id_for_player(
-                            member_pid[0], game_db_path
-                        )
-                        if platform_id:
-                            vip_level = get_vip_level_for_player(platform_id)
-                            if vip_level > max_vip:
-                                max_vip = vip_level
-                return guild_name, max_vip, "guild"
+            # 1. Identify Guilds
+            guild_owners = {} # guild_id -> name
+            # Chunking 900
+            for i in range(0, len(owner_ids), 900):
+                batch = owner_ids[i:i+900]
+                placeholders = ",".join("?" * len(batch))
+                cur.execute(f"SELECT guildId, name FROM guilds WHERE guildId IN ({placeholders})", batch)
+                for gid, name in cur.fetchall():
+                    guild_owners[gid] = name
 
-            # Check if it's a player
-            cur.execute(
-                "SELECT char_name, playerId FROM characters WHERE id = ?", (owner_id,)
-            )
-            char_result = cur.fetchone()
-            if char_result:
-                char_name, player_id = char_result
-                platform_id = get_platform_id_for_player(player_id, game_db_path)
+            # 2. Identify Players (from owner_ids that are not guilds)
+            potential_player_ids = [oid for oid in owner_ids if oid not in guild_owners]
+            player_owners = {} # char_id -> (name, player_id)
+
+            if potential_player_ids:
+                for i in range(0, len(potential_player_ids), 900):
+                    batch = potential_player_ids[i:i+900]
+                    placeholders = ",".join("?" * len(batch))
+                    cur.execute(f"SELECT id, char_name, playerId FROM characters WHERE id IN ({placeholders})", batch)
+                    for char_id, name, pid in cur.fetchall():
+                        player_owners[char_id] = (name, pid)
+
+            # 3. Get Members for Guilds
+            guild_members = {} # guild_id -> list of player_ids
+            if guild_owners:
+                guild_ids = list(guild_owners.keys())
+                for i in range(0, len(guild_ids), 900):
+                    batch = guild_ids[i:i+900]
+                    placeholders = ",".join("?" * len(batch))
+                    cur.execute(f"SELECT guild, playerId FROM characters WHERE guild IN ({placeholders})", batch)
+                    for gid, pid in cur.fetchall():
+                        if gid not in guild_members:
+                            guild_members[gid] = []
+                        guild_members[gid].append(pid)
+
+            # 4. Collect all player IDs to fetch Platform IDs
+            all_player_ids = set()
+            for _, pid in player_owners.values():
+                all_player_ids.add(pid)
+            for pids in guild_members.values():
+                all_player_ids.update(pids)
+
+            # 5. Fetch Platform IDs
+            player_platform_map = {} # player_id -> platform_id
+            all_player_ids_list = list(all_player_ids)
+            if all_player_ids_list:
+                for i in range(0, len(all_player_ids_list), 900):
+                    batch = all_player_ids_list[i:i+900]
+                    placeholders = ",".join("?" * len(batch))
+                    cur.execute(f"SELECT id, platformId FROM account WHERE id IN ({placeholders})", batch)
+                    for pid, platform_id in cur.fetchall():
+                        player_platform_map[pid] = platform_id
+
+            # 6. Fetch VIP Levels
+            all_platform_ids = list(set(player_platform_map.values()))
+            platform_vip_map = {} # platform_id -> vip_level
+
+            if all_platform_ids:
+                # Chunking calls to get_global_player_data just in case
+                for i in range(0, len(all_platform_ids), 900):
+                    batch = all_platform_ids[i:i+900]
+                    data = get_global_player_data(batch)
+                    for platform_id, info in data.items():
+                        platform_vip_map[platform_id] = info.get("vip_level", 0)
+
+            # 7. Resolve Results
+
+            # For Guilds
+            for gid, gname in guild_owners.items():
+                max_vip = 0
+                members = guild_members.get(gid, [])
+                for pid in members:
+                    platform_id = player_platform_map.get(pid)
+                    if platform_id:
+                        vip = platform_vip_map.get(platform_id, 0)
+                        if vip > max_vip:
+                            max_vip = vip
+                results[gid] = (gname, max_vip, "guild")
+
+            # For Players
+            for char_id, (cname, pid) in player_owners.items():
+                platform_id = player_platform_map.get(pid)
+                vip = 0
                 if platform_id:
-                    vip_level = get_vip_level_for_player(platform_id)
-                    return char_name, vip_level, "player"
+                    vip = platform_vip_map.get(platform_id, 0)
+                results[char_id] = (cname, vip, "player")
 
     except Exception as e:
-        logging.error(f"Failed to get owner details for owner_id {owner_id}: {e}")
+        logging.error(f"Failed to get batch owner details: {e}")
 
-    return None, 0, "unknown"
+    return results
 
 
 class BuildingCog(commands.Cog, name="Building"):
@@ -152,9 +217,18 @@ class BuildingCog(commands.Cog, name="Building"):
                 embed.description = self.bot._("No buildings found at the moment.")
             else:
                 description_lines = []
+
+                # BATCH OPTIMIZATION START
+                owner_ids = [r[0] for r in results]
+                owner_details_map = get_batch_owner_details(
+                    owner_ids, game_db_path, player_db_path
+                )
+                # BATCH OPTIMIZATION END
+
                 for i, (owner_id, pieces) in enumerate(results, 1):
-                    owner_name, vip_level, owner_type = get_owner_details(
-                        owner_id, game_db_path, player_db_path
+                    # Use the batch fetched details
+                    owner_name, vip_level, owner_type = owner_details_map.get(
+                        owner_id, (None, 0, "unknown")
                     )
 
                     if not owner_name:
