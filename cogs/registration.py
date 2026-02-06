@@ -15,7 +15,7 @@ from utils.database import link_discord_to_character, link_discord_to_platform
 REGISTRATION_EXPIRY_MINUTES = 10
 LOG_SCAN_INTERVAL_SECONDS = 5
 LOG_LINES_TO_READ = 20
-REGISTRATION_COMMAND_REGEX = re.compile(r"!register (\w+)")
+REGISTRATION_COMMAND_REGEX = re.compile(r"!register ([\w-]+)")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
 
 
@@ -44,7 +44,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
         """
         await interaction.response.defer(ephemeral=True)
 
-        registration_code = secrets.token_hex(4)
+        registration_code = secrets.token_urlsafe(6)
         pending_registrations[registration_code] = {
             "discord_id": interaction.user.id,
             "guild_id": interaction.guild_id,

@@ -24,8 +24,9 @@ MARKET_CONFIG = {
     "ENABLED": True,
     "CURRENCY_ITEM_ID": 999,
     "CURRENCY_NAME": "Coins",
-    "SYNC_WAIT_SECONDS": 0 # Speed up tests
+    "SYNC_WAIT_SECONDS": 0,  # Speed up tests
 }
+
 
 class TestMarketplaceCog(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -36,7 +37,9 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         # Mock StatusCog
         self.mock_status_cog = MagicMock()
         self.mock_status_cog.execute_rcon = AsyncMock(return_value=("Success", None))
-        self.mock_status_cog.execute_safe_command = AsyncMock(return_value=("Success", None))
+        self.mock_status_cog.execute_safe_command = AsyncMock(
+            return_value=("Success", None)
+        )
 
         self.mock_bot.get_cog.return_value = self.mock_status_cog
 
@@ -44,7 +47,9 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         self.config_servers_patcher = patch("config.SERVERS", [SERVER_CONF])
         self.config_servers_patcher.start()
 
-        self.config_market_patcher = patch("config.MARKETPLACE", MARKET_CONFIG, create=True)
+        self.config_market_patcher = patch(
+            "config.MARKETPLACE", MARKET_CONFIG, create=True
+        )
         self.config_market_patcher.start()
 
         # Patch tasks loop
@@ -52,7 +57,9 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
             self.market_cog = MarketplaceCog(self.mock_bot)
 
         # Mock DB functions
-        self.find_discord_user_patcher = patch("cogs.marketplace.find_discord_user_by_char_name")
+        self.find_discord_user_patcher = patch(
+            "cogs.marketplace.find_discord_user_by_char_name"
+        )
         self.mock_find_user = self.find_discord_user_patcher.start()
         self.mock_find_user.return_value = "12345"
 
@@ -123,7 +130,9 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         self.assertIn("SetInventoryItemIntStat 5 1 0 0", cmd)
 
         # 2. Update Balance
-        self.mock_update_balance.assert_called_with(12345, 1) # Default quantity 1 if no blob
+        self.mock_update_balance.assert_called_with(
+            12345, 1
+        )  # Default quantity 1 if no blob
 
     async def test_handle_buy_success(self):
         """Test successful buy with DNA injection."""
@@ -142,7 +151,7 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
             "item_template_id": 500,
             "item_dna": json.dumps(dna),
             "price": 500,
-            "status": "active"
+            "status": "active",
         }
         # Configure cursor responses
         # 1. Select Listing -> return listing
@@ -201,7 +210,7 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         mock_server_con.execute.return_value.fetchone.side_effect = [None]
         mock_server_con.execute.return_value.fetchall.side_effect = [
             [],
-            [(100, 0, 500)]
+            [(100, 0, 500)],
         ]
 
         await self.market_cog._handle_buy("TestPlayer", listing_id, SERVER_CONF)
@@ -209,7 +218,7 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         # Verifications
 
         # 1. Balance Updated
-        self.mock_update_balance.assert_any_call(12345, -500) # Buyer
+        self.mock_update_balance.assert_any_call(12345, -500)  # Buyer
         self.mock_update_balance.assert_any_call(67890, 500)  # Seller
 
         # 2. Spawn Item Called
@@ -231,9 +240,12 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         for call in calls:
             cmd_lambda = call[0][2]
             cmd = cmd_lambda("5")
-            if "SpawnItem 500 1" in cmd: spawn_found = True
-            if "SetInventoryItemIntStat 100 10 50 0" in cmd: int_found = True
-            if "SetInventoryItemFloatStat 100 20 1.5 0" in cmd: float_found = True
+            if "SpawnItem 500 1" in cmd:
+                spawn_found = True
+            if "SetInventoryItemIntStat 100 10 50 0" in cmd:
+                int_found = True
+            if "SetInventoryItemFloatStat 100 20 1.5 0" in cmd:
+                float_found = True
 
         self.assertTrue(spawn_found, "Spawn command not sent")
         self.assertTrue(int_found, "DNA Int injection not sent")
