@@ -1,230 +1,518 @@
-# Portuguese (Brazil) translations for PROJECT.
-# Copyright (C) 2025 ORGANIZATION
+# Brazilian Portuguese translations for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
 # This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-01-29 17:28-0300\n"
-"PO-Revision-Date: 2026-01-28 19:00-0300\n"
-"Last-Translator: Gemini CLI <gemini@google.com>\n"
+"POT-Creation-Date: 2026-02-05 21:02-0300\n"
+"PO-Revision-Date: 2026-02-05 21:02-0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
 "Language-Team: pt_BR <LL@li.org>\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.10.3\n"
+"Generated-By: Babel 2.14.0\n"
 
-#: bot.py:94
+#: bot.py:92
+#, python-format
 msgid "Fatal error starting the bot: {error}"
 msgstr "Erro fatal ao iniciar o bot: {error}"
 
-#: cogs/admin.py:34
-msgid "The VIP level cannot be negative."
-msgstr "O nível de VIP não pode ser negativo."
+#: cogs/admin.py:44
+msgid "The user must be in a guild to sync roles."
+msgstr "O usuário deve estar em uma guilda para sincronizar os cargos."
 
-#: cogs/admin.py:47
-msgid "VIP level for '{member}' updated to {level}."
-msgstr "Nível de VIP para '{member}' atualizado para {level}."
+#: cogs/admin.py:51
+msgid "Roles synced for {user}."
+msgstr "Cargos sincronizados para {user}."
 
-#: cogs/admin.py:58
-msgid "An error occurred while updating the VIP level. Please check the logs."
-msgstr "Ocorreu um erro ao atualizar o nível VIP. Por favor, verifique os logs."
-
-#: cogs/announcements.py:48
-msgid "Scheduled announcement."
-msgstr "Anúncio agendado."
-
-#: cogs/announcements.py:52
-msgid "Sent announcement for '{server_name}' to channel {channel_id}."
-msgstr "Anúncio enviado para '{server_name}' no canal {channel_id}."
-
-#: cogs/announcements.py:62
-msgid ""
-"Could not find announcement channel with ID {channel_id} for server "
-"'{server_name}'."
+#: cogs/admin.py:65
+msgid "Setting global VIP level for {user} to {level} for {days} days."
 msgstr ""
-"Não foi possível encontrar o canal de anúncio com ID {channel_id} para o "
-"servidor '{server_name}'."
+"Definindo o nível VIP global para {user} como {level} por {days} dias."
 
-#: cogs/announcements.py:71
-msgid "Error in announcement task for server '{server_name}': {error}"
-msgstr "Erro na tarefa de anúncio para o servidor '{server_name}': {error}"
+#: cogs/admin.py:73
+msgid "Global VIP level for {user} set to {level} (Permanent)."
+msgstr "Nível VIP global para {user} definido como {level} (Permanente)."
 
-#: cogs/building.py:117
-msgid "Building Watcher for '{server_name}' is missing required configuration."
+#: cogs/admin.py:100
+msgid "Global VIP level for {user} is {level}. Expiration: {expiry}"
+msgstr "Nível VIP global para {user} é {level}. Expiração: {expiry}"
+
+#: cogs/admin.py:106
+msgid "User {user} is not a VIP."
+msgstr "O usuário {user} não é VIP."
+
+#: cogs/admin.py:121
+msgid "Global VIP Expiry for {user} extended by {days} days."
+msgstr "Expiração VIP global para {user} estendida em {days} dias."
+
+#: cogs/admin.py:126
+msgid "Failed to update VIP expiry. Is the user a VIP?"
+msgstr "Falha ao atualizar a expiração VIP. O usuário é VIP?"
+
+#: cogs/admin.py:141
+msgid "Registered roles synced for all users."
+msgstr "Cargos de registro sincronizados para todos os usuários."
+
+#: cogs/admin.py:154
+msgid "Active VIP Members"
+msgstr "Membros VIP Ativos"
+
+#: cogs/admin.py:155
+msgid "List of players with global VIP status."
+msgstr "Lista de jogadores com status VIP global."
+
+#: cogs/admin.py:165
+msgid "No active VIP members found."
+msgstr "Nenhum membro VIP ativo encontrado."
+
+#: cogs/admin.py:178
+msgid "Character Name"
+msgstr "Nome do Personagem"
+
+#: cogs/admin.py:179
+msgid "Discord User"
+msgstr "Usuário do Discord"
+
+#: cogs/admin.py:180
+msgid "Platform ID"
+msgstr "Platform ID"
+
+#: cogs/admin.py:181
+msgid "Registration Code"
+msgstr "Código de Registro"
+
+#: cogs/admin.py:182
+msgid "Status"
+msgstr "Status"
+
+#: cogs/admin.py:183
+msgid "Created At"
+msgstr "Criado em"
+
+#: cogs/admin.py:184
+msgid "Internal ID"
+msgstr "ID Interno"
+
+#: cogs/admin.py:185
+msgid "Level"
+msgstr "Nível"
+
+#: cogs/admin.py:186
+msgid "Clan"
+msgstr "Clã"
+
+#: cogs/admin.py:187
+msgid "Total Playtime (h)"
+msgstr "Tempo Total de Jogo (h)"
+
+#: cogs/admin.py:188
+msgid "Last Seen (UTC)"
+msgstr "Visto por último (UTC)"
+
+#: cogs/admin.py:189
+msgid "Online"
+msgstr "Online"
+
+#: cogs/admin.py:190
+msgid "Offline"
+msgstr "Offline"
+
+#: cogs/admin.py:191
+msgid "Registered"
+msgstr "Registrado"
+
+#: cogs/admin.py:192
+msgid "Unregistered"
+msgstr "Não Registrado"
+
+#: cogs/admin.py:193
+msgid "Character List - {server_name}"
+msgstr "Lista de Personagens - {server_name}"
+
+#: cogs/admin.py:194
+msgid "List of all characters found in the database."
+msgstr "Lista de todos os personagens encontrados no banco de dados."
+
+#: cogs/admin.py:204
+msgid "No characters found in the database."
+msgstr "Nenhum personagem encontrado no banco de dados."
+
+#: cogs/admin.py:230
+msgid "User found: {user}"
+msgstr "Usuário encontrado: {user}"
+
+#: cogs/admin.py:233
+msgid "No Discord user found for character '{char_name}'."
 msgstr ""
-"O Observador de Construções para '{server_name}' está com a configuração "
-"incompleta."
+"Nenhum usuário do Discord encontrado para o personagem '{char_name}'."
 
-#: cogs/building.py:137
-msgid "Failed to generate building report for '{server_name}'. Exception: {error}"
-msgstr ""
-"Falha ao gerar relatório de construções para '{server_name}'. Exceção: "
-"{error}"
+#: cogs/building.py:64
+msgid "Building Pieces"
+msgstr "Peças de Construção"
+
+#: cogs/building.py:65
+msgid "Global pieces count"
+msgstr "Contagem global de peças"
+
+#: cogs/building.py:66
+msgid "Building Piece Watcher - {server}"
+msgstr "Monitor de Peças de Construção - {server}"
+
+#: cogs/building.py:67
+msgid "List of clans/players and their building piece counts."
+msgstr "Lista de clãs/jogadores e suas contagens de peças de construção."
+
+#: cogs/building.py:133
+msgid "No building data found."
+msgstr "Nenhum dado de construção encontrado."
+
+#: cogs/building.py:141
+msgid "⚠️ Warning: Threshold Reached"
+msgstr "⚠️ Aviso: Limite Atingido"
+
+#: cogs/building.py:143
+msgid "Standard Limit: {limit}"
+msgstr "Limite Padrão: {limit}"
+
+#: cogs/building.py:144
+msgid "VIP Status: {vip}"
+msgstr "Status VIP: {vip}"
 
 #: cogs/building.py:145
-msgid "Building Report - {server_name}"
-msgstr "Relatório de Construções - {server_name}"
+msgid "YES"
+msgstr "SIM"
 
-#: cogs/building.py:152
-msgid "No buildings found at the moment."
-msgstr "Nenhuma construção encontrada no momento."
+#: cogs/building.py:145
+msgid "NO"
+msgstr "NÃO"
 
-#: cogs/building.py:161
-msgid "(Unknown Owner)"
-msgstr "(Proprietário Desconhecido)"
+#: cogs/building.py:146
+msgid "Building Watcher Notification"
+msgstr "Monitor de Construção - Notificação"
 
-#: cogs/building.py:172
-msgid " ⚠️ (Acima do limite)"
-msgstr " ⚠️ (Acima do limite)"
-
-#: cogs/building.py:182
-msgid "Updated"
-msgstr "Atualizado"
-
-#: cogs/building.py:189
-msgid "Building report channel {channel_id} not found."
-msgstr "Canal de relatório de construções {channel_id} não encontrado."
-
-#: cogs/building.py:204
-msgid "Building Report"
-msgstr "Relatório de Construções"
-
-#: cogs/building.py:215
-msgid "Failed to post building report for '{server_name}': {error}"
-msgstr "Falha ao postar relatório de construções para '{server_name}': {error}"
-
-#: cogs/inactivity.py:56
-msgid "🕵️‍♂️ Inactivity Report - {server}"
-msgstr "🕵️‍♂️ Relatório de Inatividade - {server}"
-
-#: cogs/inactivity.py:57
+#: cogs/building.py:147
 msgid ""
-"Listing of bases whose owner/clan has been offline for more than **{days}"
-" days**."
-msgstr "Listagem de bases cujo dono/clã está offline há mais de **{days} dias**."
-
-#: cogs/inactivity.py:64
-msgid "pieces"
-msgstr "peças"
-
-#: cogs/inactivity.py:80
-msgid ""
-"Inactive bases (>{days} days) - Part {part}/{total}\n"
-"\n"
+"One of your buildings in **{server}** has reached **{pieces}** pieces. "
+"The standard limit is **{limit}**."
 msgstr ""
-"Bases inativas (>{days} dias) - Parte {part}/{total}\n"
-"\n"
+"Uma de suas construções em **{server}** atingiu **{pieces}** peças. O "
+"limite padrão é **{limit}**."
 
-#: cogs/killfeed.py:140
-msgid "💀 **{killer}** killed **{victim}**!"
-msgstr "💀 **{killer}** matou **{victim}**!"
+#: cogs/building.py:151
+msgid ""
+"\n"
+"As a VIP, you have an increased limit. This is just an automated report."
+msgstr ""
+"\n"
+"Como VIP, você tem um limite aumentado. Este é apenas um relatório "
+"automático."
+
+#: cogs/building.py:153
+msgid ""
+"\n"
+"Please consider reducing your structure size to maintain server "
+"performance."
+msgstr ""
+"\n"
+"Por favor, considere reduzir o tamanho de sua estrutura para manter a "
+"performance do servidor."
+
+#: cogs/guild_sync.py:84
+#, python-format
+msgid "Failed to create role '%s': %s"
+msgstr "Falha ao criar o cargo '%s': %s"
+
+#: cogs/guild_sync.py:101
+#, python-format
+msgid "Failed to add role '%s' to user '%s': %s"
+msgstr "Falha ao adicionar o cargo '%s' ao usuário '%s': %s"
+
+#: cogs/guild_sync.py:118
+#, python-format
+msgid "Failed to remove role '%s' from user '%s': %s"
+msgstr "Falha ao remover o cargo '%s' do usuário '%s': %s"
+
+#: cogs/guild_sync.py:133
+#, python-format
+msgid "Failed to delete empty role '%s': %s"
+msgstr "Falha ao deletar o cargo vazio '%s': %s"
+
+#: cogs/inactivity.py:54
+msgid "Inactivity Report - {server}"
+msgstr "Relatório de Inatividade - {server}"
+
+#: cogs/inactivity.py:55
+msgid ""
+"Buildings belonging to players/clans who have been offline for more than "
+"{days} days."
+msgstr ""
+"Construções pertencentes a jogadores/clãs que estão offline há mais de "
+"{days} dias."
+
+#: cogs/inactivity.py:65
+msgid "Owner"
+msgstr "Dono"
+
+#: cogs/inactivity.py:66
+msgid "Pieces"
+msgstr "Peças"
+
+#: cogs/inactivity.py:67
+msgid "Location"
+msgstr "Localização"
+
+#: cogs/inactivity.py:68
+msgid "Last Activity"
+msgstr "Última Atividade"
+
+#: cogs/inactivity.py:78
+msgid "No inactive buildings found."
+msgstr "Nenhuma construção inativa encontrada."
+
+#: cogs/killfeed.py:130
+msgid "Cross-Server PvP Ranking"
+msgstr "Ranking PvP Inter-Servidores"
+
+#: cogs/killfeed.py:131
+msgid "Top players across all servers."
+msgstr "Melhores jogadores em todos os servidores."
+
+#: cogs/killfeed.py:141
+msgid "Killfeed / Ranking Configuration Error"
+msgstr "Erro de Configuração do Killfeed / Ranking"
 
 #: cogs/killfeed.py:142
-msgid "the environment"
-msgstr "o ambiente"
+msgid "Failed to load ranking data."
+msgstr "Falha ao carregar dados do ranking."
 
-#: cogs/killfeed.py:149
-msgid "☠️ **{victim}** was killed by **{npc}**!"
-msgstr "☠️ **{victim}** foi morto por **{npc}**!"
+#: cogs/killfeed.py:154
+msgid "Rank"
+msgstr "Posição"
 
-#: cogs/killfeed.py:153
-msgid "📍 {server} | {date}"
-msgstr "📍 {server} | {date}"
+#: cogs/killfeed.py:155
+msgid "Player"
+msgstr "Jogador"
 
-#: cogs/killfeed.py:192
-msgid "🏆 PvP Ranking: {server}"
-msgstr "🏆 Ranking PvP: {server}"
+#: cogs/killfeed.py:156
+msgid "Kills"
+msgstr "Abates"
 
-#: cogs/killfeed.py:194 cogs/killfeed.py:251
-msgid "No PvP ranking data available yet."
-msgstr "Nenhum dado de ranking PvP disponível ainda."
+#: cogs/killfeed.py:157
+msgid "Deaths"
+msgstr "Mortes"
 
-#: cogs/killfeed.py:199 cogs/killfeed.py:256
-msgid "{emoji} **{player}** - Points: {score} (K: {kills} / D: {deaths})\n"
-msgstr "{emoji} **{player}** - Pontos: {score} (K: {kills} / D: {deaths})\n"
+#: cogs/killfeed.py:158
+msgid "K/D"
+msgstr "K/D"
 
-#: cogs/killfeed.py:203 cogs/killfeed.py:261
-msgid "Last update: {date}"
-msgstr "Última atualização: {date}"
+#: cogs/killfeed.py:168
+msgid "No PvP data available yet."
+msgstr "Nenhum dado PvP disponível ainda."
 
-#: cogs/registration.py:56
+#: cogs/killfeed.py:171
+msgid "Last update: {time}"
+msgstr "Última atualização: {time}"
+
+#: cogs/marketplace.py:141
+msgid "❌ Insufficient funds for withdrawal. Balance: {balance}"
+msgstr "❌ Saldo insuficiente para saque. Saldo: {balance}"
+
+#: cogs/marketplace.py:158
 msgid ""
-"Hello! To link your game account to your Discord account, please enter "
-"the following command in the in-game chat:\n"
+"✅ **Withdrawal Successful!**\n"
+"📤 **Amount:** {qty}\n"
+"💰 **Remaining Balance:** {balance} {currency}"
+msgstr ""
+"✅ **Saque realizado com sucesso!**\n"
+"📤 **Quantia:** {qty}\n"
+"💰 **Saldo Remanescente:** {balance} {currency}"
+
+#: cogs/marketplace.py:169
+msgid "❌ Internal error during withdrawal."
+msgstr "❌ Erro interno durante o saque."
+
+#: cogs/marketplace.py:187
+msgid "💰 **Your Wallet:** {balance} {currency}"
+msgstr "💰 **Sua Carteira:** {balance} {currency}"
+
+#: cogs/marketplace.py:207
+msgid "🏪 **Marketplace:** No active listings at the moment."
+msgstr "🏪 **Mercado:** Não há anúncios ativos no momento."
+
+#: cogs/marketplace.py:210
+msgid "🏪 **Active Marketplace Listings (Last 10):**\n"
+msgstr "🏪 **Anúncios Ativos no Mercado (Últimos 10):**\n"
+
+#: cogs/marketplace.py:214
+msgid ""
 "\n"
+"Type `!buy <id>` in-game to purchase."
 msgstr ""
-"Olá! Para vincular sua conta de jogo à sua conta do Discord, por favor "
-"digite o seguinte comando no chat do jogo:\n"
 "\n"
+"Digite `!buy <id>` no jogo para comprar."
 
-#: cogs/registration.py:60
-msgid "This code will expire in {minutes} minutes."
-msgstr "Este código expirará em {minutes} minutos."
+#: cogs/marketplace.py:244
+msgid "❌ Error: Listing #{id} not found or already sold."
+msgstr "❌ Erro: Anúncio #{id} não encontrado ou já vendido."
 
-#: cogs/registration.py:66
-msgid "I have sent you a private message with the registration instructions!"
-msgstr "Eu te enviei uma mensagem privada com as instruções de registro!"
+#: cogs/marketplace.py:249
+msgid "❌ Error: You cannot buy your own listing."
+msgstr "❌ Erro: Você não pode comprar seu próprio anúncio."
 
-#: cogs/registration.py:73
+#: cogs/marketplace.py:266
+msgid "❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery."
+msgstr "❌ **Alerta de Empilhamento:** Você já possui o item ID {tid} em seu inventário. Por favor, guarde-o em um baú antes de comprar para garantir uma entrega limpa."
+
+#: cogs/marketplace.py:275
+msgid "❌ Insufficient funds! Price: {price} {currency}. Your balance: {balance}."
+msgstr "❌ Saldo insuficiente! Preço: {price} {currency}. Seu saldo: {balance}."
+
+#: cogs/marketplace.py:312
+msgid "❌ You logged out! Purchase canceled and refunded."
+msgstr "❌ Você deslogou! Compra cancelada e reembolsada."
+
+#: cogs/marketplace.py:366
+msgid "✅ **Purchase Complete!** Item delivered to your inventory. Please **relog** to see full artisan bonuses."
+msgstr "✅ **Compra Concluída!** O item foi entregue em seu inventário. Por favor, **relogue** para ver os bônus de artesão completos."
+
+#: cogs/marketplace.py:369
+msgid "⚠️ Purchase successful, but item synchronization failed. Please contact an admin with Listing ID #{id}."
+msgstr "⚠️ Compra bem-sucedida, mas a sincronização do item falhou. Por favor, contate um administrador com o ID do Anúncio #{id}."
+
+#: cogs/marketplace.py:390
+msgid "❌ Error: Price must be greater than 0."
+msgstr "❌ Erro: O preço deve ser maior que 0."
+
+#: cogs/marketplace.py:396
+msgid "📦 **Sell Request:** Listing item in slot {slot} for {price} {currency}. Please wait {sync}s..."
+msgstr "📦 **Pedido de Venda:** Listando item no slot {slot} por {price} {currency}. Por favor, aguarde {sync}s..."
+
+#: cogs/marketplace.py:413
+msgid "❌ Error: Item not found in slot {slot}."
+msgstr "❌ Erro: Item não encontrado no slot {slot}."
+
+#: cogs/marketplace.py:456
+msgid "❌ You must be online to sell items."
+msgstr "❌ Você deve estar online para vender itens."
+
+#: cogs/marketplace.py:475
 msgid ""
-"I cannot send you a private message. Please enable DMs from server "
-"members in your privacy settings and try again."
+"✅ **Item Listed!**\n"
+"🆔 **Listing ID:** {id}\n"
+"💰 **Price:** {price} {currency}\n"
+"📖 Type `!buy {id}` to purchase (other players)."
 msgstr ""
-"Eu não consigo te enviar uma mensagem privada. Por favor, habilite as DMs"
-" de membros do servidor em suas configurações de privacidade e tente "
-"novamente."
+"✅ **Item Anunciado!**\n"
+"🆔 **ID do Anúncio:** {id}\n"
+"💰 **Preço:** {price} {currency}\n"
+"📖 Digite `!buy {id}` para comprar (outros jogadores)."
 
-#: cogs/registration.py:80
+#: cogs/marketplace.py:503
+msgid "💰 **Deposit Request:** Initialized for slot {slot}. Please wait {sync}s for synchronization. **DO NOT MOVE THE ITEM!**"
+msgstr "💰 **Pedido de Depósito:** Inicializado para o slot {slot}. Por favor, aguarde {sync}s para sincronização. **NÃO MOVA O ITEM!**"
+
+#: cogs/marketplace.py:519
+msgid "❌ Error: No item found in slot {slot}."
+msgstr "❌ Erro: Nenhum item encontrado no slot {slot}."
+
+#: cogs/marketplace.py:524
+msgid "❌ Error: Item in slot {slot} is not the accepted currency."
+msgstr "❌ Erro: O item no slot {slot} não é a moeda aceita."
+
+#: cogs/marketplace.py:558
+msgid "❌ You must be online to deposit."
+msgstr "❌ Você deve estar online para depositar."
+
+#: cogs/marketplace.py:569
 msgid ""
-"An error occurred while trying to send you the instructions. Please "
-"contact an administrator."
+"✅ **Deposit Successful!**\n"
+"📥 **Amount:** {qty}\n"
+"💰 **New Balance:** {balance} {currency}"
 msgstr ""
-"Ocorreu um erro ao tentar te enviar as instruções. Por favor, contate um "
-"administrador."
+"✅ **Depósito Bem-sucedido!**\n"
+"📥 **Quantia:** {qty}\n"
+"💰 **Novo Saldo:** {balance} {currency}"
 
-#: cogs/registration.py:94
-msgid "This command is on cooldown. Please try again in {seconds:.1f} seconds."
-msgstr ""
-"Este comando está em tempo de recarga. Por favor, tente novamente em "
-"{seconds:.1f} segundos."
+#: cogs/registration.py:51
+msgid "Registration Code: {code}"
+msgstr "Código de Registro: {code}"
 
-#: cogs/registration.py:103 cogs/registration.py:110
-msgid "An unexpected error occurred. Please contact an administrator."
-msgstr "Ocorreu um erro inesperado. Por favor, contate um administrador."
-
-#: cogs/registration.py:373
+#: cogs/registration.py:52
 msgid ""
-"Success! Your game account '{char}' has been linked to your Discord "
-"account."
-msgstr "Sucesso! Sua conta de jogo '{char}' foi vinculada à sua conta do Discord."
-
-#: cogs/rewards.py:101
-#, python-format
-msgid "Reward command '%s' for player %s on server '%s' executed. Response: %s"
+"Type `!register {code}` in the in-game chat to link your character to "
+"this Discord account."
 msgstr ""
-"Comando de recompensa '%s' para o jogador %s no servidor '%s' executado. "
-"Resposta: %s"
+"Digite `!register {code}` no chat do jogo para vincular seu personagem a "
+"esta conta do Discord."
 
-#: cogs/rewards.py:109
-#, python-format
-msgid "Attempt %d/3 to send reward for player %s failed: %s"
-msgstr "Tentativa %d/3 de enviar recompensa para o jogador %s falhou: %s"
+#: cogs/registration.py:57
+msgid "You are already registered."
+msgstr "Você já está registrado."
 
-#: cogs/rewards.py:117
-#, python-format
+#: cogs/registration.py:88
 msgid ""
-"Failed to send reward RCON command for player %s on server '%s' after 3 "
-"attempts."
+"Your character **{char_name}** has been successfully linked to your "
+"Discord account."
 msgstr ""
-"Falha ao enviar o comando RCON de recompensa para o jogador %s no "
-"servidor '%s' após 3 tentativas."
+"Seu personagem **{char_name}** foi vinculado com sucesso à sua conta do "
+"Discord."
 
-#: cogs/rewards.py:241
+#: cogs/registration.py:93
+msgid ""
+"You have been assigned the **{role}** role. You now have access to "
+"exclusive commands!"
+msgstr ""
+"O cargo **{role}** foi atribuído a você. Agora você tem acesso a "
+"comandos exclusivos!"
+
+#: cogs/registration.py:100
+msgid ""
+"Welcome! You are now registered. Check out the available commands in the "
+"help section."
+msgstr ""
+"Bem-vindo! Você agora está registrado. Confira os comandos disponíveis "
+"na seção de ajuda."
+
+#: cogs/rewards.py:134
+msgid "Premium Status"
+msgstr "Status Premium"
+
+#: cogs/rewards.py:135
+msgid "Information about your VIP benefits."
+msgstr "Informações sobre seus benefícios VIP."
+
+#: cogs/rewards.py:144
+msgid "VIP Level"
+msgstr "Nível VIP"
+
+#: cogs/rewards.py:145
+msgid "Expiration"
+msgstr "Expiração"
+
+#: cogs/rewards.py:145
+msgid "Never"
+msgstr "Nunca"
+
+#: cogs/rewards.py:146
+msgid "Reward Interval"
+msgstr "Intervalo de Recompensa"
+
+#: cogs/rewards.py:146
+msgid "{minutes} minutes"
+msgstr "{minutes} minutos"
+
+#: cogs/rewards.py:148
+msgid "You are not a VIP member."
+msgstr "Você não é um membro VIP."
+
+#: cogs/rewards.py:218
 #, python-format
 msgid ""
 "Player %s on server '%s' reached a new reward milestone at %.1f hours. "
@@ -238,66 +526,66 @@ msgstr ""
 msgid "Player %s on server '%s' has been rewarded."
 msgstr "O jogador %s no servidor '%s' foi recompensado."
 
-#: cogs/status.py:143
+#: cogs/status.py:148
 msgid "Players Online: {count}"
 msgstr "Jogadores Online: {count}"
 
 # Cluster Status Translations
-#: cogs/status.py:168 cogs/status.py:383
+#: cogs/status.py:173 cogs/status.py:388
 msgid "🌍 Cluster Status"
 msgstr "🌍 Status do Cluster"
 
-#: cogs/status.py:169
+#: cogs/status.py:174
 msgid "Consolidated status of all servers."
 msgstr "Status consolidado de todos os servidores."
 
-#: cogs/status.py:234 cogs/status.py:552
+#: cogs/status.py:239 cogs/status.py:570
 msgid "Online Players ({count})"
 msgstr "Jogadores Online ({count})"
 
-#: cogs/status.py:240 cogs/status.py:560
+#: cogs/status.py:245 cogs/status.py:578
 msgid "Online Players (0)"
 msgstr "Jogadores Online (0)"
 
-#: cogs/status.py:241 cogs/status.py:561
+#: cogs/status.py:246 cogs/status.py:579
 msgid "No one is playing at the moment."
 msgstr "Ninguém está jogando no momento."
 
-#: cogs/status.py:254
+#: cogs/status.py:259
 msgid "Servers"
 msgstr "Servidores"
 
-#: cogs/status.py:260
+#: cogs/status.py:265
 msgid "Total CPU"
 msgstr "CPU Total"
 
-#: cogs/status.py:263
+#: cogs/status.py:268
 msgid "Total Memory"
 msgstr "Memória Total"
 
-#: cogs/status.py:266
+#: cogs/status.py:271
 msgid "Cluster status updated"
 msgstr "Status do cluster atualizado"
 
-#: cogs/status.py:505
+#: cogs/status.py:523
 msgid "The server is operating normally."
 msgstr "O servidor está operando normalmente."
 
-#: cogs/status.py:575
+#: cogs/status.py:593
 msgid "Status updated"
 msgstr "Status atualizado"
 
-#: cogs/status.py:594
+#: cogs/status.py:612
 msgid "Could not connect to the server. It may be offline or restarting."
 msgstr ""
 "Não foi possível conectar ao servidor. Pode estar desligado ou "
 "reiniciando."
 
-#: cogs/status.py:599
+#: cogs/status.py:617
 msgid "Check the console or contact an administrator."
 msgstr "Verifique o console ou contate um administrador."
 
-#: cogs/trades.py:116
+#: cogs/trades.py:100
 msgid ""
 "🛒 **Purchase Request:** {label}\n"
 "💰 **Price:** {amount}x ({price_display})\n"
@@ -309,35 +597,35 @@ msgstr ""
 "⏳ **Por favor, aguarde 10 segundos** para sincronização. **NÃO MOVA ITENS"
 " NA MOCHILA!**"
 
-#: cogs/trades.py:133
+#: cogs/trades.py:117
 msgid "❌ Error: Character not found in database."
 msgstr "❌ Erro: Personagem não encontrado no banco de dados."
 
-#: cogs/trades.py:139
+#: cogs/trades.py:123
 msgid "❌ Insufficient funds! You need {amount}x {currency} in your backpack."
 msgstr "❌ Saldo insuficiente! Você precisa de {amount}x {currency} em sua mochila."
 
-#: cogs/trades.py:157
+#: cogs/trades.py:141
 msgid "❌ You must be online to complete the purchase."
 msgstr "❌ Você precisa estar online para completar a compra."
 
-#: cogs/trades.py:167
+#: cogs/trades.py:151
 msgid ""
 "✅ **Purchase complete!** Your item **{label}** was delivered to your "
 "backpack."
 msgstr "✅ **Compra concluída!** Seu item **{label}** foi entregue em sua mochila."
 
-#: cogs/trades.py:174
+#: cogs/trades.py:158
 msgid "❌ A technical error occurred during processing. Please contact an Admin."
 msgstr ""
 "❌ Ocorreu um erro técnico durante o processamento. Por favor, contate um "
 "Admin."
 
-#: cogs/warps.py:51
+#: cogs/warps.py:52
 msgid "📍 Warp Locations"
 msgstr "📍 Locais de Teleporte (Warps)"
 
-#: cogs/warps.py:52
+#: cogs/warps.py:53
 msgid ""
 "These are the locations you can teleport to using `!warp <name>` in the "
 "in-game chat."
@@ -345,11 +633,11 @@ msgstr ""
 "Estes são os locais para onde você pode teleportar usando `!warp <nome>` "
 "no chat do jogo."
 
-#: cogs/warps.py:69
+#: cogs/warps.py:70
 msgid "No warps are currently configured."
 msgstr "Não há warps configurados no momento."
 
-#: cogs/warps.py:202
+#: cogs/warps.py:177
 msgid ""
 "📍 **Available Warps in {server}:**\n"
 "{locations}\n"
@@ -361,7 +649,7 @@ msgstr ""
 "\n"
 "Use `!warp <nome>` no chat do jogo."
 
-#: cogs/warps.py:208
+#: cogs/warps.py:183
 msgid ""
 "🏠 **Home System:**\n"
 "Use `!sethome` to save your current position and `!home` to return."
@@ -369,11 +657,11 @@ msgstr ""
 "🏠 **Sistema de Casa:**\n"
 "Use `!sethome` para salvar sua posição atual e `!home` para voltar."
 
-#: cogs/warps.py:246
+#: cogs/warps.py:221
 msgid "⏳ **SetHome on Cooldown:** Please wait **{minutes}m {seconds}s**."
 msgstr "⏳ **SetHome em Cooldown:** Por favor, aguarde **{minutes}m {seconds}s**."
 
-#: cogs/warps.py:265
+#: cogs/warps.py:240
 msgid ""
 "🏠 **Home Set!** Your location was saved in **{server}**.\n"
 "⚠️ *Note: There might be a slight difference in the exact position due to"
@@ -383,23 +671,22 @@ msgstr ""
 "⚠️ *Nota: Pode haver uma pequena diferença na posição exata devido ao "
 "ciclo de salvamento automático do servidor.*"
 
-#: cogs/warps.py:304
+#: cogs/warps.py:279
 msgid "⏳ **Home on Cooldown:** Please wait **{minutes}m {seconds}s**."
 msgstr "⏳ **Home em Cooldown:** Por favor, aguarde **{minutes}m {seconds}s**."
 
-#: cogs/warps.py:323
+#: cogs/warps.py:298
 msgid "🏠 Welcome back to your home in **{server}**!"
 msgstr "🏠 Bem-vindo de volta à sua casa em **{server}**!"
 
-#: cogs/warps.py:330
+#: cogs/warps.py:305
 msgid "❌ **Error:** You haven't set a home yet. Use `!sethome` first."
 msgstr "❌ **Erro:** Você ainda não definiu uma casa. Use `!sethome` primeiro."
 
-#: cogs/warps.py:368
+#: cogs/warps.py:343
 msgid "⏳ **Warp on Cooldown:** Please wait **{minutes}m {seconds}s**."
 msgstr "⏳ **Warp em Cooldown:** Por favor, aguarde **{minutes}m {seconds}s**."
 
-#: cogs/warps.py:381
+#: cogs/warps.py:356
 msgid "🚀 Teleported to **{destination}** in **{server}**!"
 msgstr "🚀 Teleportado para **{destination}** em **{server}**!"
-
