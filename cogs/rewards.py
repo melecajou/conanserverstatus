@@ -113,91 +113,67 @@ class RewardsCog(commands.Cog, name="Rewards"):
             )
             return False
 
-    async def _get_player_reward_status(
+    async def _fetch_batch_player_data(
         self,
         db: aiosqlite.Connection,
         server_name: str,
-        platform_id: str,
-        reward_intervals: Dict[int, int],
-    ) -> Optional[tuple]:
+        online_players: List[Dict[str, str]],
+    ) -> Dict[str, Dict[str, Any]]:
         """
-        Retrieves a player's reward status using global VIP data.
-
-        Args:
-            db: The server-specific database connection for playtime.
-            server_name: The name of the server.
-            platform_id: The platform ID of the player.
-            reward_intervals: A dictionary mapping VIP levels to reward intervals.
+        Fetches local and global data for all online players in batch.
 
         Returns:
-            A tuple containing the player's online minutes, last rewarded hour, and reward interval,
-            or None if the player is not registered or found.
+             A dictionary mapping platform_id to a dict containing:
+             - online_minutes (int)
+             - last_reward_playtime (int)
+             - discord_id (int or None)
+             - vip_level (int)
+             - vip_expiry (str or None)
         """
-        # 1. Get online minutes and last rewarded playtime from local DB
-        async with db.cursor() as cur:
-            await cur.execute(
-                "SELECT online_minutes, last_reward_playtime FROM player_time WHERE platform_id = ? AND server_name = ?",
-                (platform_id, server_name),
-            )
-            result = await cur.fetchone()
+        platform_ids = [p["platform_id"] for p in online_players]
+        if not platform_ids:
+            return {}
 
-        if not result:
-            return None
+        # 1. Fetch Local Data (Async)
+        local_data = {}
+        try:
+            async with db.cursor() as cur:
+                placeholders = ", ".join("?" * len(platform_ids))
+                query = f"SELECT platform_id, online_minutes, last_reward_playtime FROM player_time WHERE platform_id IN ({placeholders}) AND server_name = ?"
+                await cur.execute(query, platform_ids + [server_name])
+                rows = await cur.fetchall()
+                for pid, mins, last_rew in rows:
+                    local_data[pid] = {
+                        "online_minutes": mins,
+                        "last_reward_playtime": last_rew,
+                    }
+        except Exception as e:
+            logging.error(f"Error batch fetching local player data: {e}")
+            return {}
 
-        online_minutes, last_reward_playtime = result
-
-        # 2. Get global discord_id and VIP level
-        import sqlite3
-        from datetime import datetime
-        from utils.database import GLOBAL_DB_PATH
-
-        discord_id = None
-        vip_level = 0
-        vip_expiry = None
+        # 2. Fetch Global Data (Sync in Thread)
+        from utils.database import get_global_player_data
 
         try:
-            with sqlite3.connect(f"file:{GLOBAL_DB_PATH}?mode=ro", uri=True) as g_con:
-                g_con.row_factory = sqlite3.Row
-                g_cur = g_con.cursor()
-                g_cur.execute(
-                    "SELECT discord_id FROM user_identities WHERE platform_id = ?",
-                    (platform_id,),
-                )
-                res_id = g_cur.fetchone()
-                if res_id:
-                    discord_id = res_id["discord_id"]
-                    g_cur.execute(
-                        "SELECT vip_level, vip_expiry_date FROM discord_vips WHERE discord_id = ?",
-                        (discord_id,),
-                    )
-                    res_vip = g_cur.fetchone()
-                    if res_vip:
-                        vip_level = res_vip["vip_level"]
-                        vip_expiry = res_vip["vip_expiry_date"]
+            global_data = await asyncio.to_thread(get_global_player_data, platform_ids)
         except Exception as e:
-            logging.error(f"Error fetching global reward status for {platform_id}: {e}")
+            logging.error(f"Error batch fetching global player data: {e}")
+            global_data = {}
 
-        if not discord_id:
-            return None
+        # 3. Merge Data
+        merged_data = {}
+        for pid in platform_ids:
+            if pid not in local_data:
+                continue
 
-        # Check for expiration (only for rewards)
-        if vip_level > 0 and vip_expiry:
-            try:
-                # Assuming date is stored in ISO format (YYYY-MM-DD HH:MM:SS)
-                expiry_dt = datetime.fromisoformat(vip_expiry)
-                if datetime.now() > expiry_dt:
-                    logging.debug(
-                        f"VIP Rewards expired for player {platform_id} (Discord: {discord_id}). Treating as Level 0 for rewards."
-                    )
-                    vip_level = 0
-            except (ValueError, TypeError):
-                logging.warning(
-                    f"Invalid expiry date format for Discord ID {discord_id}: {vip_expiry}"
-                )
+            l_data = local_data[pid]
+            g_data = global_data.get(
+                pid, {"discord_id": None, "vip_level": 0, "vip_expiry": None}
+            )
 
-        reward_interval = reward_intervals.get(vip_level, reward_intervals.get(0, 120))
+            merged_data[pid] = {**l_data, **g_data}
 
-        return online_minutes, last_reward_playtime, reward_interval
+        return merged_data
 
     async def _check_and_process_rewards(
         self,
@@ -217,22 +193,53 @@ class RewardsCog(commands.Cog, name="Rewards"):
             reward_config: The reward configuration for the server.
             online_players: A list of dictionaries representing the online players.
         """
+        from datetime import datetime
+
         if "INTERVALS_MINUTES" in reward_config:
             reward_intervals = reward_config["INTERVALS_MINUTES"]
         else:
             default_interval = reward_config.get("REWARD_INTERVAL_MINUTES", 120)
             reward_intervals = {0: default_interval}
 
+        # Fetch all data in batch
+        batch_data = await self._fetch_batch_player_data(
+            db, server_name, online_players
+        )
+
         for player in online_players:
             platform_id = player["platform_id"]
-            reward_status = await self._get_player_reward_status(
-                db, server_name, platform_id, reward_intervals
-            )
-
-            if not reward_status:
+            if platform_id not in batch_data:
                 continue
 
-            online_minutes, last_reward_playtime, reward_interval = reward_status
+            data = batch_data[platform_id]
+            discord_id = data.get("discord_id")
+
+            # Must have a linked Discord ID to receive rewards
+            if not discord_id:
+                continue
+
+            online_minutes = data["online_minutes"]
+            last_reward_playtime = data["last_reward_playtime"]
+            vip_level = data.get("vip_level", 0)
+            vip_expiry = data.get("vip_expiry")
+
+            # Check for expiration
+            if vip_level > 0 and vip_expiry:
+                try:
+                    expiry_dt = datetime.fromisoformat(vip_expiry)
+                    if datetime.now() > expiry_dt:
+                        logging.debug(
+                            f"VIP Rewards expired for player {platform_id} (Discord: {discord_id}). Treating as Level 0 for rewards."
+                        )
+                        vip_level = 0
+                except (ValueError, TypeError):
+                    logging.warning(
+                        f"Invalid expiry date format for Discord ID {discord_id}: {vip_expiry}"
+                    )
+
+            reward_interval = reward_intervals.get(
+                vip_level, reward_intervals.get(0, 120)
+            )
 
             # Check if enough time has passed since the last reward
             if (online_minutes - last_reward_playtime) >= reward_interval:
