@@ -35,6 +35,7 @@ WITHDRAW_COMMAND_REGEX = re.compile(r"!withdraw\s+(\d+)")
 MARKET_HELP_COMMAND_REGEX = re.compile(r"!markethelp")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
 
+MAX_TRANSACTION_VALUE = 65535
 
 class MarketplaceCog(commands.Cog, name="Marketplace"):
     """Asynchronous P2P Marketplace and Virtual Economy."""
@@ -180,6 +181,17 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             return
         user = await self.bot.fetch_user(int(discord_id))
         if not user:
+            return
+
+        if amount > MAX_TRANSACTION_VALUE:
+            try:
+                await user.send(
+                    self.bot._("❌ Error: Withdrawal amount cannot exceed {max}.").format(
+                        max=MAX_TRANSACTION_VALUE
+                    )
+                )
+            except:
+                pass
             return
 
         # 2. Check Balance
@@ -579,6 +591,17 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if price <= 0:
             try:
                 await user.send(self.bot._("❌ Error: Price must be greater than 0."))
+            except:
+                pass
+            return
+
+        if price > MAX_TRANSACTION_VALUE:
+            try:
+                await user.send(
+                    self.bot._("❌ Error: Price cannot exceed {max}.").format(
+                        max=MAX_TRANSACTION_VALUE
+                    )
+                )
             except:
                 pass
             return
