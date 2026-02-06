@@ -69,7 +69,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if server_name not in self.watchers:
             self.watchers[server_name] = LogWatcher(log_path)
 
-        new_lines = self.watchers[server_name].read_new_lines()
+        new_lines = await self.watchers[server_name].read_new_lines()
         for line in new_lines:
             await self._process_log_line(line, server_conf)
 

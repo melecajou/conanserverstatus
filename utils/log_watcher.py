@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from typing import List
 
 
@@ -21,12 +22,10 @@ class LogWatcher:
         self._initialized = False
         self._tail_bytes = tail_bytes
 
-    def read_new_lines(self) -> List[str]:
+    def _read_file_sync(self) -> List[str]:
         """
-        Reads new lines appended to the log file since the last check.
-
-        Returns:
-            A list of new strings (lines).
+        Synchronous method to perform file I/O operations.
+        This runs in a separate thread.
         """
         if not self.file_path or not os.path.exists(self.file_path):
             return []
@@ -70,3 +69,13 @@ class LogWatcher:
         except Exception as e:
             logging.error(f"Error reading log {self.file_path}: {e}")
             return []
+
+    async def read_new_lines(self) -> List[str]:
+        """
+        Reads new lines appended to the log file since the last check asynchronously.
+        Offloads blocking I/O to a thread.
+
+        Returns:
+            A list of new strings (lines).
+        """
+        return await asyncio.to_thread(self._read_file_sync)
