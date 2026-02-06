@@ -255,7 +255,21 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         template_id = listing['item_template_id']
         dna = json.loads(listing['item_dna'])
 
-        # 3. Check Balance
+        # 3. Check for existing items to avoid stacking issues
+        try:
+            char_id = get_char_id_by_name(db_path, char_name)
+            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                # Check Backpack (0) and Hotbar (2). Stacking doesn't happen with Equipped (1).
+                exists = con.execute("SELECT 1 FROM item_inventory WHERE owner_id=? AND template_id=? AND inv_type IN (0, 2)", (char_id, template_id)).fetchone()
+            
+            if exists:
+                try: await user.send(self.bot._("❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery.").format(tid=template_id))
+                except: pass
+                return
+        except Exception as e:
+            logging.error(f"Error checking existing items for {char_name}: {e}")
+
+        # 4. Check Balance
         buyer_balance = get_player_balance(int(discord_id))
         if buyer_balance < price:
             try: await user.send(self.bot._("❌ Insufficient funds! Price: {price} {currency}. Your balance: {balance}.").format(
