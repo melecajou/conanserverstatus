@@ -11,7 +11,8 @@ GLOBAL_DB_PATH = "data/global_registry.db"
 def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
     """Creates or updates the global registry database."""
     try:
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        if os.path.dirname(db_path):
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
         with sqlite3.connect(db_path) as con:
             cur = con.cursor()
 
@@ -327,7 +328,8 @@ def update_vip_expiry(
 def initialize_player_tracker_db(db_path: str):
     """Creates or updates the player tracker database and table."""
     try:
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        if os.path.dirname(db_path):
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
         con = sqlite3.connect(db_path)
         cur = con.cursor()
         cur.execute("""
