@@ -19,6 +19,10 @@ from utils.log_parser import parse_log_lines
 from utils.log_watcher import LogWatcher
 
 
+# Banned characters for RCON commands to prevent injection: Newlines, Semicolons, Pipes
+BANNED_RCON_CHARS_PATTERN = re.compile(r"[\n\r;|]")
+
+
 class StatusCog(commands.Cog, name="Status"):
     """Handles the live status updates for all servers."""
 
@@ -63,11 +67,22 @@ class StatusCog(commands.Cog, name="Status"):
         for client in self.rcon_clients.values():
             await client.close()
 
-    async def execute_rcon(
+    def _validate_rcon_command(self, command: str):
+        """
+        Validates the RCON command string to prevent injection attacks.
+        Raises ValueError if banned characters are found.
+        """
+        if BANNED_RCON_CHARS_PATTERN.search(command):
+            raise ValueError(
+                f"Security Alert: Banned characters detected in RCON command: {command!r}"
+            )
+
+    async def _execute_raw_rcon(
         self, server_name: str, command: str, max_retries: int = 3
     ) -> Tuple[str, str]:
         """
-        Executes an RCON command on the specified server with locking and retry logic.
+        Internal method. Executes a raw RCON command on the specified server with locking and retry logic.
+        WARNING: This does NOT validate input. Use execute_safe_command or get_player_list for safe operations.
         """
         client = self.rcon_clients.get(server_name)
         lock = self.rcon_locks.get(server_name)
@@ -108,13 +123,19 @@ class StatusCog(commands.Cog, name="Status"):
             f"Failed to execute RCON command after {max_retries} retries."
         )
 
+    async def get_player_list(self, server_name: str) -> Tuple[str, str]:
+        """
+        Safe method to retrieve the player list from a server.
+        """
+        return await self._execute_raw_rcon(server_name, "ListPlayers")
+
     async def execute_safe_command(
         self, server_name: str, char_name: str, command_template: Callable[[str], str]
     ) -> Tuple[str, str]:
         """
         Safely executes a command that requires a player index.
         It fetches the player list, finds the index, and executes the command.
-        If the command fails (e.g. invalid index due to player re-logging), it retries the whole process.
+        The generated command is strictly validated before execution.
 
         Args:
             server_name: The server to execute on.
@@ -126,7 +147,7 @@ class StatusCog(commands.Cog, name="Status"):
         for attempt in range(max_loop_retries):
             # 1. Get Player List (this internally retries connection errors)
             try:
-                response, _ = await self.execute_rcon(server_name, "ListPlayers")
+                response, _ = await self.get_player_list(server_name)
             except Exception as e:
                 logging.warning(
                     f"Safe execution failed at ListPlayers step for {char_name}: {e}"
@@ -153,11 +174,15 @@ class StatusCog(commands.Cog, name="Status"):
 
             # 3. Execute Command
             full_command = command_template(idx)
+
+            # Security Validation
+            self._validate_rcon_command(full_command)
+
             try:
                 # We disable internal retries for this specific call because if it fails,
                 # we want to restart the whole loop (re-fetch index) rather than just retry the command
                 # with a potentially stale index.
-                return await self.execute_rcon(server_name, full_command, max_retries=0)
+                return await self._execute_raw_rcon(server_name, full_command, max_retries=0)
             except (
                 struct.error,
                 RCONConnectionError,
@@ -502,7 +527,7 @@ class StatusCog(commands.Cog, name="Status"):
             or None if the connection fails.
         """
         try:
-            response, _ = await self.execute_rcon(server_name, "ListPlayers")
+            response, _ = await self.get_player_list(server_name)
             return [
                 line
                 for line in response.split("\n")

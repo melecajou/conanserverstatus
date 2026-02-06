@@ -144,7 +144,7 @@ class WarpsCog(commands.Cog, name="Warps"):
             return None, None
 
         try:
-            response, _ = await status_cog.execute_rcon(server_name, "ListPlayers")
+            response, _ = await status_cog.get_player_list(server_name)
             lines = response.split("\n")
             for line in lines:
                 parts = line.split("|")
