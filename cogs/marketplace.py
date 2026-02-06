@@ -4,7 +4,7 @@ import logging
 import re
 import asyncio
 import struct
-import sqlite3
+import aiosqlite
 import json
 
 import config
@@ -141,7 +141,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
     async def _handle_market_help(self, char_name, server_conf):
         """Sends marketplace command guide to the player."""
         db_path = server_conf["DB_PATH"]
-        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        discord_id = await asyncio.to_thread(
+            find_discord_user_by_char_name, db_path, char_name
+        )
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
@@ -176,7 +178,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             return
 
         # 1. Identity Check
-        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        discord_id = await asyncio.to_thread(
+            find_discord_user_by_char_name, db_path, char_name
+        )
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
@@ -195,7 +199,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             return
 
         # 2. Check Balance
-        balance = get_player_balance(int(discord_id))
+        balance = await asyncio.to_thread(get_player_balance, int(discord_id))
         if balance < amount:
             try:
                 await user.send(
@@ -216,7 +220,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             # Using execute_safe_command replaces manual list/find/execute logic
             try:
                 # A. Deduct from Virtual Wallet
-                if update_player_balance(int(discord_id), -amount):
+                if await asyncio.to_thread(
+                    update_player_balance, int(discord_id), -amount
+                ):
                     # B. Spawn physical item
                     print(f"MARKET: Withdrawal of {amount} for {char_name}")
 
@@ -226,12 +232,15 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                         lambda idx: f"con {idx} SpawnItem {currency_id} {amount}",
                     )
 
-                    log_market_action(
+                    await asyncio.to_thread(
+                        log_market_action,
                         int(discord_id),
                         "WITHDRAW",
                         f"Withdrew {amount} of virtual currency to physical item.",
                     )
-                    new_balance = get_player_balance(int(discord_id))
+                    new_balance = await asyncio.to_thread(
+                        get_player_balance, int(discord_id)
+                    )
                     await user.send(
                         self.bot._(
                             "✅ **Withdrawal Successful!**\n📤 **Amount:** {qty}\n💰 **Remaining Balance:** {balance} {currency}"
@@ -247,14 +256,10 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
             except Exception as e:
                 # Safe execution failed (e.g. player offline) - Refund logic?
-                # If update_player_balance succeeded but spawn failed...
-                # Ideally update_player_balance happens inside the try, but we can't revert it easily here without custom logic.
-                # However, since execute_safe_command checks online status FIRST before doing anything,
-                # the risk is if they go offline between balance update and spawn execution.
-                # But execute_safe_command does the checking.
-                # If execute_safe_command fails, we should probably refund.
                 logging.error(f"Withdraw failed for {char_name}: {e}")
-                update_player_balance(int(discord_id), amount)  # Refund
+                await asyncio.to_thread(
+                    update_player_balance, int(discord_id), amount
+                )  # Refund
                 await user.send(
                     self.bot._("❌ Error: You must be online to withdraw. Refunded.")
                 )
@@ -265,12 +270,14 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
     async def _handle_balance(self, char_name, server_conf):
         """Sends current virtual balance to player via DM."""
         db_path = server_conf["DB_PATH"]
-        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        discord_id = await asyncio.to_thread(
+            find_discord_user_by_char_name, db_path, char_name
+        )
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
         if user:
-            balance = get_player_balance(int(discord_id))
+            balance = await asyncio.to_thread(get_player_balance, int(discord_id))
             await user.send(
                 self.bot._("💰 **Your Wallet:** {balance} {currency}").format(
                     balance=balance, currency=config.MARKETPLACE["CURRENCY_NAME"]
@@ -280,7 +287,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
     async def _handle_market_list(self, char_name, server_conf):
         """Sends a list of active market listings to player via DM."""
         db_path = server_conf["DB_PATH"]
-        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        discord_id = await asyncio.to_thread(
+            find_discord_user_by_char_name, db_path, char_name
+        )
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
@@ -288,13 +297,12 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             return
 
         try:
-            with sqlite3.connect(GLOBAL_DB_PATH) as con:
-                con.row_factory = sqlite3.Row
-                cur = con.cursor()
-                cur.execute(
+            async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
+                con.row_factory = aiosqlite.Row
+                async with con.execute(
                     "SELECT id, item_template_id, price FROM market_listings WHERE status = 'active' ORDER BY created_at DESC LIMIT 10"
-                )
-                rows = cur.fetchall()
+                ) as cur:
+                    rows = await cur.fetchall()
 
             if not rows:
                 await user.send(
@@ -317,7 +325,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         server_name = server_conf["NAME"]
 
         # 1. Identity Check
-        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        discord_id = await asyncio.to_thread(
+            find_discord_user_by_char_name, db_path, char_name
+        )
         if not discord_id:
             return
 
@@ -328,14 +338,13 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         # 2. Fetch Listing Data
         listing = None
         try:
-            with sqlite3.connect(GLOBAL_DB_PATH) as con:
-                con.row_factory = sqlite3.Row
-                cur = con.cursor()
-                cur.execute(
+            async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
+                con.row_factory = aiosqlite.Row
+                async with con.execute(
                     "SELECT * FROM market_listings WHERE id = ? AND status = 'active'",
                     (listing_id,),
-                )
-                listing = cur.fetchone()
+                ) as cur:
+                    listing = await cur.fetchone()
         except Exception as e:
             logging.error(f"Error fetching listing {listing_id}: {e}")
             return
@@ -367,13 +376,14 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
         # 3. Check for existing items to avoid stacking issues
         try:
-            char_id = get_char_id_by_name(db_path, char_name)
-            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
                 # Check Backpack (0) and Hotbar (2). Stacking doesn't happen with Equipped (1).
-                exists = con.execute(
+                async with con.execute(
                     "SELECT 1 FROM item_inventory WHERE owner_id=? AND template_id=? AND inv_type IN (0, 2)",
                     (char_id, template_id),
-                ).fetchone()
+                ) as cursor:
+                    exists = await cursor.fetchone()
 
             if exists:
                 try:
@@ -389,7 +399,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             logging.error(f"Error checking existing items for {char_name}: {e}")
 
         # 4. Check Balance
-        buyer_balance = get_player_balance(int(discord_id))
+        buyer_balance = await asyncio.to_thread(get_player_balance, int(discord_id))
         if buyer_balance < price:
             try:
                 await user.send(
@@ -422,33 +432,36 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 return
 
             # A. Update Balances
-            if not update_player_balance(int(discord_id), -price):
+            if not await asyncio.to_thread(
+                update_player_balance, int(discord_id), -price
+            ):
                 raise Exception("Failed to deduct funds from buyer.")
 
-            update_player_balance(
-                seller_discord_id, price
+            await asyncio.to_thread(
+                update_player_balance, seller_discord_id, price
             )  # Add to seller (can be offline)
 
             # B. Mark Listing as Sold
-            with sqlite3.connect(GLOBAL_DB_PATH) as con:
-                con.execute(
+            async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
+                await con.execute(
                     "UPDATE market_listings SET status = 'sold' WHERE id = ?",
                     (listing_id,),
                 )
-                con.commit()
+                await con.commit()
 
             # C. Spawn Item (RCON)
             # Capture inventory state BEFORE spawn (with quantities)
-            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                char_id = get_char_id_by_name(db_path, char_name)
+            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                char_id = await asyncio.to_thread(
+                    get_char_id_by_name, db_path, char_name
+                )
                 # We store a dict: {(item_id, inv_type): data_blob_or_quantity}
-                before_items = {
-                    (row[0], row[1]): row[2]
-                    for row in con.execute(
-                        "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=?",
-                        (char_id,),
-                    ).fetchall()
-                }
+                async with con.execute(
+                    "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=?",
+                    (char_id,),
+                ) as cur:
+                    rows = await cur.fetchall()
+                    before_items = {(row[0], row[1]): row[2] for row in rows}
 
             print(f"MARKET: Spawning item {template_id} for buyer {char_name}")
 
@@ -463,14 +476,16 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 logging.warning(
                     f"MARKET: Spawn failed for {char_name}, refunding. Error: {e}"
                 )
-                update_player_balance(int(discord_id), price)
-                update_player_balance(seller_discord_id, -price)
-                with sqlite3.connect(GLOBAL_DB_PATH) as con:
-                    con.execute(
+                await asyncio.to_thread(update_player_balance, int(discord_id), price)
+                await asyncio.to_thread(
+                    update_player_balance, seller_discord_id, -price
+                )
+                async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
+                    await con.execute(
                         "UPDATE market_listings SET status = 'active' WHERE id = ?",
                         (listing_id,),
                     )
-                    con.commit()
+                    await con.commit()
                 await user.send(
                     self.bot._("❌ You logged out! Purchase canceled and refunded.")
                 )
@@ -481,11 +496,14 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             for attempt in range(4):  # Try up to 4 times
                 await asyncio.sleep(6 if attempt == 0 else 4)
 
-                with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                    after_rows = con.execute(
+                async with aiosqlite.connect(
+                    f"file:{db_path}?mode=ro", uri=True
+                ) as con:
+                    async with con.execute(
                         "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=? AND template_id=?",
                         (char_id, template_id),
-                    ).fetchall()
+                    ) as cur:
+                        after_rows = await cur.fetchall()
 
                 # Check for a completely new slot first
                 for row in after_rows:
@@ -539,7 +557,8 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                         )
                     )
 
-                log_market_action(
+                await asyncio.to_thread(
+                    log_market_action,
                     int(discord_id),
                     "BUY",
                     f"Bought listing #{listing_id} (Item {template_id}) from {seller_discord_id} for {price}",
@@ -580,7 +599,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         sync_time = config.MARKETPLACE.get("SYNC_WAIT_SECONDS", 5)
 
         # 1. Identity Check
-        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        discord_id = await asyncio.to_thread(
+            find_discord_user_by_char_name, db_path, char_name
+        )
         if not discord_id:
             return
 
@@ -625,13 +646,14 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
         # 3. Read Database and Extract DNA
         try:
-            char_id = get_char_id_by_name(db_path, char_name)
+            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
             if not char_id:
                 return
 
-            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
                 query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
-                row = con.execute(query, (char_id, slot)).fetchone()
+                async with con.execute(query, (char_id, slot)) as cursor:
+                    row = await cursor.fetchone()
 
             if not row:
                 await user.send(
@@ -694,16 +716,16 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
             # 5. Save to Marketplace Database
             dna_json = json.dumps(dna)
-            with sqlite3.connect(GLOBAL_DB_PATH) as con:
-                cur = con.cursor()
-                cur.execute(
+            async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
+                cursor = await con.execute(
                     "INSERT INTO market_listings (seller_discord_id, item_template_id, item_dna, price) VALUES (?, ?, ?, ?)",
                     (int(discord_id), template_id, dna_json, price),
                 )
-                listing_id = cur.lastrowid
-                con.commit()
+                listing_id = cursor.lastrowid
+                await con.commit()
 
-            log_market_action(
+            await asyncio.to_thread(
+                log_market_action,
                 int(discord_id),
                 "SELL",
                 f"Listed item {template_id} from slot {slot} for {price}. Listing ID: {listing_id}",
@@ -737,7 +759,9 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         sync_time = config.MARKETPLACE.get("SYNC_WAIT_SECONDS", 5)
 
         # 1. Identity Check
-        discord_id = find_discord_user_by_char_name(db_path, char_name)
+        discord_id = await asyncio.to_thread(
+            find_discord_user_by_char_name, db_path, char_name
+        )
         if not discord_id:
             logging.warning(f"Unregistered player {char_name} tried to deposit.")
             return
@@ -760,14 +784,15 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
         # 3. Read Database
         try:
-            char_id = get_char_id_by_name(db_path, char_name)
+            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
             if not char_id:
                 return
 
-            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
                 # Backpack only (inv_type 0)
                 query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
-                row = con.execute(query, (char_id, slot)).fetchone()
+                async with con.execute(query, (char_id, slot)) as cursor:
+                    row = await cursor.fetchone()
 
             if not row:
                 await user.send(
@@ -821,13 +846,18 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 )
 
                 # B. Update Virtual Balance
-                if update_player_balance(int(discord_id), quantity):
-                    log_market_action(
+                if await asyncio.to_thread(
+                    update_player_balance, int(discord_id), quantity
+                ):
+                    await asyncio.to_thread(
+                        log_market_action,
                         int(discord_id),
                         "DEPOSIT",
                         f"Deposited {quantity} of item {template_id} from slot {slot}",
                     )
-                    new_balance = get_player_balance(int(discord_id))
+                    new_balance = await asyncio.to_thread(
+                        get_player_balance, int(discord_id)
+                    )
                     await user.send(
                         self.bot._(
                             "✅ **Deposit Successful!**\n📥 **Amount:** {qty}\n💰 **New Balance:** {balance} {currency}"
