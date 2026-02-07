@@ -156,6 +156,9 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             query = f"SELECT ge.worldTime, ge.causerName, ge.ownerName, json_extract(ge.argsMap, '$.nonPersistentCauser') AS npc FROM game_events ge WHERE ge.worldTime > ? AND ge.eventType = {DEATH_EVENT_TYPE} ORDER BY ge.worldTime ASC"
 
             for event_time, killer, victim, npc_id in cur.execute(query, (last_time,)):
+                if event_time > new_max_time:
+                    new_max_time = event_time
+
                 if victim:
                     if server_name not in self.last_death_times:
                         self.last_death_times[server_name] = {}
@@ -206,8 +209,6 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                     )
                 )
                 await channel.send(embed=embed)
-                if event_time > new_max_time:
-                    new_max_time = event_time
 
             con.close()
             if new_max_time > last_time:
