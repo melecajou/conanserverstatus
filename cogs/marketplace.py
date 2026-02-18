@@ -13,6 +13,7 @@ from utils.database import (
     find_discord_user_by_char_name,
     get_player_balance,
     update_player_balance,
+    execute_marketplace_purchase,
     log_market_action,
     prepare_withdrawal_transaction,
     complete_withdrawal_transaction,
@@ -363,36 +364,49 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if not user:
             return
 
-        # 2. Fetch Listing Data
-        listing = None
+        # 2. Check for existing items to avoid stacking issues (Pre-check)
         try:
+            template_id_query = None
             async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
-                con.row_factory = aiosqlite.Row
                 async with con.execute(
-                    "SELECT * FROM market_listings WHERE id = ? AND status = 'active'",
+                    "SELECT item_template_id FROM market_listings WHERE id = ? AND status = 'active'",
                     (listing_id,),
                 ) as cur:
-                    listing = await cur.fetchone()
+                    row = await cur.fetchone()
+                    if row:
+                        template_id_query = row[0]
+
+            if template_id_query:
+                char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    # Check Backpack (0) and Hotbar (2). Stacking doesn't happen with Equipped (1).
+                    async with con.execute(
+                        "SELECT 1 FROM item_inventory WHERE owner_id=? AND template_id=? AND inv_type IN (0, 2)",
+                        (char_id, template_id_query),
+                    ) as cursor:
+                        exists = await cursor.fetchone()
+
+                if exists:
+                    try:
+                        await user.send(
+                            self.bot._(
+                                "❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery."
+                            ).format(tid=template_id_query)
+                        )
+                    except:
+                        pass
+                    return
         except Exception as e:
-            logging.error(f"Error fetching listing {listing_id}: {e}")
-            return
+            logging.error(f"Error checking existing items for {char_name}: {e}")
+
+        # 3. Atomic Transaction: Process Purchase
+        listing, error_msg = await asyncio.to_thread(
+            execute_marketplace_purchase, int(discord_id), listing_id
+        )
 
         if not listing:
             try:
-                await user.send(
-                    self.bot._(
-                        "❌ Error: Listing #{id} not found or already sold."
-                    ).format(id=listing_id)
-                )
-            except:
-                pass
-            return
-
-        if int(listing["seller_discord_id"]) == int(discord_id):
-            try:
-                await user.send(
-                    self.bot._("❌ Error: You cannot buy your own listing.")
-                )
+                await user.send(self.bot._("❌ Error: {msg}").format(msg=error_msg))
             except:
                 pass
             return
@@ -402,80 +416,11 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         template_id = listing["item_template_id"]
         dna = json.loads(listing["item_dna"])
 
-        # 3. Check for existing items to avoid stacking issues
-        try:
-            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
-            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                # Check Backpack (0) and Hotbar (2). Stacking doesn't happen with Equipped (1).
-                async with con.execute(
-                    "SELECT 1 FROM item_inventory WHERE owner_id=? AND template_id=? AND inv_type IN (0, 2)",
-                    (char_id, template_id),
-                ) as cursor:
-                    exists = await cursor.fetchone()
-
-            if exists:
-                try:
-                    await user.send(
-                        self.bot._(
-                            "❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery."
-                        ).format(tid=template_id)
-                    )
-                except:
-                    pass
-                return
-        except Exception as e:
-            logging.error(f"Error checking existing items for {char_name}: {e}")
-
-        # 4. Check Balance
-        buyer_balance = await asyncio.to_thread(get_player_balance, int(discord_id))
-        if buyer_balance < price:
-            try:
-                await user.send(
-                    self.bot._(
-                        "❌ Insufficient funds! Price: {price} {currency}. Your balance: {balance}."
-                    ).format(
-                        price=price,
-                        currency=config.MARKETPLACE["CURRENCY_NAME"],
-                        balance=buyer_balance,
-                    )
-                )
-            except:
-                pass
-            return
-
-        # 4. Start Transaction
+        # 4. Deliver Item (RCON)
         try:
             status_cog = self.bot.get_cog("Status")
             if not status_cog:
                 raise Exception("Status Cog not found.")
-
-            # Check online status FIRST before taking money
-            try:
-                # Check if online by doing a dry run ListPlayers check or just assuming execute_safe_command will fail later.
-                # But we don't want to take money if they are offline.
-                # We can use execute_safe_command for the Spawn action inside the try block,
-                # and if it fails (player offline), we refund.
-                pass
-            except:
-                return
-
-            # A. Update Balances
-            if not await asyncio.to_thread(
-                update_player_balance, int(discord_id), -price
-            ):
-                raise Exception("Failed to deduct funds from buyer.")
-
-            await asyncio.to_thread(
-                update_player_balance, seller_discord_id, price
-            )  # Add to seller (can be offline)
-
-            # B. Mark Listing as Sold
-            async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
-                await con.execute(
-                    "UPDATE market_listings SET status = 'sold' WHERE id = ?",
-                    (listing_id,),
-                )
-                await con.commit()
 
             # C. Spawn Item (RCON)
             # Capture inventory state BEFORE spawn (with quantities)

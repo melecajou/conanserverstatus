@@ -724,14 +724,24 @@ def update_player_balance(
     try:
         with sqlite3.connect(global_db_path) as con:
             cur = con.cursor()
-            cur.execute(
-                """
-                INSERT INTO player_wallets (discord_id, balance) 
-                VALUES (?, ?)
-                ON CONFLICT(discord_id) DO UPDATE SET balance = balance + excluded.balance
-                """,
-                (discord_id, amount),
-            )
+            if amount < 0:
+                # Deduction: Atomic check for sufficient funds
+                cur.execute(
+                    "UPDATE player_wallets SET balance = balance + ? WHERE discord_id = ? AND balance + ? >= 0",
+                    (amount, discord_id, amount),
+                )
+                if cur.rowcount == 0:
+                    return False
+            else:
+                # Addition: Insert new or update existing
+                cur.execute(
+                    """
+                    INSERT INTO player_wallets (discord_id, balance)
+                    VALUES (?, ?)
+                    ON CONFLICT(discord_id) DO UPDATE SET balance = balance + excluded.balance
+                    """,
+                    (discord_id, amount),
+                )
             con.commit()
         return True
     except Exception as e:
@@ -754,27 +764,15 @@ def prepare_withdrawal_transaction(
         with sqlite3.connect(global_db_path) as con:
             cur = con.cursor()
 
-            # 1. Check Balance
+            # 1. Atomic Deduction and Balance Check
             cur.execute(
-                "SELECT balance FROM player_wallets WHERE discord_id = ?", (discord_id,)
+                "UPDATE player_wallets SET balance = balance - ? WHERE discord_id = ? AND balance >= ?",
+                (amount, discord_id, amount),
             )
-            row = cur.fetchone()
-            current_balance = row[0] if row else 0
-
-            if current_balance < amount:
+            if cur.rowcount == 0:
                 return None
 
-            # 2. Deduct Funds
-            # We use an UPDATE here because we know the user exists (balance check succeeded)
-            # But strictly speaking, if they had 0 balance and row was None, current_balance is 0.
-            # If amount > 0, it returns None.
-            # If they exist, we update.
-            cur.execute(
-                "UPDATE player_wallets SET balance = balance - ? WHERE discord_id = ?",
-                (amount, discord_id),
-            )
-
-            # 3. Create Transaction Record
+            # 2. Create Transaction Record
             cur.execute(
                 """
                 INSERT INTO withdraw_transactions (discord_id, amount, char_name, server_name, status)
@@ -806,6 +804,68 @@ def complete_withdrawal_transaction(
     except Exception as e:
         logging.error(f"Failed to complete withdrawal transaction {tx_id}: {e}")
         return False
+
+
+def execute_marketplace_purchase(
+    buyer_id: int, listing_id: int, global_db_path: str = GLOBAL_DB_PATH
+) -> tuple[Optional[dict], Optional[str]]:
+    """
+    Atomically processes a marketplace purchase:
+    1. Checks if listing is active.
+    2. Checks if buyer has enough balance.
+    3. Deducts from buyer.
+    4. Adds to seller.
+    5. Marks listing as sold.
+    Returns (listing_data, error_message).
+    """
+    try:
+        with sqlite3.connect(global_db_path) as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+
+            # 1. Fetch listing and check if active
+            cur.execute(
+                "SELECT * FROM market_listings WHERE id = ? AND status = 'active'",
+                (listing_id,),
+            )
+            listing = cur.fetchone()
+            if not listing:
+                return None, "Listing not found or already sold."
+
+            price = listing["price"]
+            seller_id = listing["seller_discord_id"]
+
+            if int(seller_id) == int(buyer_id):
+                return None, "You cannot buy your own listing."
+
+            # 2. Atomic Balance Deduction (Buyer)
+            cur.execute(
+                "UPDATE player_wallets SET balance = balance - ? WHERE discord_id = ? AND balance >= ?",
+                (price, buyer_id, price),
+            )
+            if cur.rowcount == 0:
+                return None, "Insufficient funds."
+
+            # 3. Balance Addition (Seller)
+            cur.execute(
+                """
+                INSERT INTO player_wallets (discord_id, balance)
+                VALUES (?, ?)
+                ON CONFLICT(discord_id) DO UPDATE SET balance = balance + excluded.balance
+                """,
+                (seller_id, price),
+            )
+
+            # 4. Mark listing as sold
+            cur.execute(
+                "UPDATE market_listings SET status = 'sold' WHERE id = ?", (listing_id,)
+            )
+
+            con.commit()
+            return dict(listing), None
+    except Exception as e:
+        logging.error(f"Failed to execute marketplace purchase: {e}")
+        return None, "Internal database error."
 
 
 def log_market_action(
