@@ -110,6 +110,9 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         self.log_action_patcher = patch("cogs.marketplace.log_market_action")
         self.mock_log_action = self.log_action_patcher.start()
 
+        self.exec_purchase_patcher = patch("cogs.marketplace.execute_marketplace_purchase")
+        self.mock_exec_purchase = self.exec_purchase_patcher.start()
+
         # Patch aiosqlite
         self.aiosqlite_patcher = patch("aiosqlite.connect")
         self.mock_aiosqlite = self.aiosqlite_patcher.start()
@@ -139,6 +142,7 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         self.prepare_tx_patcher.stop()
         self.complete_tx_patcher.stop()
         self.log_action_patcher.stop()
+        self.exec_purchase_patcher.stop()
         self.aiosqlite_patcher.stop()
 
     async def test_handle_withdraw_success(self):
@@ -226,29 +230,44 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         server_cursor.fetchone.side_effect = [None]  # Stacking check
         server_cursor.fetchall.side_effect = [[], [(100, 0, 500)]]  # Before  # After
 
+        # Mock successful purchase transaction
+        self.mock_exec_purchase.return_value = (listing, None)
+
         await self.market_cog._handle_buy("TestPlayer", listing_id, SERVER_CONF)
 
         # Verifications
 
-        # 1. Balance Updated
-        self.mock_update_balance.assert_any_call(12345, -500)  # Buyer
-        self.mock_update_balance.assert_any_call(67890, 500)  # Seller
+        # 1. Purchase Executed
+        self.mock_exec_purchase.assert_called_with(12345, listing_id)
 
-        calls = self.mock_status_cog.execute_safe_command.call_args_list
+        # 2. Spawn Command (Single Call)
+        # Check that SpawnItem was called via execute_safe_command
+        # We need to find the call that has SpawnItem
         spawn_found = False
-        int_found = False
-        float_found = False
-
-        for call in calls:
+        for call in self.mock_status_cog.execute_safe_command.call_args_list:
             cmd_lambda = call[0][2]
             cmd = cmd_lambda("5")
             if "SpawnItem 500 1" in cmd:
                 spawn_found = True
+                break
+        self.assertTrue(spawn_found, "Spawn command not sent via execute_safe_command")
+
+        # 3. DNA Injection (Batch Call)
+        self.mock_status_cog.execute_safe_batch.assert_called()
+        # Verify templates in batch
+        batch_args = self.mock_status_cog.execute_safe_batch.call_args
+        self.assertEqual(batch_args[0][0], SERVER_NAME)
+        self.assertEqual(batch_args[0][1], "TestPlayer")
+        templates = batch_args[0][2]
+
+        int_found = False
+        float_found = False
+        for tmpl in templates:
+            cmd = tmpl("5")
             if "SetInventoryItemIntStat 100 10 50 0" in cmd:
                 int_found = True
             if "SetInventoryItemFloatStat 100 20 1.5 0" in cmd:
                 float_found = True
 
-        self.assertTrue(spawn_found, "Spawn command not sent")
-        self.assertTrue(int_found, "DNA Int injection not sent")
-        self.assertTrue(float_found, "DNA Float injection not sent")
+        self.assertTrue(int_found, "DNA Int injection not in batch")
+        self.assertTrue(float_found, "DNA Float injection not in batch")

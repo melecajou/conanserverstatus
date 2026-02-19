@@ -230,6 +230,97 @@ class StatusCog(commands.Cog, name="Status"):
             f"Failed to safe-execute command for {char_name} after {max_loop_retries} loops."
         )
 
+    async def execute_safe_batch(
+        self,
+        server_name: str,
+        char_name: str,
+        command_templates: List[Callable[[str], str]],
+    ) -> List[Tuple[str, str]]:
+        """
+        Safely executes a batch of commands for a specific player.
+        It fetches the player list once, finds the index, and executes all commands.
+        If any command fails, the entire batch is retried (with a fresh index resolution).
+
+        Args:
+            server_name: The server to execute on.
+            char_name: The character name to find.
+            command_templates: A list of functions that take the index (str) and return the full RCON command string.
+        """
+        max_loop_retries = 3
+
+        for attempt in range(max_loop_retries):
+            # 1. Get Player List
+            try:
+                response, _ = await self.get_player_list(
+                    server_name, use_cache=(attempt == 0)
+                )
+            except Exception as e:
+                logging.warning(
+                    f"Safe batch execution failed at ListPlayers step for {char_name}: {e}"
+                )
+                if attempt < max_loop_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+                raise e
+
+            # 2. Find Index
+            idx = None
+            try:
+                lines = response.split("\n")
+                for line in lines:
+                    parts = line.split("|")
+                    if len(parts) > 4:
+                        if parts[1].strip() == char_name:
+                            idx = parts[0].strip()
+                            break
+            except Exception as e:
+                logging.warning(f"Error parsing player list for {char_name}: {e}")
+                pass
+
+            if not idx:
+                # If we can't find the player, retry. Maybe list was partial or empty.
+                if attempt < max_loop_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+                raise ValueError(
+                    f"Player {char_name} not found online on {server_name} during batch execution."
+                )
+
+            # 3. Execute Commands
+            results = []
+            try:
+                for i, tmpl in enumerate(command_templates):
+                    full_command = tmpl(idx)
+                    self._validate_rcon_command(full_command)
+
+                    # Execute with NO retries, so we catch failures immediately and retry the WHOLE batch
+                    # This is crucial if the index becomes stale during the batch.
+                    res = await self._execute_raw_rcon(
+                        server_name, full_command, max_retries=0
+                    )
+                    results.append(res)
+
+                # If all succeeded, return results
+                return results
+
+            except (
+                struct.error,
+                RCONConnectionError,
+                IncorrectPasswordError,
+                asyncio.TimeoutError,
+            ) as e:
+                logging.warning(
+                    f"Safe batch execution attempt {attempt + 1} failed at command {len(results)+1}/{len(command_templates)} for {char_name} (idx {idx}): {e}. Retrying full batch."
+                )
+                if attempt < max_loop_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+                raise e
+
+        raise RCONConnectionError(
+            f"Failed to safe-execute batch for {char_name} after {max_loop_retries} loops."
+        )
+
     @tasks.loop(minutes=1)
     async def update_all_statuses_task(self):
         """
