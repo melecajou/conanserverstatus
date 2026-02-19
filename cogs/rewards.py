@@ -62,17 +62,20 @@ class RewardsCog(commands.Cog, name="Rewards"):
             server_name: The name of the server.
             online_players: A list of dictionaries representing the online players.
         """
+        data = [(p["platform_id"], server_name, 1) for p in online_players]
+        if not data:
+            return
+
         async with db.cursor() as cur:
-            for player in online_players:
-                platform_id = player["platform_id"]
-                await cur.execute(
-                    "INSERT OR IGNORE INTO player_time (platform_id, server_name) VALUES (?, ?)",
-                    (platform_id, server_name),
-                )
-                await cur.execute(
-                    "UPDATE player_time SET online_minutes = online_minutes + 1 WHERE platform_id = ? AND server_name = ?",
-                    (platform_id, server_name),
-                )
+            await cur.executemany(
+                """
+                INSERT INTO player_time (platform_id, server_name, online_minutes)
+                VALUES (?, ?, ?)
+                ON CONFLICT(platform_id, server_name)
+                DO UPDATE SET online_minutes = online_minutes + 1
+                """,
+                data,
+            )
         await db.commit()
 
     async def _issue_reward(
