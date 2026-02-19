@@ -11,6 +11,7 @@ import os
 import config
 from bot import pending_registrations
 from utils.database import link_discord_to_character, link_discord_to_platform
+from utils.log_watcher import LogWatcher
 
 # Constants
 REGISTRATION_EXPIRY_MINUTES = 10
@@ -25,8 +26,8 @@ class RegistrationCog(commands.Cog, name="Registration"):
 
     def __init__(self, bot):
         self.bot = bot
-        # Cursor storage: {server_name: file_position}
-        self.log_cursors = {}
+        # Watcher storage: {server_name: LogWatcher}
+        self.log_watchers = {}
         self.process_registration_log_task.start()
 
     def cog_unload(self):
@@ -251,33 +252,16 @@ class RegistrationCog(commands.Cog, name="Registration"):
             return
 
         try:
-            current_size = os.path.getsize(log_path)
-            last_pos = self.log_cursors.get(server_name, 0)
+            if server_name not in self.log_watchers:
+                self.log_watchers[server_name] = LogWatcher(log_path)
 
-            # First run: start at the end
-            if server_name not in self.log_cursors:
-                self.log_cursors[server_name] = current_size
-                return
+            watcher = self.log_watchers[server_name]
+            lines = await watcher.read_new_lines()
 
-            if current_size < last_pos:
-                last_pos = 0  # Rotated
-
-            if current_size == last_pos:
-                return  # No new data
-
-            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                f.seek(last_pos)
-                new_content = f.read()
-                self.log_cursors[server_name] = f.tell()
-
-                if not new_content:
-                    return
-
-                lines = new_content.splitlines()
-                for line in lines:
-                    await self._process_log_line(
-                        line, game_db_path, player_db_path, server_name
-                    )
+            for line in lines:
+                await self._process_log_line(
+                    line, game_db_path, player_db_path, server_name
+                )
         except Exception as e:
             logging.error(
                 f"Error processing registration log for server {server_name}: {e}"
