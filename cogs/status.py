@@ -6,6 +6,7 @@ import re
 import struct
 import json
 import os
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple, Callable
 
@@ -37,6 +38,11 @@ class StatusCog(commands.Cog, name="Status"):
         self.level_cache: Dict[str, int] = (
             {}
         )  # Cache for player levels {char_name: level}
+
+        # Cache for player lists to reduce RCON load
+        # {server_name: (timestamp, response_str)}
+        self._player_list_cache: Dict[str, Tuple[float, str]] = {}
+        self.PLAYER_LIST_CACHE_TTL = 2.0  # seconds
 
         self.watchers: Dict[str, LogWatcher] = {}
         self.server_stats: Dict[str, Dict[str, str]] = {}
@@ -125,11 +131,25 @@ class StatusCog(commands.Cog, name="Status"):
             f"Failed to execute RCON command after {max_retries} retries."
         )
 
-    async def get_player_list(self, server_name: str) -> Tuple[str, str]:
+    async def get_player_list(
+        self, server_name: str, use_cache: bool = False
+    ) -> Tuple[str, str]:
         """
         Safe method to retrieve the player list from a server.
         """
-        return await self._execute_raw_rcon(server_name, "ListPlayers")
+        if use_cache:
+            entry = self._player_list_cache.get(server_name)
+            if entry:
+                timestamp, cached_resp = entry
+                if time.time() - timestamp < self.PLAYER_LIST_CACHE_TTL:
+                    return cached_resp, ""
+
+        resp = await self._execute_raw_rcon(server_name, "ListPlayers")
+        # resp is typically (response_str, request_id)
+        # We only cache the response string
+        if resp and len(resp) > 0:
+            self._player_list_cache[server_name] = (time.time(), resp[0])
+        return resp
 
     async def execute_safe_command(
         self, server_name: str, char_name: str, command_template: Callable[[str], str]
@@ -148,8 +168,11 @@ class StatusCog(commands.Cog, name="Status"):
 
         for attempt in range(max_loop_retries):
             # 1. Get Player List (this internally retries connection errors)
+            # Try cache on first attempt
             try:
-                response, _ = await self.get_player_list(server_name)
+                response, _ = await self.get_player_list(
+                    server_name, use_cache=(attempt == 0)
+                )
             except Exception as e:
                 logging.warning(
                     f"Safe execution failed at ListPlayers step for {char_name}: {e}"

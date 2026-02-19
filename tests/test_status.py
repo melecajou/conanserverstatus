@@ -189,3 +189,39 @@ class TestStatusCog(IsolatedAsyncioTestCase):
             with open(test_path, "r", encoding="utf-8") as f:
                 content = json.load(f)
             self.assertEqual(content, test_data)
+
+    async def test_get_player_list_caching(self):
+        """Test that get_player_list caches the response."""
+        # Setup mock for _execute_raw_rcon
+        self.status_cog._execute_raw_rcon = AsyncMock(return_value=("List1", None))
+
+        # 1. First call: Cache miss
+        with patch("time.time", return_value=1000):
+            resp1, _ = await self.status_cog.get_player_list(SERVER_NAME, use_cache=True)
+            self.assertEqual(resp1, "List1")
+            self.status_cog._execute_raw_rcon.assert_called_once()
+
+            # 2. Second call: Cache hit (within TTL)
+            # Reset mock to verify it's NOT called
+            self.status_cog._execute_raw_rcon.reset_mock()
+            resp2, _ = await self.status_cog.get_player_list(SERVER_NAME, use_cache=True)
+            self.assertEqual(resp2, "List1")
+            self.status_cog._execute_raw_rcon.assert_not_called()
+
+        # 3. Third call: Cache expired (TTL is 2s)
+        with patch("time.time", return_value=1003):
+            self.status_cog._execute_raw_rcon.reset_mock()
+            self.status_cog._execute_raw_rcon.return_value = ("List2", None)
+
+            resp3, _ = await self.status_cog.get_player_list(SERVER_NAME, use_cache=True)
+            self.assertEqual(resp3, "List2")
+            self.status_cog._execute_raw_rcon.assert_called_once()
+
+        # 4. Fourth call: Force refresh (use_cache=False)
+        with patch("time.time", return_value=1004):
+            self.status_cog._execute_raw_rcon.reset_mock()
+            self.status_cog._execute_raw_rcon.return_value = ("List3", None)
+
+            resp4, _ = await self.status_cog.get_player_list(SERVER_NAME, use_cache=False)
+            self.assertEqual(resp4, "List3")
+            self.status_cog._execute_raw_rcon.assert_called_once()
