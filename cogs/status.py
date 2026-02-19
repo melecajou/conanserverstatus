@@ -4,6 +4,9 @@ import discord
 import logging
 import re
 import struct
+import json
+import os
+from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple, Callable
 
 from aiomcrcon import Client, RCONConnectionError, IncorrectPasswordError
@@ -17,7 +20,6 @@ from utils.database import (
 )
 from utils.log_parser import parse_log_lines
 from utils.log_watcher import LogWatcher
-
 
 # Banned characters for RCON commands to prevent injection: Newlines, Semicolons, Pipes
 BANNED_RCON_CHARS_PATTERN = re.compile(r"[\n\r;|]")
@@ -182,7 +184,9 @@ class StatusCog(commands.Cog, name="Status"):
                 # We disable internal retries for this specific call because if it fails,
                 # we want to restart the whole loop (re-fetch index) rather than just retry the command
                 # with a potentially stale index.
-                return await self._execute_raw_rcon(server_name, full_command, max_retries=0)
+                return await self._execute_raw_rcon(
+                    server_name, full_command, max_retries=0
+                )
             except (
                 struct.error,
                 RCONConnectionError,
@@ -415,12 +419,14 @@ class StatusCog(commands.Cog, name="Status"):
             if channel.id in self.status_messages:
                 del self.status_messages[channel.id]
 
+    @staticmethod
+    def _write_json_file(path: str, data: dict):
+        """Helper method to write JSON data to a file synchronously."""
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+
     async def _export_status_json(self, cluster_data, server_statuses):
         """Exports the current cluster status to a JSON file for web usage."""
-        import json
-        import os
-        from datetime import datetime
-
         export_data = {
             "last_updated": datetime.now().isoformat(),
             "total_players": sum(len(s["online_players"]) for s in cluster_data),
@@ -463,8 +469,7 @@ class StatusCog(commands.Cog, name="Status"):
         os.makedirs("output", exist_ok=True)
 
         try:
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(export_data, f, indent=4, ensure_ascii=False)
+            await asyncio.to_thread(self._write_json_file, output_path, export_data)
         except Exception as e:
             logging.error(f"Failed to export status.json: {e}")
 

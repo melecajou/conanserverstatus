@@ -77,7 +77,9 @@ class TestStatusCog(IsolatedAsyncioTestCase):
         self.mock_client.connect.side_effect = RCONConnectionError("Fail")
 
         with self.assertRaises(RCONConnectionError):
-            await self.status_cog._execute_raw_rcon(SERVER_NAME, "status", max_retries=2)
+            await self.status_cog._execute_raw_rcon(
+                SERVER_NAME, "status", max_retries=2
+            )
 
         self.assertEqual(self.mock_client.connect.call_count, 3)  # Initial + 2 retries
 
@@ -144,3 +146,46 @@ class TestStatusCog(IsolatedAsyncioTestCase):
             await self.status_cog.execute_safe_command(
                 SERVER_NAME, "TestPlayer", lambda idx: f"kick {idx}"
             )
+
+    async def test_export_status_json(self):
+        """Test the _export_status_json method logic."""
+        cluster_data = [
+            {
+                "name": "Test Server",
+                "alias": "Test",
+                "online_players": [{"char_name": "Player1", "platform_id": "Pid1"}],
+                "levels_map": {"Player1": 60},
+                "player_data_map": {"Pid1": {"online_minutes": 100}},
+                "system_stats": {},
+            }
+        ]
+        server_statuses = [{"alias": "Test", "online": True, "fps": "60"}]
+
+        # Mock _write_json_file on the instance to verify it's called
+        self.status_cog._write_json_file = MagicMock()
+
+        await self.status_cog._export_status_json(cluster_data, server_statuses)
+
+        self.status_cog._write_json_file.assert_called_once()
+        args, _ = self.status_cog._write_json_file.call_args
+        # Normalize path separators for cross-platform compatibility
+        self.assertIn("output/status.json", args[0].replace("\\", "/"))
+        self.assertEqual(args[1]["servers"][0]["name"], "Test Server")
+
+    def test_write_json_file(self):
+        """Test the static _write_json_file method."""
+        import json
+        import os
+        import tempfile
+
+        test_data = {"test": "data", "nested": [1, 2, 3]}
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            test_path = os.path.join(tmpdirname, "test_output.json")
+
+            StatusCog._write_json_file(test_path, test_data)
+
+            self.assertTrue(os.path.exists(test_path))
+            with open(test_path, "r", encoding="utf-8") as f:
+                content = json.load(f)
+            self.assertEqual(content, test_data)
