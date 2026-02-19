@@ -148,14 +148,54 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             cur = con.cursor()
 
             spawns_db = getattr(config, "KILLFEED_SPAWNS_DB", "data/killfeed/spawns.db")
+            has_spawns = False
             if os.path.exists(spawns_db):
-                cur.execute(
-                    f"ATTACH DATABASE '{os.path.abspath(spawns_db)}' AS spawns_db;"
-                )
+                try:
+                    cur.execute(
+                        f"ATTACH DATABASE '{os.path.abspath(spawns_db)}' AS spawns_db;"
+                    )
+                    # Verifica se a tabela spawns existe no banco anexado
+                    cur.execute(
+                        "SELECT 1 FROM spawns_db.sqlite_master WHERE type='table' AND name='spawns'"
+                    )
+                    if cur.fetchone():
+                        has_spawns = True
+                except Exception as e:
+                    logging.error(f"Failed to attach or verify spawns_db: {e}")
 
-            query = f"SELECT ge.worldTime, ge.causerName, ge.ownerName, json_extract(ge.argsMap, '$.nonPersistentCauser') AS npc FROM game_events ge WHERE ge.worldTime > ? AND ge.eventType = {DEATH_EVENT_TYPE} ORDER BY ge.worldTime ASC"
+            if has_spawns:
+                query = f"""
+                    WITH events AS (
+                        SELECT
+                            worldTime,
+                            causerName,
+                            ownerName,
+                            json_extract(argsMap, '$.nonPersistentCauser') AS npc_id
+                        FROM game_events
+                        WHERE worldTime > ? AND eventType = {DEATH_EVENT_TYPE}
+                    )
+                    SELECT e.worldTime, e.causerName, e.ownerName, e.npc_id, s.Name
+                    FROM events e
+                    LEFT JOIN spawns_db.spawns s ON s.RowName = e.npc_id
+                    ORDER BY e.worldTime ASC
+                """
+            else:
+                query = f"""
+                    SELECT
+                        worldTime,
+                        causerName,
+                        ownerName,
+                        json_extract(argsMap, '$.nonPersistentCauser') AS npc_id,
+                        NULL as npc_name
+                    FROM game_events
+                    WHERE worldTime > ? AND eventType = {DEATH_EVENT_TYPE}
+                    ORDER BY worldTime ASC
+                """
 
-            for event_time, killer, victim, npc_id in cur.execute(query, (last_time,)):
+            # Fetch all results to avoid cursor reuse issues and improve safety
+            results = cur.execute(query, (last_time,)).fetchall()
+
+            for event_time, killer, victim, npc_id, npc_name_from_db in results:
                 if event_time > new_max_time:
                     new_max_time = event_time
 
@@ -179,18 +219,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                         killer=killer, victim=victim
                     )
                 elif victim:
-                    npc_name = self.bot._("the environment")
-                    if npc_id:
-                        try:
-                            # Tenta buscar o nome real do NPC no banco de spawns
-                            npc_row = cur.execute(
-                                "SELECT Name FROM spawns_db.spawns WHERE RowName = ?",
-                                (npc_id,),
-                            ).fetchone()
-                            if npc_row:
-                                npc_name = npc_row[0]
-                        except:
-                            pass
+                    npc_name = npc_name_from_db if npc_name_from_db else self.bot._("the environment")
                     message = self.bot._(
                         "☠️ **{victim}** was killed by **{npc}**!"
                     ).format(victim=victim, npc=npc_name)
