@@ -48,9 +48,16 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         self.bot = bot
         self._ = bot._
         self.watchers = {}
+        self.locks = {}
         # Blacklist IDs that should not be duplicated (Instance IDs)
         self.dna_blacklist = [22]
         self.process_logs_task.start()
+
+    def _get_lock(self, server_name, char_name):
+        key = (server_name, char_name)
+        if key not in self.locks:
+            self.locks[key] = asyncio.Lock()
+        return self.locks[key]
 
     def cog_unload(self):
         self.process_logs_task.cancel()
@@ -216,85 +223,86 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             return
 
         # 3. Prepare Transaction (Atomic Deduct + Log)
-        tx_id = await asyncio.to_thread(
-            prepare_withdrawal_transaction,
-            int(discord_id),
-            amount,
-            char_name,
-            server_name,
-        )
-
-        if tx_id is None:
-            # Re-fetch balance to be sure or just general error
-            try:
-                await user.send(
-                    self.bot._(
-                        "❌ Insufficient funds or database error. Transaction cancelled."
-                    )
-                )
-            except:
-                pass
-            return
-
-        # 4. Execute Transaction
-        try:
-            status_cog = self.bot.get_cog("Status")
-            if not status_cog:
-                raise Exception("Status Cog not loaded.")
-
-            # B. Spawn physical item
-            print(f"MARKET: Withdrawal of {amount} for {char_name} (TX ID: {tx_id})")
-
-            # This can raise exception (RCON fail)
-            await status_cog.execute_safe_command(
-                server_name,
-                char_name,
-                lambda idx: f"con {idx} SpawnItem {currency_id} {amount}",
-            )
-
-            # 5. Complete Transaction
-            await asyncio.to_thread(
-                complete_withdrawal_transaction, tx_id, "COMPLETED"
-            )
-
-            await asyncio.to_thread(
-                log_market_action,
+        async with self._get_lock(server_name, char_name):
+            tx_id = await asyncio.to_thread(
+                prepare_withdrawal_transaction,
                 int(discord_id),
-                "WITHDRAW",
-                f"Withdrew {amount} of virtual currency to physical item (TX {tx_id}).",
-            )
-            new_balance = await asyncio.to_thread(get_player_balance, int(discord_id))
-            await user.send(
-                self.bot._(
-                    "✅ **Withdrawal Successful!**\n📤 **Amount:** {qty}\n💰 **Remaining Balance:** {balance} {currency}"
-                ).format(
-                    qty=amount,
-                    balance=new_balance,
-                    currency=config.MARKETPLACE["CURRENCY_NAME"],
-                )
-            )
-            logging.info(
-                f"MARKET: {char_name} withdrew {amount} coins (TX {tx_id})."
+                amount,
+                char_name,
+                server_name,
             )
 
-        except Exception as e:
-            # 6. Handle Failure (Critical - No Auto Refund)
-            logging.critical(
-                f"CRITICAL: Withdrawal Transaction #{tx_id} for {char_name} (Discord: {discord_id}) failed during RCON. ERROR: {e}"
-            )
-            await asyncio.to_thread(
-                complete_withdrawal_transaction, tx_id, "ERROR_REVIEW"
-            )
+            if tx_id is None:
+                # Re-fetch balance to be sure or just general error
+                try:
+                    await user.send(
+                        self.bot._(
+                            "❌ Insufficient funds or database error. Transaction cancelled."
+                        )
+                    )
+                except:
+                    pass
+                return
+
+            # 4. Execute Transaction
             try:
+                status_cog = self.bot.get_cog("Status")
+                if not status_cog:
+                    raise Exception("Status Cog not loaded.")
+
+                # B. Spawn physical item
+                print(f"MARKET: Withdrawal of {amount} for {char_name} (TX ID: {tx_id})")
+
+                # This can raise exception (RCON fail)
+                await status_cog.execute_safe_command(
+                    server_name,
+                    char_name,
+                    lambda idx: f"con {idx} SpawnItem {currency_id} {amount}",
+                )
+
+                # 5. Complete Transaction
+                await asyncio.to_thread(
+                    complete_withdrawal_transaction, tx_id, "COMPLETED"
+                )
+
+                await asyncio.to_thread(
+                    log_market_action,
+                    int(discord_id),
+                    "WITHDRAW",
+                    f"Withdrew {amount} of virtual currency to physical item (TX {tx_id}).",
+                )
+                new_balance = await asyncio.to_thread(get_player_balance, int(discord_id))
                 await user.send(
                     self.bot._(
-                        "⚠️ **Transaction Pending Review:** An error occurred during item delivery. "
-                        "Your funds have been deducted, but the system could not confirm delivery. "
-                        "An admin has been alerted to manually verify and process this. **DO NOT PANIC.**"
+                        "✅ **Withdrawal Successful!**\n📤 **Amount:** {qty}\n💰 **Remaining Balance:** {balance} {currency}"
+                    ).format(
+                        qty=amount,
+                        balance=new_balance,
+                        currency=config.MARKETPLACE["CURRENCY_NAME"],
                     )
                 )
-            except:
-                pass
+                logging.info(
+                    f"MARKET: {char_name} withdrew {amount} coins (TX {tx_id})."
+                )
+
+            except Exception as e:
+                # 6. Handle Failure (Critical - No Auto Refund)
+                logging.critical(
+                    f"CRITICAL: Withdrawal Transaction #{tx_id} for {char_name} (Discord: {discord_id}) failed during RCON. ERROR: {e}"
+                )
+                await asyncio.to_thread(
+                    complete_withdrawal_transaction, tx_id, "ERROR_REVIEW"
+                )
+                try:
+                    await user.send(
+                        self.bot._(
+                            "⚠️ **Transaction Pending Review:** An error occurred during item delivery. "
+                            "Your funds have been deducted, but the system could not confirm delivery. "
+                            "An admin has been alerted to manually verify and process this. **DO NOT PANIC.**"
+                        )
+                    )
+                except:
+                    pass
 
     async def _handle_balance(self, char_name, server_conf):
         """Sends current virtual balance to player via DM."""
@@ -364,206 +372,207 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if not user:
             return
 
-        # 2. Check for existing items to avoid stacking issues (Pre-check)
-        try:
-            template_id_query = None
-            async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
-                async with con.execute(
-                    "SELECT item_template_id FROM market_listings WHERE id = ? AND status = 'active'",
-                    (listing_id,),
-                ) as cur:
-                    row = await cur.fetchone()
-                    if row:
-                        template_id_query = row[0]
-
-            if template_id_query:
-                char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
-                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                    # Check Backpack (0) and Hotbar (2). Stacking doesn't happen with Equipped (1).
-                    async with con.execute(
-                        "SELECT 1 FROM item_inventory WHERE owner_id=? AND template_id=? AND inv_type IN (0, 2)",
-                        (char_id, template_id_query),
-                    ) as cursor:
-                        exists = await cursor.fetchone()
-
-                if exists:
-                    try:
-                        await user.send(
-                            self.bot._(
-                                "❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery."
-                            ).format(tid=template_id_query)
-                        )
-                    except:
-                        pass
-                    return
-        except Exception as e:
-            logging.error(f"Error checking existing items for {char_name}: {e}")
-
-        # 3. Atomic Transaction: Process Purchase
-        listing, error_msg = await asyncio.to_thread(
-            execute_marketplace_purchase, int(discord_id), listing_id
-        )
-
-        if not listing:
+        # 2. Check for existing items to avoid stacking issues (Pre-check) and Lock
+        async with self._get_lock(server_name, char_name):
             try:
-                await user.send(self.bot._("❌ Error: {msg}").format(msg=error_msg))
-            except:
-                pass
-            return
-
-        price = listing["price"]
-        seller_discord_id = listing["seller_discord_id"]
-        template_id = listing["item_template_id"]
-        dna = json.loads(listing["item_dna"])
-
-        # 4. Deliver Item (RCON)
-        try:
-            status_cog = self.bot.get_cog("Status")
-            if not status_cog:
-                raise Exception("Status Cog not found.")
-
-            # C. Spawn Item (RCON)
-            # Capture inventory state BEFORE spawn (with quantities)
-            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                char_id = await asyncio.to_thread(
-                    get_char_id_by_name, db_path, char_name
-                )
-                # We store a dict: {(item_id, inv_type): data_blob_or_quantity}
-                async with con.execute(
-                    "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=?",
-                    (char_id,),
-                ) as cur:
-                    rows = await cur.fetchall()
-                    before_items = {(row[0], row[1]): row[2] for row in rows}
-
-            print(f"MARKET: Spawning item {template_id} for buyer {char_name}")
-
-            try:
-                await status_cog.execute_safe_command(
-                    server_name,
-                    char_name,
-                    lambda idx: f"con {idx} SpawnItem {template_id} 1",
-                )
-            except Exception as e:
-                # Refund Logic
-                logging.warning(
-                    f"MARKET: Spawn failed for {char_name}, refunding. Error: {e}"
-                )
-                await asyncio.to_thread(update_player_balance, int(discord_id), price)
-                await asyncio.to_thread(
-                    update_player_balance, seller_discord_id, -price
-                )
+                template_id_query = None
                 async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
-                    await con.execute(
-                        "UPDATE market_listings SET status = 'active' WHERE id = ?",
+                    async with con.execute(
+                        "SELECT item_template_id FROM market_listings WHERE id = ? AND status = 'active'",
                         (listing_id,),
-                    )
-                    await con.commit()
-                await user.send(
-                    self.bot._("❌ You logged out! Purchase canceled and refunded.")
-                )
+                    ) as cur:
+                        row = await cur.fetchone()
+                        if row:
+                            template_id_query = row[0]
+
+                if template_id_query:
+                    char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+                    async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                        # Check Backpack (0) and Hotbar (2). Stacking doesn't happen with Equipped (1).
+                        async with con.execute(
+                            "SELECT 1 FROM item_inventory WHERE owner_id=? AND template_id=? AND inv_type IN (0, 2)",
+                            (char_id, template_id_query),
+                        ) as cursor:
+                            exists = await cursor.fetchone()
+
+                    if exists:
+                        try:
+                            await user.send(
+                                self.bot._(
+                                    "❌ **Stacking Alert:** You already have item ID {tid} in your inventory. Please store it in a chest before buying to ensure a clean delivery."
+                                ).format(tid=template_id_query)
+                            )
+                        except:
+                            pass
+                        return
+            except Exception as e:
+                logging.error(f"Error checking existing items for {char_name}: {e}")
+
+            # 3. Atomic Transaction: Process Purchase
+            listing, error_msg = await asyncio.to_thread(
+                execute_marketplace_purchase, int(discord_id), listing_id
+            )
+
+            if not listing:
+                try:
+                    await user.send(self.bot._("❌ Error: {msg}").format(msg=error_msg))
+                except:
+                    pass
                 return
 
-            # D. Find New Item and Inject DNA (with retries)
-            new_item_found = None  # (slot, inv_type)
-            for attempt in range(4):  # Try up to 4 times
-                await asyncio.sleep(6 if attempt == 0 else 4)
+            price = listing["price"]
+            seller_discord_id = listing["seller_discord_id"]
+            template_id = listing["item_template_id"]
+            dna = json.loads(listing["item_dna"])
 
-                async with aiosqlite.connect(
-                    f"file:{db_path}?mode=ro", uri=True
-                ) as con:
+            # 4. Deliver Item (RCON)
+            try:
+                status_cog = self.bot.get_cog("Status")
+                if not status_cog:
+                    raise Exception("Status Cog not found.")
+
+                # C. Spawn Item (RCON)
+                # Capture inventory state BEFORE spawn (with quantities)
+                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    char_id = await asyncio.to_thread(
+                        get_char_id_by_name, db_path, char_name
+                    )
+                    # We store a dict: {(item_id, inv_type): data_blob_or_quantity}
                     async with con.execute(
-                        "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=? AND template_id=?",
-                        (char_id, template_id),
+                        "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=?",
+                        (char_id,),
                     ) as cur:
-                        after_rows = await cur.fetchall()
+                        rows = await cur.fetchall()
+                        before_items = {(row[0], row[1]): row[2] for row in rows}
 
-                # Check for a completely new slot first
-                for row in after_rows:
-                    key = (row[0], row[1])
-                    if key not in before_items:
-                        new_item_found = key
-                        break
+                print(f"MARKET: Spawning item {template_id} for buyer {char_name}")
 
-                if new_item_found:
-                    break
+                try:
+                    await status_cog.execute_safe_command(
+                        server_name,
+                        char_name,
+                        lambda idx: f"con {idx} SpawnItem {template_id} 1",
+                    )
+                except Exception as e:
+                    # Refund Logic
+                    logging.warning(
+                        f"MARKET: Spawn failed for {char_name}, refunding. Error: {e}"
+                    )
+                    await asyncio.to_thread(update_player_balance, int(discord_id), price)
+                    await asyncio.to_thread(
+                        update_player_balance, seller_discord_id, -price
+                    )
+                    async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
+                        await con.execute(
+                            "UPDATE market_listings SET status = 'active' WHERE id = ?",
+                            (listing_id,),
+                        )
+                        await con.commit()
+                    await user.send(
+                        self.bot._("❌ You logged out! Purchase canceled and refunded.")
+                    )
+                    return
 
-                # If no new slot, check if an existing slot of the same template was updated
-                if not new_item_found:
+                # D. Find New Item and Inject DNA (with retries)
+                new_item_found = None  # (slot, inv_type)
+                for attempt in range(4):  # Try up to 4 times
+                    await asyncio.sleep(6 if attempt == 0 else 4)
+
+                    async with aiosqlite.connect(
+                        f"file:{db_path}?mode=ro", uri=True
+                    ) as con:
+                        async with con.execute(
+                            "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=? AND template_id=?",
+                            (char_id, template_id),
+                        ) as cur:
+                            after_rows = await cur.fetchall()
+
+                    # Check for a completely new slot first
                     for row in after_rows:
                         key = (row[0], row[1])
-                        new_item_found = key
+                        if key not in before_items:
+                            new_item_found = key
+                            break
+
+                    if new_item_found:
                         break
 
-                if new_item_found:
-                    break
-                print(
-                    f"MARKET: Attempt {attempt+1} to find spawned item {template_id} failed. Retrying..."
-                )
+                    # If no new slot, check if an existing slot of the same template was updated
+                    if not new_item_found:
+                        for row in after_rows:
+                            key = (row[0], row[1])
+                            new_item_found = key
+                            break
 
-            if new_item_found:
-                new_slot, inv_type = new_item_found
-                print(f"MARKET: Injecting DNA into Slot {new_slot} ({inv_type})")
-
-                # Use execute_safe_command for EACH injection property to ensures safety
-                try:
-                    for p_id, v in dna.get("int", {}).items():
-                        await status_cog.execute_safe_command(
-                            server_name,
-                            char_name,
-                            lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}",
-                        )
-                    for p_id, v in dna.get("float", {}).items():
-                        await status_cog.execute_safe_command(
-                            server_name,
-                            char_name,
-                            lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemFloatStat {new_slot} {p_id} {v} {inv_type}",
-                        )
-                except Exception as e:
-                    logging.error(
-                        f"MARKET: DNA Injection partial fail for {char_name}: {e}"
+                    if new_item_found:
+                        break
+                    print(
+                        f"MARKET: Attempt {attempt+1} to find spawned item {template_id} failed. Retrying..."
                     )
-                    # We don't refund here because the item was spawned. We just warn.
+
+                if new_item_found:
+                    new_slot, inv_type = new_item_found
+                    print(f"MARKET: Injecting DNA into Slot {new_slot} ({inv_type})")
+
+                    # Use execute_safe_command for EACH injection property to ensures safety
+                    try:
+                        for p_id, v in dna.get("int", {}).items():
+                            await status_cog.execute_safe_command(
+                                server_name,
+                                char_name,
+                                lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}",
+                            )
+                        for p_id, v in dna.get("float", {}).items():
+                            await status_cog.execute_safe_command(
+                                server_name,
+                                char_name,
+                                lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemFloatStat {new_slot} {p_id} {v} {inv_type}",
+                            )
+                    except Exception as e:
+                        logging.error(
+                            f"MARKET: DNA Injection partial fail for {char_name}: {e}"
+                        )
+                        # We don't refund here because the item was spawned. We just warn.
+                        await user.send(
+                            self.bot._(
+                                "⚠️ Warning: Item spawned but some DNA properties might not have applied due to connection instability."
+                            )
+                        )
+
+                    await asyncio.to_thread(
+                        log_market_action,
+                        int(discord_id),
+                        "BUY",
+                        f"Bought listing #{listing_id} (Item {template_id}) from {seller_discord_id} for {price}",
+                    )
+                    logging.info(
+                        f"MARKET: {char_name} bought listing #{listing_id} (Item {template_id}) for {price}."
+                    )
                     await user.send(
                         self.bot._(
-                            "⚠️ Warning: Item spawned but some DNA properties might not have applied due to connection instability."
+                            "✅ **Purchase Complete!** Item delivered to your inventory. Please **relog** to see full artisan bonuses."
                         )
                     )
-
-                await asyncio.to_thread(
-                    log_market_action,
-                    int(discord_id),
-                    "BUY",
-                    f"Bought listing #{listing_id} (Item {template_id}) from {seller_discord_id} for {price}",
-                )
-                logging.info(
-                    f"MARKET: {char_name} bought listing #{listing_id} (Item {template_id}) for {price}."
-                )
-                await user.send(
-                    self.bot._(
-                        "✅ **Purchase Complete!** Item delivered to your inventory. Please **relog** to see full artisan bonuses."
+                else:
+                    logging.error(
+                        f"MARKET FAIL: Spawned item {template_id} but could not find it in DB for DNA injection."
                     )
-                )
-            else:
-                logging.error(
-                    f"MARKET FAIL: Spawned item {template_id} but could not find it in DB for DNA injection."
-                )
-                await user.send(
-                    self.bot._(
-                        "⚠️ Purchase successful, but item synchronization failed. Please contact an admin with Listing ID #{id}."
-                    ).format(id=listing_id)
-                )
+                    await user.send(
+                        self.bot._(
+                            "⚠️ Purchase successful, but item synchronization failed. Please contact an admin with Listing ID #{id}."
+                        ).format(id=listing_id)
+                    )
 
-        except Exception as e:
-            logging.error(
-                f"Critical error during purchase transaction for {char_name}: {e}"
-            )
-            try:
-                await user.send(
-                    "❌ A critical error occurred. Please contact an admin."
+            except Exception as e:
+                logging.error(
+                    f"Critical error during purchase transaction for {char_name}: {e}"
                 )
-            except:
-                pass
+                try:
+                    await user.send(
+                        "❌ A critical error occurred. Please contact an admin."
+                    )
+                except:
+                    pass
 
     async def _handle_sell(self, char_name, slot, price, server_conf):
         """Extracts item DNA, deletes it from game, and puts it in the market database."""
@@ -618,111 +627,112 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         await asyncio.sleep(sync_time)
 
         # 3. Read Database and Extract DNA
-        try:
-            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
-            if not char_id:
-                return
+        async with self._get_lock(server_name, char_name):
+            try:
+                char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+                if not char_id:
+                    return
 
-            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
-                async with con.execute(query, (char_id, slot)) as cursor:
-                    row = await cursor.fetchone()
+                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
+                    async with con.execute(query, (char_id, slot)) as cursor:
+                        row = await cursor.fetchone()
 
-            if not row:
-                await user.send(
-                    self.bot._("❌ Error: Item not found in slot {slot}.").format(
-                        slot=slot
+                if not row:
+                    await user.send(
+                        self.bot._("❌ Error: Item not found in slot {slot}.").format(
+                            slot=slot
+                        )
                     )
-                )
-                return
+                    return
 
-            template_id, blob_data = row
-            dna = {"int": {}, "float": {}}
+                template_id, blob_data = row
+                dna = {"int": {}, "float": {}}
 
-            if blob_data:
-                packed_id = struct.pack("<I", template_id)
-                offset = blob_data.find(packed_id)
-                if offset != -1:
-                    cursor = offset + 4
-                    # Ints
-                    prop_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                    cursor += 4
-                    for _ in range(prop_count):
-                        p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                        p_val = struct.unpack("<I", blob_data[cursor + 4 : cursor + 8])[
-                            0
-                        ]
-                        if p_id not in self.dna_blacklist:
-                            dna["int"][p_id] = p_val
-                        cursor += 8
-                    # Floats
-                    if cursor + 4 <= len(blob_data):
-                        f_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                if blob_data:
+                    packed_id = struct.pack("<I", template_id)
+                    offset = blob_data.find(packed_id)
+                    if offset != -1:
+                        cursor = offset + 4
+                        # Ints
+                        prop_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
                         cursor += 4
-                        for _ in range(f_count):
-                            p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[
+                        for _ in range(prop_count):
+                            p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                            p_val = struct.unpack("<I", blob_data[cursor + 4 : cursor + 8])[
                                 0
                             ]
-                            p_val = struct.unpack(
-                                "<f", blob_data[cursor + 4 : cursor + 8]
-                            )[0]
                             if p_id not in self.dna_blacklist:
-                                dna["float"][p_id] = p_val
+                                dna["int"][p_id] = p_val
                             cursor += 8
+                        # Floats
+                        if cursor + 4 <= len(blob_data):
+                            f_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                            cursor += 4
+                            for _ in range(f_count):
+                                p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[
+                                    0
+                                ]
+                                p_val = struct.unpack(
+                                    "<f", blob_data[cursor + 4 : cursor + 8]
+                                )[0]
+                                if p_id not in self.dna_blacklist:
+                                    dna["float"][p_id] = p_val
+                                cursor += 8
 
-            # 4. Remove item from game via RCON
-            status_cog = self.bot.get_cog("Status")
-            if not status_cog:
-                return
+                # 4. Remove item from game via RCON
+                status_cog = self.bot.get_cog("Status")
+                if not status_cog:
+                    return
 
-            # Using execute_safe_command
-            try:
-                await status_cog.execute_safe_command(
-                    server_name,
-                    char_name,
-                    lambda idx: f"con {idx} SetInventoryItemIntStat {slot} 1 0 0",
+                # Using execute_safe_command
+                try:
+                    await status_cog.execute_safe_command(
+                        server_name,
+                        char_name,
+                        lambda idx: f"con {idx} SetInventoryItemIntStat {slot} 1 0 0",
+                    )
+                except Exception as e:
+                    logging.error(f"Sell failed (RCON) for {char_name}: {e}")
+                    await user.send(self.bot._("❌ You must be online to sell items."))
+                    return
+
+                # 5. Save to Marketplace Database
+                dna_json = json.dumps(dna)
+                async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
+                    cursor = await con.execute(
+                        "INSERT INTO market_listings (seller_discord_id, item_template_id, item_dna, price) VALUES (?, ?, ?, ?)",
+                        (int(discord_id), template_id, dna_json, price),
+                    )
+                    listing_id = cursor.lastrowid
+                    await con.commit()
+
+                await asyncio.to_thread(
+                    log_market_action,
+                    int(discord_id),
+                    "SELL",
+                    f"Listed item {template_id} from slot {slot} for {price}. Listing ID: {listing_id}",
                 )
+
+                await user.send(
+                    self.bot._(
+                        "✅ **Item Listed!**\n🆔 **Listing ID:** {id}\n💰 **Price:** {price} {currency}\n📖 Type `!buy {id}` to purchase (other players)."
+                    ).format(
+                        id=listing_id,
+                        price=price,
+                        currency=config.MARKETPLACE["CURRENCY_NAME"],
+                    )
+                )
+                logging.info(
+                    f"MARKET: {char_name} listed item {template_id} for {price} (ID: {listing_id})"
+                )
+
             except Exception as e:
-                logging.error(f"Sell failed (RCON) for {char_name}: {e}")
-                await user.send(self.bot._("❌ You must be online to sell items."))
-                return
-
-            # 5. Save to Marketplace Database
-            dna_json = json.dumps(dna)
-            async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
-                cursor = await con.execute(
-                    "INSERT INTO market_listings (seller_discord_id, item_template_id, item_dna, price) VALUES (?, ?, ?, ?)",
-                    (int(discord_id), template_id, dna_json, price),
-                )
-                listing_id = cursor.lastrowid
-                await con.commit()
-
-            await asyncio.to_thread(
-                log_market_action,
-                int(discord_id),
-                "SELL",
-                f"Listed item {template_id} from slot {slot} for {price}. Listing ID: {listing_id}",
-            )
-
-            await user.send(
-                self.bot._(
-                    "✅ **Item Listed!**\n🆔 **Listing ID:** {id}\n💰 **Price:** {price} {currency}\n📖 Type `!buy {id}` to purchase (other players)."
-                ).format(
-                    id=listing_id,
-                    price=price,
-                    currency=config.MARKETPLACE["CURRENCY_NAME"],
-                )
-            )
-            logging.info(
-                f"MARKET: {char_name} listed item {template_id} for {price} (ID: {listing_id})"
-            )
-
-        except Exception as e:
-            logging.error(f"Critical error in sell for {char_name}: {e}")
-            try:
-                await user.send("❌ Internal error during listing.")
-            except:
-                pass
+                logging.error(f"Critical error in sell for {char_name}: {e}")
+                try:
+                    await user.send("❌ Internal error during listing.")
+                except:
+                    pass
 
     async def _handle_deposit(self, char_name, slot, server_conf):
         """Converts physical currency item in backpack to virtual balance."""
@@ -756,101 +766,102 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         await asyncio.sleep(sync_time)
 
         # 3. Read Database
-        try:
-            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
-            if not char_id:
-                return
-
-            async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                # Backpack only (inv_type 0)
-                query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
-                async with con.execute(query, (char_id, slot)) as cursor:
-                    row = await cursor.fetchone()
-
-            if not row:
-                await user.send(
-                    self.bot._("❌ Error: No item found in slot {slot}.").format(
-                        slot=slot
-                    )
-                )
-                return
-
-            template_id, blob_data = row
-            if template_id != currency_id:
-                await user.send(
-                    self.bot._(
-                        "❌ Error: Item in slot {slot} is not the accepted currency."
-                    ).format(slot=slot)
-                )
-                return
-
-            # 4. Extract Quantity
-            quantity = 1
-            if blob_data:
-                # Find quantity property (ID 1)
-                packed_id = struct.pack("<I", template_id)
-                offset = blob_data.find(packed_id)
-                if offset != -1:
-                    cursor = offset + 4
-                    prop_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                    cursor += 4
-                    for _ in range(prop_count):
-                        p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                        p_val = struct.unpack("<I", blob_data[cursor + 4 : cursor + 8])[
-                            0
-                        ]
-                        if p_id == 1:
-                            quantity = p_val
-                            break
-                        cursor += 8
-
-            # 5. Execute Transaction (RCON)
-            status_cog = self.bot.get_cog("Status")
-            if not status_cog:
-                return
-
-            # Using execute_safe_command
+        async with self._get_lock(server_name, char_name):
             try:
-                # A. Delete physical item (Quantity to 0)
-                await status_cog.execute_safe_command(
-                    server_name,
-                    char_name,
-                    lambda idx: f"con {idx} SetInventoryItemIntStat {slot} 1 0 0",
-                )
+                char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+                if not char_id:
+                    return
 
-                # B. Update Virtual Balance
-                if await asyncio.to_thread(
-                    update_player_balance, int(discord_id), quantity
-                ):
-                    await asyncio.to_thread(
-                        log_market_action,
-                        int(discord_id),
-                        "DEPOSIT",
-                        f"Deposited {quantity} of item {template_id} from slot {slot}",
-                    )
-                    new_balance = await asyncio.to_thread(
-                        get_player_balance, int(discord_id)
-                    )
+                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    # Backpack only (inv_type 0)
+                    query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
+                    async with con.execute(query, (char_id, slot)) as cursor:
+                        row = await cursor.fetchone()
+
+                if not row:
                     await user.send(
-                        self.bot._(
-                            "✅ **Deposit Successful!**\n📥 **Amount:** {qty}\n💰 **New Balance:** {balance} {currency}"
-                        ).format(
-                            qty=quantity,
-                            balance=new_balance,
-                            currency=config.MARKETPLACE["CURRENCY_NAME"],
+                        self.bot._("❌ Error: No item found in slot {slot}.").format(
+                            slot=slot
                         )
                     )
-                    logging.info(f"MARKET: {char_name} deposited {quantity} coins.")
-                else:
-                    await user.send("❌ Internal database error during deposit.")
+                    return
+
+                template_id, blob_data = row
+                if template_id != currency_id:
+                    await user.send(
+                        self.bot._(
+                            "❌ Error: Item in slot {slot} is not the accepted currency."
+                        ).format(slot=slot)
+                    )
+                    return
+
+                # 4. Extract Quantity
+                quantity = 1
+                if blob_data:
+                    # Find quantity property (ID 1)
+                    packed_id = struct.pack("<I", template_id)
+                    offset = blob_data.find(packed_id)
+                    if offset != -1:
+                        cursor = offset + 4
+                        prop_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                        cursor += 4
+                        for _ in range(prop_count):
+                            p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                            p_val = struct.unpack("<I", blob_data[cursor + 4 : cursor + 8])[
+                                0
+                            ]
+                            if p_id == 1:
+                                quantity = p_val
+                                break
+                            cursor += 8
+
+                # 5. Execute Transaction (RCON)
+                status_cog = self.bot.get_cog("Status")
+                if not status_cog:
+                    return
+
+                # Using execute_safe_command
+                try:
+                    # A. Delete physical item (Quantity to 0)
+                    await status_cog.execute_safe_command(
+                        server_name,
+                        char_name,
+                        lambda idx: f"con {idx} SetInventoryItemIntStat {slot} 1 0 0",
+                    )
+
+                    # B. Update Virtual Balance
+                    if await asyncio.to_thread(
+                        update_player_balance, int(discord_id), quantity
+                    ):
+                        await asyncio.to_thread(
+                            log_market_action,
+                            int(discord_id),
+                            "DEPOSIT",
+                            f"Deposited {quantity} of item {template_id} from slot {slot}",
+                        )
+                        new_balance = await asyncio.to_thread(
+                            get_player_balance, int(discord_id)
+                        )
+                        await user.send(
+                            self.bot._(
+                                "✅ **Deposit Successful!**\n📥 **Amount:** {qty}\n💰 **New Balance:** {balance} {currency}"
+                            ).format(
+                                qty=quantity,
+                                balance=new_balance,
+                                currency=config.MARKETPLACE["CURRENCY_NAME"],
+                            )
+                        )
+                        logging.info(f"MARKET: {char_name} deposited {quantity} coins.")
+                    else:
+                        await user.send("❌ Internal database error during deposit.")
+
+                except Exception as e:
+                    logging.error(f"Deposit failed (RCON) for {char_name}: {e}")
+                    await user.send(self.bot._("❌ You must be online to deposit."))
+                    return
 
             except Exception as e:
-                logging.error(f"Deposit failed (RCON) for {char_name}: {e}")
-                await user.send(self.bot._("❌ You must be online to deposit."))
-                return
-
-        except Exception as e:
-            logging.error(f"Critical error in deposit for {char_name}: {e}")
+                logging.error(f"Critical error in deposit for {char_name}: {e}")
 
 
 async def setup(bot):
