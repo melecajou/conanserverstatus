@@ -7,6 +7,7 @@ from datetime import datetime
 import json
 import logging
 import asyncio
+import aiosqlite
 
 import config
 
@@ -77,36 +78,35 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         try:
             db_path = getattr(config, "KILLFEED_RANKING_DB", "data/killfeed/ranking.db")
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            con = sqlite3.connect(db_path)
-            cur = con.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS scores (
-                    server_name TEXT,
-                    player_name TEXT,
-                    kills INTEGER DEFAULT 0,
-                    deaths INTEGER DEFAULT 0,
-                    score INTEGER DEFAULT 0,
-                    PRIMARY KEY (server_name, player_name)
+
+            async with aiosqlite.connect(db_path) as con:
+                await con.execute("""
+                    CREATE TABLE IF NOT EXISTS scores (
+                        server_name TEXT,
+                        player_name TEXT,
+                        kills INTEGER DEFAULT 0,
+                        deaths INTEGER DEFAULT 0,
+                        score INTEGER DEFAULT 0,
+                        PRIMARY KEY (server_name, player_name)
+                    )
+                """)
+                await con.execute(
+                    "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
+                    (server_name, killer_name),
                 )
-            """)
-            cur.execute(
-                "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
-                (server_name, killer_name),
-            )
-            cur.execute(
-                "UPDATE scores SET kills = kills + 1, score = score + 1 WHERE server_name = ? AND player_name = ?",
-                (server_name, killer_name),
-            )
-            cur.execute(
-                "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
-                (server_name, victim_name),
-            )
-            cur.execute(
-                "UPDATE scores SET deaths = deaths + 1, score = score - 1 WHERE server_name = ? AND player_name = ?",
-                (server_name, victim_name),
-            )
-            con.commit()
-            con.close()
+                await con.execute(
+                    "UPDATE scores SET kills = kills + 1, score = score + 1 WHERE server_name = ? AND player_name = ?",
+                    (server_name, killer_name),
+                )
+                await con.execute(
+                    "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
+                    (server_name, victim_name),
+                )
+                await con.execute(
+                    "UPDATE scores SET deaths = deaths + 1, score = score - 1 WHERE server_name = ? AND player_name = ?",
+                    (server_name, victim_name),
+                )
+                await con.commit()
         except sqlite3.Error as e:
             logging.error(f"ERROR [Killfeed - Ranking]: Failed to update score: {e}")
 
@@ -144,102 +144,101 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             # Simplificando a conexão para evitar o erro 'unable to open database file'
             # Usando apenas o caminho direto com o prefixo file: e mode=ro
             db_uri = f"file:{os.path.abspath(db_path)}?mode=ro"
-            con = sqlite3.connect(db_uri, uri=True)
-            cur = con.cursor()
 
-            spawns_db = getattr(config, "KILLFEED_SPAWNS_DB", "data/killfeed/spawns.db")
-            has_spawns = False
-            if os.path.exists(spawns_db):
-                try:
-                    cur.execute(
-                        f"ATTACH DATABASE '{os.path.abspath(spawns_db)}' AS spawns_db;"
-                    )
-                    # Verifica se a tabela spawns existe no banco anexado
-                    cur.execute(
-                        "SELECT 1 FROM spawns_db.sqlite_master WHERE type='table' AND name='spawns'"
-                    )
-                    if cur.fetchone():
-                        has_spawns = True
-                except Exception as e:
-                    logging.error(f"Failed to attach or verify spawns_db: {e}")
+            async with aiosqlite.connect(db_uri, uri=True) as con:
+                spawns_db = getattr(config, "KILLFEED_SPAWNS_DB", "data/killfeed/spawns.db")
+                has_spawns = False
+                if os.path.exists(spawns_db):
+                    try:
+                        await con.execute(
+                            f"ATTACH DATABASE '{os.path.abspath(spawns_db)}' AS spawns_db;"
+                        )
+                        # Verifica se a tabela spawns existe no banco anexado
+                        async with con.execute(
+                            "SELECT 1 FROM spawns_db.sqlite_master WHERE type='table' AND name='spawns'"
+                        ) as cursor:
+                            if await cursor.fetchone():
+                                has_spawns = True
+                    except Exception as e:
+                        logging.error(f"Failed to attach or verify spawns_db: {e}")
 
-            if has_spawns:
-                query = f"""
-                    WITH events AS (
+                if has_spawns:
+                    query = f"""
+                        WITH events AS (
+                            SELECT
+                                worldTime,
+                                causerName,
+                                ownerName,
+                                json_extract(argsMap, '$.nonPersistentCauser') AS npc_id
+                            FROM game_events
+                            WHERE worldTime > ? AND eventType = {DEATH_EVENT_TYPE}
+                        )
+                        SELECT e.worldTime, e.causerName, e.ownerName, e.npc_id, s.Name
+                        FROM events e
+                        LEFT JOIN spawns_db.spawns s ON s.RowName = e.npc_id
+                        ORDER BY e.worldTime ASC
+                    """
+                else:
+                    query = f"""
                         SELECT
                             worldTime,
                             causerName,
                             ownerName,
-                            json_extract(argsMap, '$.nonPersistentCauser') AS npc_id
+                            json_extract(argsMap, '$.nonPersistentCauser') AS npc_id,
+                            NULL as npc_name
                         FROM game_events
                         WHERE worldTime > ? AND eventType = {DEATH_EVENT_TYPE}
-                    )
-                    SELECT e.worldTime, e.causerName, e.ownerName, e.npc_id, s.Name
-                    FROM events e
-                    LEFT JOIN spawns_db.spawns s ON s.RowName = e.npc_id
-                    ORDER BY e.worldTime ASC
-                """
-            else:
-                query = f"""
-                    SELECT
-                        worldTime,
-                        causerName,
-                        ownerName,
-                        json_extract(argsMap, '$.nonPersistentCauser') AS npc_id,
-                        NULL as npc_name
-                    FROM game_events
-                    WHERE worldTime > ? AND eventType = {DEATH_EVENT_TYPE}
-                    ORDER BY worldTime ASC
-                """
+                        ORDER BY worldTime ASC
+                    """
 
-            # Fetch all results to avoid cursor reuse issues and improve safety
-            results = cur.execute(query, (last_time,)).fetchall()
+                # Fetch all results to avoid cursor reuse issues and improve safety
+                async with con.execute(query, (last_time,)) as cursor:
+                    results = await cursor.fetchall()
 
-            for event_time, killer, victim, npc_id, npc_name_from_db in results:
-                if event_time > new_max_time:
-                    new_max_time = event_time
+                for event_time, killer, victim, npc_id, npc_name_from_db in results:
+                    if event_time > new_max_time:
+                        new_max_time = event_time
 
-                if victim:
-                    if server_name not in self.last_death_times:
-                        self.last_death_times[server_name] = {}
-                    last_death = self.last_death_times[server_name].get(victim, 0)
-                    if event_time - last_death < 10:
+                    if victim:
+                        if server_name not in self.last_death_times:
+                            self.last_death_times[server_name] = {}
+                        last_death = self.last_death_times[server_name].get(victim, 0)
+                        if event_time - last_death < 10:
+                            continue
+                        self.last_death_times[server_name][victim] = event_time
+
+                    is_pvp_kill = bool(killer and victim and killer != victim)
+                    if is_pvp_kill:
+                        await self._update_player_score(server_name, killer, victim)
+
+                    if kf_config.get("PVP_ONLY") and not is_pvp_kill:
                         continue
-                    self.last_death_times[server_name][victim] = event_time
 
-                is_pvp_kill = bool(killer and victim and killer != victim)
-                if is_pvp_kill:
-                    await self._update_player_score(server_name, killer, victim)
+                    if is_pvp_kill:
+                        message = self.bot._("💀 **{killer}** killed **{victim}**!").format(
+                            killer=killer, victim=victim
+                        )
+                    elif victim:
+                        npc_name = npc_name_from_db if npc_name_from_db else self.bot._("the environment")
+                        message = self.bot._(
+                            "☠️ **{victim}** was killed by **{npc}**!"
+                        ).format(victim=victim, npc=npc_name)
+                    else:
+                        continue
 
-                if kf_config.get("PVP_ONLY") and not is_pvp_kill:
-                    continue
-
-                if is_pvp_kill:
-                    message = self.bot._("💀 **{killer}** killed **{victim}**!").format(
-                        killer=killer, victim=victim
+                    embed = discord.Embed(
+                        description=message, color=discord.Color.dark_red()
                     )
-                elif victim:
-                    npc_name = npc_name_from_db if npc_name_from_db else self.bot._("the environment")
-                    message = self.bot._(
-                        "☠️ **{victim}** was killed by **{npc}**!"
-                    ).format(victim=victim, npc=npc_name)
-                else:
-                    continue
-
-                embed = discord.Embed(
-                    description=message, color=discord.Color.dark_red()
-                )
-                embed.set_footer(
-                    text=self.bot._("📍 {server} | {date}").format(
-                        server=server_name,
-                        date=datetime.fromtimestamp(event_time).strftime(
-                            "%d/%m/%Y %H:%M:%S"
-                        ),
+                    embed.set_footer(
+                        text=self.bot._("📍 {server} | {date}").format(
+                            server=server_name,
+                            date=datetime.fromtimestamp(event_time).strftime(
+                                "%d/%m/%Y %H:%M:%S"
+                            ),
+                        )
                     )
-                )
-                await channel.send(embed=embed)
+                    await channel.send(embed=embed)
 
-            con.close()
             if new_max_time > last_time:
                 self._set_last_event_time(new_max_time, kf_config["LAST_EVENT_FILE"])
         except sqlite3.Error as e:
@@ -267,14 +266,12 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             return
 
         db_path = getattr(config, "KILLFEED_RANKING_DB", "data/killfeed/ranking.db")
-        con = sqlite3.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True)
-        cur = con.cursor()
-        cur.execute(
-            "SELECT player_name, kills, deaths, score FROM scores WHERE server_name = ? ORDER BY score DESC, kills DESC LIMIT 10",
-            (server_name,),
-        )
-        top_players = cur.fetchall()
-        con.close()
+        async with aiosqlite.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True) as con:
+            async with con.execute(
+                "SELECT player_name, kills, deaths, score FROM scores WHERE server_name = ? ORDER BY score DESC, kills DESC LIMIT 10",
+                (server_name,),
+            ) as cursor:
+                top_players = await cursor.fetchall()
 
         embed = discord.Embed(
             title=self.bot._("🏆 PvP Ranking: {server}").format(server=server_name),
@@ -346,11 +343,9 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         """
 
         db_path = getattr(config, "KILLFEED_RANKING_DB", "data/killfeed/ranking.db")
-        con = sqlite3.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True)
-        cur = con.cursor()
-        cur.execute(query, servers)
-        top_players = cur.fetchall()
-        con.close()
+        async with aiosqlite.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True) as con:
+            async with con.execute(query, servers) as cursor:
+                top_players = await cursor.fetchall()
 
         embed = discord.Embed(title=u_config["title"], color=discord.Color.purple())
         if not top_players:
