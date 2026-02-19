@@ -514,19 +514,21 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     new_slot, inv_type = new_item_found
                     print(f"MARKET: Injecting DNA into Slot {new_slot} ({inv_type})")
 
-                    # Use execute_safe_command for EACH injection property to ensures safety
+                    # Use execute_safe_batch for efficient injection
                     try:
+                        templates = []
                         for p_id, v in dna.get("int", {}).items():
-                            await status_cog.execute_safe_command(
-                                server_name,
-                                char_name,
-                                lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}",
+                            templates.append(
+                                lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}"
                             )
                         for p_id, v in dna.get("float", {}).items():
-                            await status_cog.execute_safe_command(
-                                server_name,
-                                char_name,
-                                lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemFloatStat {new_slot} {p_id} {v} {inv_type}",
+                            templates.append(
+                                lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemFloatStat {new_slot} {p_id} {v} {inv_type}"
+                            )
+
+                        if templates:
+                            await status_cog.execute_safe_batch(
+                                server_name, char_name, templates
                             )
                     except Exception as e:
                         logging.error(
