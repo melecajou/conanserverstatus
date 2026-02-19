@@ -2,6 +2,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 import discord
 import logging
+import asyncio
 import secrets
 import re
 from datetime import datetime, timedelta, timezone
@@ -318,6 +319,24 @@ class RegistrationCog(commands.Cog, name="Registration"):
                     guild_id,
                 )
 
+    @staticmethod
+    def _get_platform_id_sync(player_db_path: str, server_name: str, discord_id: int):
+        import sqlite3
+
+        try:
+            with sqlite3.connect(player_db_path) as con:
+                cur = con.cursor()
+                cur.execute(
+                    "SELECT platform_id FROM player_time WHERE server_name = ? AND discord_id = ?",
+                    (server_name, str(discord_id)),
+                )
+                row = cur.fetchone()
+                if row:
+                    return row[0]
+        except Exception as e:
+            logging.error(f"Error retrieving platform_id after link: {e}")
+        return None
+
     async def _link_account_and_notify(
         self,
         code: str,
@@ -334,7 +353,8 @@ class RegistrationCog(commands.Cog, name="Registration"):
         )
 
         # Link in server-specific DB (ensures platform_id is known locally)
-        success_local = link_discord_to_character(
+        success_local = await asyncio.to_thread(
+            link_discord_to_character,
             player_tracker_db_path=player_db_path,
             game_db_path=game_db_path,
             server_name=server_name,
@@ -344,25 +364,13 @@ class RegistrationCog(commands.Cog, name="Registration"):
 
         if success_local:
             # Get the platform_id that was just identified
-            import sqlite3
-
-            platform_id = None
-            try:
-                with sqlite3.connect(player_db_path) as con:
-                    cur = con.cursor()
-                    cur.execute(
-                        "SELECT platform_id FROM player_time WHERE server_name = ? AND discord_id = ?",
-                        (server_name, str(discord_id)),
-                    )
-                    row = cur.fetchone()
-                    if row:
-                        platform_id = row[0]
-            except Exception as e:
-                logging.error(f"Error retrieving platform_id after link: {e}")
+            platform_id = await asyncio.to_thread(
+                self._get_platform_id_sync, player_db_path, server_name, discord_id
+            )
 
             # Link globally
             if platform_id:
-                link_discord_to_platform(platform_id, discord_id)
+                await asyncio.to_thread(link_discord_to_platform, platform_id, discord_id)
 
             logging.info(
                 f"Successfully linked Discord user {discord_id} to character {char_name} on server {server_name}."
