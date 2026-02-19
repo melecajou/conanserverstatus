@@ -42,7 +42,9 @@ class StatusCog(commands.Cog, name="Status"):
         # Cache for player lists to reduce RCON load
         # {server_name: (timestamp, response_str)}
         self._player_list_cache: Dict[str, Tuple[float, str]] = {}
-        self.PLAYER_LIST_CACHE_TTL = 2.0  # seconds
+        # Short TTL (0.5s) to handle rapid sequential commands while minimizing
+        # the risk of index shifting if a player logs off during the batch.
+        self.PLAYER_LIST_CACHE_TTL = 0.5  # seconds
 
         self.watchers: Dict[str, LogWatcher] = {}
         self.server_stats: Dict[str, Dict[str, str]] = {}

@@ -208,8 +208,8 @@ class TestStatusCog(IsolatedAsyncioTestCase):
             self.assertEqual(resp2, "List1")
             self.status_cog._execute_raw_rcon.assert_not_called()
 
-        # 3. Third call: Cache expired (TTL is 2s)
-        with patch("time.time", return_value=1003):
+        # 3. Third call: Cache expired (TTL is 0.5s)
+        with patch("time.time", return_value=1000.6):
             self.status_cog._execute_raw_rcon.reset_mock()
             self.status_cog._execute_raw_rcon.return_value = ("List2", None)
 
