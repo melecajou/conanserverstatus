@@ -1,3 +1,4 @@
+import os
 import pytest
 import asyncio
 from unittest import IsolatedAsyncioTestCase
@@ -11,7 +12,7 @@ SERVER_CONF = {
     "ENABLED": True,
     "SERVER_IP": "127.0.0.1",
     "RCON_PORT": 25575,
-    "RCON_PASS": "password",
+    "RCON_PASS": os.getenv("RCON_PASS", "DUMMY_PASSWORD"),
     "STATUS_CHANNEL_ID": 123456789,
     "LOG_PATH": "/tmp/test.log",
     "DB_PATH": ":memory:",

@@ -1,3 +1,4 @@
+import os
 import unittest
 from utils.config_validator import validate_config
 
@@ -5,7 +6,7 @@ from utils.config_validator import validate_config
 # Dummy valid config object
 class ValidConfig:
     LANGUAGE = "en"
-    STATUS_BOT_TOKEN = "token"
+    STATUS_BOT_TOKEN = os.getenv("STATUS_BOT_TOKEN", "DUMMY_TOKEN_FOR_TESTING")
     SERVERS = [
         {
             "NAME": "Test Server",
@@ -25,7 +26,7 @@ class InvalidConfigMissingToken:
 # Dummy invalid config (wrong type)
 class InvalidConfigWrongType:
     LANGUAGE = "en"
-    STATUS_BOT_TOKEN = "token"
+    STATUS_BOT_TOKEN = os.getenv("STATUS_BOT_TOKEN", "DUMMY_TOKEN_FOR_TESTING")
     SERVERS = "This should be a list"
 
 
