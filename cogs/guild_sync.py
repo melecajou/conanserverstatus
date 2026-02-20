@@ -36,7 +36,7 @@ class GuildSyncCog(commands.Cog, name="GuildSync"):
 
         # 1. Get Game Data: {discord_id: ["Guild Name 1", "Guild Name 2"]}
         server_dbs = [s.get("DB_PATH") for s in config.SERVERS if s.get("DB_PATH")]
-        user_guild_map = get_all_guild_members(server_dbs)
+        user_guild_map = await asyncio.to_thread(get_all_guild_members, server_dbs)
 
         if user_guild_map is None:
             logging.warning("Guild Sync aborted due to database read error.")
