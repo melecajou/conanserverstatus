@@ -858,8 +858,12 @@ def execute_marketplace_purchase(
 
             # 4. Mark listing as sold
             cur.execute(
-                "UPDATE market_listings SET status = 'sold' WHERE id = ?", (listing_id,)
+                "UPDATE market_listings SET status = 'sold' WHERE id = ? AND status = 'active'", (listing_id,)
             )
+
+            if cur.rowcount == 0:
+                con.rollback()
+                return None, "Listing no longer available."
 
             con.commit()
             return dict(listing), None
