@@ -77,11 +77,14 @@ class TestMarketplaceConcurrency(unittest.IsolatedAsyncioTestCase):
 
         # Simulate Inventory State
         self.item_in_slot = True
+        self.marked = False
 
         async def fetchone_side_effect():
-            if self.item_in_slot:
-                return (1001, b'')
-            return None
+            if not self.item_in_slot:
+                return None
+            if self.marked:
+                return (1001, b'MARKED_BLOB')
+            return (1001, b'')
 
         self.mock_cursor.fetchone.side_effect = fetchone_side_effect
 
@@ -103,16 +106,33 @@ class TestMarketplaceConcurrency(unittest.IsolatedAsyncioTestCase):
 
         self.mock_db.execute.side_effect = lambda *args, **kwargs: AsyncContextAwaitable(self.mock_cursor)
 
+        # Patch time.time for consistent mark value
+        self.time_patcher = patch("time.time", return_value=123456.0)
+        self.time_patcher.start()
+
         # Patch tasks loop
         with patch("discord.ext.tasks.Loop.start"):
             self.cog = MarketplaceCog(self.bot)
+
+        # Patch _parse_item_blob on the instance (or class)
+        # We can just override the method on the instance since we created it
+        self.original_parse = self.cog._parse_item_blob
+        def mock_parse(tid, blob):
+            if blob == b'MARKED_BLOB':
+                return {'int': {99999: 123456}, 'float': {}}
+            return {'int': {}, 'float': {}}
+        self.cog._parse_item_blob = mock_parse
 
         self.status_cog = MagicMock()
         self.status_cog.execute_safe_command = AsyncMock()
 
         # When RCON remove command is called, we update state
         async def execute_rcon(server, char, cmd_gen):
-            self.item_in_slot = False
+            cmd = cmd_gen("1")
+            if "99999" in cmd: # Mark command
+                 self.marked = True
+            if "SetInventoryItemIntStat" in cmd and " 1 0 0" in cmd: # Delete command
+                self.item_in_slot = False
             return "OK"
 
         self.status_cog.execute_safe_command.side_effect = execute_rcon
@@ -128,6 +148,7 @@ class TestMarketplaceConcurrency(unittest.IsolatedAsyncioTestCase):
         self.update_balance_patcher.stop()
         self.log_action_patcher.stop()
         self.log_watcher_patcher.stop()
+        self.time_patcher.stop()
         self.cog.cog_unload()
 
     async def test_race_condition_sell(self):
