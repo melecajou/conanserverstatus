@@ -6,6 +6,7 @@ import asyncio
 import struct
 import aiosqlite
 import json
+import time
 
 import config
 from utils.database import (
@@ -58,6 +59,38 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if key not in self.locks:
             self.locks[key] = asyncio.Lock()
         return self.locks[key]
+
+    def _parse_item_blob(self, template_id, blob_data):
+        """Parses item blob to extract int and float stats."""
+        dna = {"int": {}, "float": {}}
+        if not blob_data:
+            return dna
+
+        packed_id = struct.pack("<I", template_id)
+        offset = blob_data.find(packed_id)
+        if offset != -1:
+            cursor = offset + 4
+            # Ints
+            if cursor + 4 <= len(blob_data):
+                prop_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                cursor += 4
+                for _ in range(prop_count):
+                    if cursor + 8 <= len(blob_data):
+                        p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                        p_val = struct.unpack("<I", blob_data[cursor + 4 : cursor + 8])[0]
+                        dna["int"][p_id] = p_val
+                        cursor += 8
+            # Floats
+            if cursor + 4 <= len(blob_data):
+                f_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                cursor += 4
+                for _ in range(f_count):
+                    if cursor + 8 <= len(blob_data):
+                        p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
+                        p_val = struct.unpack("<f", blob_data[cursor + 4 : cursor + 8])[0]
+                        dna["float"][p_id] = p_val
+                        cursor += 8
+        return dna
 
     def cog_unload(self):
         self.process_logs_task.cancel()
@@ -581,6 +614,8 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         db_path = server_conf["DB_PATH"]
         server_name = server_conf["NAME"]
         sync_time = config.MARKETPLACE.get("SYNC_WAIT_SECONDS", 5)
+        # Use a high ID for marking that is unlikely to be used by game (e.g. 99999)
+        MARK_STAT_ID = 99999
 
         # 1. Identity Check
         discord_id = await asyncio.to_thread(
@@ -611,7 +646,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 pass
             return
 
-        # 2. Inform user and wait for sync
+        # 2. Inform user and wait for sync (Initial)
         try:
             await user.send(
                 self.bot._(
@@ -620,23 +655,22 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     slot=slot,
                     price=price,
                     currency=config.MARKETPLACE["CURRENCY_NAME"],
-                    sync=sync_time,
+                    sync=sync_time * 2,
                 )
             )
         except:
             pass
 
-        await asyncio.sleep(sync_time)
-
-        # 3. Read Database and Extract DNA
+        # LOCK from start of first check
         async with self._get_lock(server_name, char_name):
             try:
                 char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
                 if not char_id:
                     return
 
+                # --- PHASE 1: PRE-CHECK & MARK ---
                 async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                    query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
+                    query = "SELECT template_id FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
                     async with con.execute(query, (char_id, slot)) as cursor:
                         row = await cursor.fetchone()
 
@@ -648,46 +682,77 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     )
                     return
 
-                template_id, blob_data = row
-                dna = {"int": {}, "float": {}}
+                template_id_check = row[0]
+                mark_value = int(time.time())
 
-                if blob_data:
-                    packed_id = struct.pack("<I", template_id)
-                    offset = blob_data.find(packed_id)
-                    if offset != -1:
-                        cursor = offset + 4
-                        # Ints
-                        prop_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                        cursor += 4
-                        for _ in range(prop_count):
-                            p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                            p_val = struct.unpack("<I", blob_data[cursor + 4 : cursor + 8])[
-                                0
-                            ]
-                            if p_id not in self.dna_blacklist:
-                                dna["int"][p_id] = p_val
-                            cursor += 8
-                        # Floats
-                        if cursor + 4 <= len(blob_data):
-                            f_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                            cursor += 4
-                            for _ in range(f_count):
-                                p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[
-                                    0
-                                ]
-                                p_val = struct.unpack(
-                                    "<f", blob_data[cursor + 4 : cursor + 8]
-                                )[0]
-                                if p_id not in self.dna_blacklist:
-                                    dna["float"][p_id] = p_val
-                                cursor += 8
-
-                # 4. Remove item from game via RCON
+                # Apply Mark via RCON
                 status_cog = self.bot.get_cog("Status")
                 if not status_cog:
                     return
 
-                # Using execute_safe_command
+                try:
+                    # Set MARK_STAT_ID to mark_value
+                    await status_cog.execute_safe_command(
+                        server_name,
+                        char_name,
+                        lambda idx: f"con {idx} SetInventoryItemIntStat {slot} {MARK_STAT_ID} {mark_value} 0",
+                    )
+                except Exception as e:
+                    logging.error(f"Sell Mark failed (RCON) for {char_name}: {e}")
+                    await user.send(self.bot._("❌ You must be online to sell items."))
+                    return
+
+                # Wait for DB Sync (to save the mark)
+                await asyncio.sleep(sync_time)
+
+                # --- PHASE 2: VERIFY & EXTRACT ---
+                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
+                    async with con.execute(query, (char_id, slot)) as cursor:
+                        row = await cursor.fetchone()
+
+                if not row:
+                    await user.send(
+                        self.bot._(
+                            "❌ Error: Item moved or disappeared during verification."
+                        )
+                    )
+                    return
+
+                template_id, blob_data = row
+
+                # Verify Template ID
+                if template_id != template_id_check:
+                    await user.send(
+                        self.bot._(
+                            "❌ Error: Item mismatch (swapped?). Transaction cancelled."
+                        )
+                    )
+                    return
+
+                # Parse DNA to find Mark
+                dna = self._parse_item_blob(template_id, blob_data)
+
+                # Verify Mark
+                if dna["int"].get(MARK_STAT_ID) != mark_value:
+                    await user.send(
+                        self.bot._(
+                            "❌ Error: Synchronization check failed. Please try again."
+                        )
+                    )
+                    return
+
+                # Cleanup DNA (Remove Mark and Blacklist)
+                if MARK_STAT_ID in dna["int"]:
+                    del dna["int"][MARK_STAT_ID]
+
+                for bl_id in self.dna_blacklist:
+                    if bl_id in dna["int"]:
+                        del dna["int"][bl_id]
+                    if bl_id in dna["float"]:
+                        del dna["float"][bl_id]
+
+                # --- PHASE 3: DELETE & CREDIT ---
                 try:
                     await status_cog.execute_safe_command(
                         server_name,
@@ -695,11 +760,13 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                         lambda idx: f"con {idx} SetInventoryItemIntStat {slot} 1 0 0",
                     )
                 except Exception as e:
-                    logging.error(f"Sell failed (RCON) for {char_name}: {e}")
-                    await user.send(self.bot._("❌ You must be online to sell items."))
+                    logging.error(f"Sell Delete failed (RCON) for {char_name}: {e}")
+                    await user.send(
+                        self.bot._("❌ Error removing item. Please contact admin.")
+                    )
                     return
 
-                # 5. Save to Marketplace Database
+                # Save to Marketplace Database
                 dna_json = json.dumps(dna)
                 async with aiosqlite.connect(GLOBAL_DB_PATH) as con:
                     cursor = await con.execute(
@@ -742,6 +809,8 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         server_name = server_conf["NAME"]
         currency_id = config.MARKETPLACE["CURRENCY_ITEM_ID"]
         sync_time = config.MARKETPLACE.get("SYNC_WAIT_SECONDS", 5)
+        # Use a high ID for marking
+        MARK_STAT_ID = 99999
 
         # 1. Identity Check
         discord_id = await asyncio.to_thread(
@@ -760,23 +829,22 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             await user.send(
                 self.bot._(
                     "💰 **Deposit Request:** Initialized for slot {slot}. Please wait {sync}s for synchronization. **DO NOT MOVE THE ITEM!**"
-                ).format(slot=slot, sync=sync_time)
+                ).format(slot=slot, sync=sync_time * 2)
             )
         except:
             pass
 
-        await asyncio.sleep(sync_time)
-
-        # 3. Read Database
+        # LOCK from start of first check
         async with self._get_lock(server_name, char_name):
             try:
                 char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
                 if not char_id:
                     return
 
+                # --- PHASE 1: PRE-CHECK & MARK ---
                 async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
                     # Backpack only (inv_type 0)
-                    query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
+                    query = "SELECT template_id FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
                     async with con.execute(query, (char_id, slot)) as cursor:
                         row = await cursor.fetchone()
 
@@ -788,8 +856,8 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     )
                     return
 
-                template_id, blob_data = row
-                if template_id != currency_id:
+                template_id_check = row[0]
+                if template_id_check != currency_id:
                     await user.send(
                         self.bot._(
                             "❌ Error: Item in slot {slot} is not the accepted currency."
@@ -797,32 +865,55 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                     )
                     return
 
-                # 4. Extract Quantity
-                quantity = 1
-                if blob_data:
-                    # Find quantity property (ID 1)
-                    packed_id = struct.pack("<I", template_id)
-                    offset = blob_data.find(packed_id)
-                    if offset != -1:
-                        cursor = offset + 4
-                        prop_count = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                        cursor += 4
-                        for _ in range(prop_count):
-                            p_id = struct.unpack("<I", blob_data[cursor : cursor + 4])[0]
-                            p_val = struct.unpack("<I", blob_data[cursor + 4 : cursor + 8])[
-                                0
-                            ]
-                            if p_id == 1:
-                                quantity = p_val
-                                break
-                            cursor += 8
+                mark_value = int(time.time())
 
-                # 5. Execute Transaction (RCON)
+                # Apply Mark via RCON
                 status_cog = self.bot.get_cog("Status")
                 if not status_cog:
                     return
 
-                # Using execute_safe_command
+                try:
+                     # Set MARK_STAT_ID to mark_value
+                    await status_cog.execute_safe_command(
+                        server_name,
+                        char_name,
+                        lambda idx: f"con {idx} SetInventoryItemIntStat {slot} {MARK_STAT_ID} {mark_value} 0",
+                    )
+                except Exception as e:
+                    logging.error(f"Deposit Mark failed (RCON) for {char_name}: {e}")
+                    await user.send(self.bot._("❌ You must be online to deposit."))
+                    return
+
+                # Wait for DB Sync
+                await asyncio.sleep(sync_time)
+
+                # --- PHASE 2: VERIFY & EXTRACT QUANTITY ---
+                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    query = "SELECT template_id, data FROM item_inventory WHERE owner_id = ? AND item_id = ? AND inv_type = 0"
+                    async with con.execute(query, (char_id, slot)) as cursor:
+                        row = await cursor.fetchone()
+
+                if not row:
+                    await user.send(self.bot._("❌ Error: Item moved or disappeared during verification."))
+                    return
+
+                template_id, blob_data = row
+                if template_id != currency_id:
+                    await user.send(self.bot._("❌ Error: Item mismatch (swapped?). Deposit cancelled."))
+                    return
+
+                # Parse DNA to check Mark and get Quantity
+                dna = self._parse_item_blob(template_id, blob_data)
+
+                # Verify Mark
+                if dna["int"].get(MARK_STAT_ID) != mark_value:
+                    await user.send(self.bot._("❌ Error: Synchronization check failed. Please try again."))
+                    return
+
+                # Extract Quantity (ID 1)
+                quantity = dna["int"].get(1, 1)
+
+                # --- PHASE 3: DELETE & CREDIT ---
                 try:
                     # A. Delete physical item (Quantity to 0)
                     await status_cog.execute_safe_command(

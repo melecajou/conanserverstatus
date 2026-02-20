@@ -164,24 +164,51 @@ class TestMarketplaceCog(IsolatedAsyncioTestCase):
         """Test successful deposit."""
         slot = 5
 
-        # Setup cursor response
-        # We need a fresh cursor for this test? self.mock_cursor is shared.
-        self.mock_cursor.fetchone.return_value = (999, None)
+        def build_blob(item_template_id, int_stats=None):
+            if int_stats is None:
+                int_stats = {}
+            blob = struct.pack("<I", item_template_id)
+            blob += struct.pack("<I", len(int_stats))
+            for pid, pval in int_stats.items():
+                blob += struct.pack("<I", pid)
+                blob += struct.pack("<I", pval)
+            blob += struct.pack("<I", 0)
+            return blob
 
-        await self.market_cog._handle_deposit("TestPlayer", slot, SERVER_CONF)
+        template_id = 999
+        blob_1 = build_blob(template_id, {})
 
-        # 1. Delete item via Safe Command
-        self.mock_status_cog.execute_safe_command.assert_called_with(
-            SERVER_NAME, "TestPlayer", ANY
-        )
-        cmd = self.mock_status_cog.execute_safe_command.call_args[0][2]("5")
-        # Set quantity to 0
-        self.assertIn("SetInventoryItemIntStat 5 1 0 0", cmd)
+        with patch("time.time", return_value=123456.0):
+            mark_value = 123456
+            blob_2 = build_blob(template_id, {99999: mark_value, 1: 1}) # 1 is Quantity
 
-        # 2. Update Balance
-        self.mock_update_balance.assert_called_with(
-            12345, 1
-        )  # Default quantity 1 if no blob
+            self.mock_cursor.fetchone.side_effect = [
+                (template_id, blob_1),
+                (template_id, blob_2),
+            ]
+
+            await self.market_cog._handle_deposit("TestPlayer", slot, SERVER_CONF)
+
+            # 1. Check Mark Command
+            mark_found = False
+            for call in self.mock_status_cog.execute_safe_command.call_args_list:
+                cmd = call[0][2]("5")
+                if "SetInventoryItemIntStat 5 99999 123456 0" in cmd:
+                    mark_found = True
+            self.assertTrue(mark_found, "Mark command not found")
+
+            # 2. Check Delete Command
+            delete_found = False
+            for call in self.mock_status_cog.execute_safe_command.call_args_list:
+                cmd = call[0][2]("5")
+                if "SetInventoryItemIntStat 5 1 0 0" in cmd:
+                    delete_found = True
+            self.assertTrue(delete_found, "Delete command not found")
+
+            # 3. Update Balance
+            self.mock_update_balance.assert_called_with(
+                12345, 1
+            )
 
     async def test_handle_buy_success(self):
         """Test successful buy with DNA injection."""
