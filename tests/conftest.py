@@ -16,7 +16,8 @@ def pytest_sessionstart(session):
         shutil.move(config_path, backup_path)
 
     config_content = """
-STATUS_BOT_TOKEN = "test_token"
+import os
+STATUS_BOT_TOKEN = os.getenv("STATUS_BOT_TOKEN", "DUMMY_TOKEN_FOR_TESTING")
 CLUSTER_STATUS = {"ENABLED": False, "CHANNEL_ID": 0}
 SERVERS = []
 LANGUAGE = "en"
