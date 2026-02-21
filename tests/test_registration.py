@@ -17,7 +17,6 @@ class TestRegistrationLogic:
         assert REGISTRATION_COMMAND_REGEX.match("!register abc_123")
 
         # Test hyphen (NOT supported by \w, but required for urlsafe)
-        # This assertion is expected to fail before the fix
         match = REGISTRATION_COMMAND_REGEX.match("!register abc-123")
         assert match, "Regex failed to match token with hyphen"
         assert match.group(1) == "abc-123"
@@ -36,3 +35,13 @@ class TestRegistrationLogic:
         match = REGISTRATION_COMMAND_REGEX.match("!register MySecretToken")
         assert match
         assert match.group(1) == "MySecretToken"
+
+    def test_regex_with_generated_tokens(self):
+        """
+        Verify the regex against multiple generated tokens to ensure robustness.
+        """
+        for _ in range(100):
+            token = secrets.token_urlsafe(6)
+            match = REGISTRATION_COMMAND_REGEX.match(f"!register {token}")
+            assert match, f"Regex failed to match generated token: {token}"
+            assert match.group(1) == token
