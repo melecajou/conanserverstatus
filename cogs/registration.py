@@ -229,7 +229,10 @@ class RegistrationCog(commands.Cog, name="Registration"):
         # Assign roles
         for discord_id in linked_discord_ids:
             try:
-                member = await interaction.guild.fetch_member(discord_id)
+                member = interaction.guild.get_member(discord_id)
+                if not member:
+                    member = await interaction.guild.fetch_member(discord_id)
+
                 if member and role not in member.roles:
                     await member.add_roles(role)
                     count += 1
