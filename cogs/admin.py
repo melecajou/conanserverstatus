@@ -3,6 +3,7 @@ from discord import app_commands
 import discord
 import logging
 import sqlite3
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import config
@@ -46,7 +47,7 @@ class AdminCog(commands.Cog, name="Admin"):
 
         from utils.database import set_global_vip
 
-        success = set_global_vip(member.id, level, expiry_date)
+        success = await asyncio.to_thread(set_global_vip, member.id, level, expiry_date)
 
         if success:
             msg = self.bot._("VIP level for '{member}' updated to {level}.").format(
@@ -74,7 +75,7 @@ class AdminCog(commands.Cog, name="Admin"):
         """Checks the user's own VIP status."""
         from utils.database import get_global_vip
 
-        data = get_global_vip(interaction.user.id)
+        data = await asyncio.to_thread(get_global_vip, interaction.user.id)
 
         if not data or data["vip_level"] == 0:
             await interaction.response.send_message(
@@ -107,7 +108,7 @@ class AdminCog(commands.Cog, name="Admin"):
         """Checks the VIP status of another member."""
         from utils.database import get_global_vip
 
-        data = get_global_vip(member.id)
+        data = await asyncio.to_thread(get_global_vip, member.id)
 
         if not data or data["vip_level"] == 0:
             await interaction.response.send_message(
@@ -139,7 +140,7 @@ class AdminCog(commands.Cog, name="Admin"):
         """Lists all current VIPs."""
         from utils.database import get_all_vips
 
-        vips = get_all_vips()
+        vips = await asyncio.to_thread(get_all_vips)
 
         if not vips:
             await interaction.response.send_message(
@@ -196,7 +197,7 @@ class AdminCog(commands.Cog, name="Admin"):
 
         from utils.database import update_vip_expiry
 
-        success = update_vip_expiry(member.id, days)
+        success = await asyncio.to_thread(update_vip_expiry, member.id, days)
 
         if success:
             await interaction.response.send_message(
