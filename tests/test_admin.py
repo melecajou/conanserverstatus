@@ -85,3 +85,26 @@ class TestAdminCog(IsolatedAsyncioTestCase):
         self.mock_interaction.response.send_message.assert_called_with(
             "The VIP level cannot be negative.", ephemeral=True
         )
+
+    async def test_check_vip(self):
+        """
+        Tests that checkvip uses the async wrapper correctly.
+        """
+        mock_member = MagicMock()
+        mock_member.id = 789
+        mock_member.display_name = "Check User"
+
+        # Mock data returned by get_global_vip
+        mock_data = {"vip_level": 2, "vip_expiry": "2024-01-01"}
+
+        with patch("utils.database.get_global_vip", return_value=mock_data) as mock_get_vip:
+            await self.admin_cog.checkvip.callback(
+                self.admin_cog, self.mock_interaction, mock_member
+            )
+
+            # Verify it was called correctly (asyncio.to_thread calls the function)
+            mock_get_vip.assert_called_once_with(789)
+
+        self.mock_interaction.response.send_message.assert_called()
+        msg = self.mock_interaction.response.send_message.call_args[0][0]
+        self.assertIn("Nível:** 2", msg)
