@@ -4,6 +4,7 @@ import logging
 import sqlite3
 import os
 import shutil
+import asyncio
 
 import config
 from utils.database import get_global_player_data
@@ -220,8 +221,8 @@ class BuildingCog(commands.Cog, name="Building"):
 
                 # BATCH OPTIMIZATION START
                 owner_ids = [r[0] for r in results]
-                owner_details_map = get_batch_owner_details(
-                    owner_ids, game_db_path, player_db_path
+                owner_details_map = await asyncio.to_thread(
+                    get_batch_owner_details, owner_ids, game_db_path, player_db_path
                 )
                 # BATCH OPTIMIZATION END
 

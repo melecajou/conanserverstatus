@@ -4,9 +4,15 @@ import os
 import sys
 import unittest.mock
 from contextlib import contextmanager
+from types import ModuleType
 
 # Add project root to path so we can import cogs
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Mock config module
+mock_config = ModuleType("config")
+mock_config.SERVERS = []
+sys.modules["config"] = mock_config
 
 from cogs.building import get_owner_details, get_batch_owner_details
 
