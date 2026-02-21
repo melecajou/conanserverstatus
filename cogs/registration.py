@@ -158,6 +158,42 @@ class RegistrationCog(commands.Cog, name="Registration"):
                 ephemeral=True,
             )
 
+    @staticmethod
+    def _fetch_all_linked_discord_ids(servers=None):
+        """
+        Fetches all linked Discord IDs from all configured servers (or provided list).
+        This is a blocking I/O operation and should be run in a separate thread.
+        """
+        import sqlite3
+
+        if servers is None:
+            servers = config.SERVERS
+
+        linked_discord_ids = set()
+
+        for server in servers:
+            player_db = server.get("PLAYER_DB_PATH")
+            if not player_db or not os.path.exists(player_db):
+                continue
+
+            try:
+                with sqlite3.connect(player_db) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT DISTINCT discord_id FROM player_time WHERE discord_id IS NOT NULL"
+                    )
+                    rows = cursor.fetchall()
+                    for row in rows:
+                        if row[0]:
+                            try:
+                                linked_discord_ids.add(int(row[0]))
+                            except ValueError:
+                                pass
+            except Exception as e:
+                logging.error(f"Error reading DB {player_db}: {e}")
+
+        return linked_discord_ids
+
     @app_commands.command(
         name="sync_roles",
         description="Syncs the registered role to all linked users (Admin only).",
@@ -185,31 +221,10 @@ class RegistrationCog(commands.Cog, name="Registration"):
         await interaction.response.defer(ephemeral=True)
 
         count = 0
-        import sqlite3
 
         # Collect all unique Discord IDs from all configured servers
-        linked_discord_ids = set()
-
-        for server in config.SERVERS:
-            player_db = server.get("PLAYER_DB_PATH")
-            if not player_db or not os.path.exists(player_db):
-                continue
-
-            try:
-                with sqlite3.connect(player_db) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "SELECT DISTINCT discord_id FROM player_time WHERE discord_id IS NOT NULL"
-                    )
-                    rows = cursor.fetchall()
-                    for row in rows:
-                        if row[0]:
-                            try:
-                                linked_discord_ids.add(int(row[0]))
-                            except ValueError:
-                                pass
-            except Exception as e:
-                logging.error(f"Error reading DB {player_db}: {e}")
+        # Running in a thread to avoid blocking the event loop during DB I/O
+        linked_discord_ids = await asyncio.to_thread(self._fetch_all_linked_discord_ids)
 
         # Assign roles
         for discord_id in linked_discord_ids:
