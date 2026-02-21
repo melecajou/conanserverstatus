@@ -116,15 +116,25 @@ def migrate_to_global_db(server_dbs: List[str], global_db_path: str = GLOBAL_DB_
                         local_cur.execute(
                             "SELECT platform_id, discord_id FROM player_time WHERE discord_id IS NOT NULL AND discord_id != ''"
                         )
-                        for platform_id, discord_id in local_cur.fetchall():
+                        batch_identities = []
+                        for platform_id, discord_id in local_cur:
                             if discord_id:
                                 try:
-                                    global_cur.execute(
-                                        "INSERT OR IGNORE INTO user_identities (platform_id, discord_id) VALUES (?, ?)",
-                                        (platform_id, int(discord_id)),
-                                    )
+                                    batch_identities.append((platform_id, int(discord_id)))
                                 except ValueError:
                                     continue
+
+                                if len(batch_identities) >= 1000:
+                                    global_cur.executemany(
+                                        "INSERT OR IGNORE INTO user_identities (platform_id, discord_id) VALUES (?, ?)",
+                                        batch_identities,
+                                    )
+                                    batch_identities = []
+                        if batch_identities:
+                            global_cur.executemany(
+                                "INSERT OR IGNORE INTO user_identities (platform_id, discord_id) VALUES (?, ?)",
+                                batch_identities,
+                            )
 
                         # Migrate VIPs (Take the highest level found)
                         if has_vip:
@@ -136,33 +146,41 @@ def migrate_to_global_db(server_dbs: List[str], global_db_path: str = GLOBAL_DB_
                             query += " FROM player_time WHERE discord_id IS NOT NULL AND discord_id != '' AND vip_level > 0"
 
                             local_cur.execute(query)
+                            batch_vips = []
                             for (
                                 discord_id_raw,
                                 vip_level,
                                 vip_expiry,
-                            ) in local_cur.fetchall():
+                            ) in local_cur:
                                 try:
                                     discord_id = int(discord_id_raw)
+                                    batch_vips.append((discord_id, vip_level, vip_expiry))
                                 except ValueError:
                                     continue
 
-                                # Check existing VIP level
-                                global_cur.execute(
-                                    "SELECT vip_level FROM discord_vips WHERE discord_id = ?",
-                                    (discord_id,),
-                                )
-                                row = global_cur.fetchone()
-                                if row:
-                                    if vip_level > row[0]:
-                                        global_cur.execute(
-                                            "UPDATE discord_vips SET vip_level = ?, vip_expiry_date = ? WHERE discord_id = ?",
-                                            (vip_level, vip_expiry, discord_id),
-                                        )
-                                else:
-                                    global_cur.execute(
-                                        "INSERT INTO discord_vips (discord_id, vip_level, vip_expiry_date) VALUES (?, ?, ?)",
-                                        (discord_id, vip_level, vip_expiry),
+                                if len(batch_vips) >= 1000:
+                                    global_cur.executemany(
+                                        """
+                                        INSERT INTO discord_vips (discord_id, vip_level, vip_expiry_date) VALUES (?, ?, ?)
+                                        ON CONFLICT(discord_id) DO UPDATE SET
+                                            vip_level = excluded.vip_level,
+                                            vip_expiry_date = excluded.vip_expiry_date
+                                        WHERE excluded.vip_level > discord_vips.vip_level
+                                        """,
+                                        batch_vips,
                                     )
+                                    batch_vips = []
+                            if batch_vips:
+                                global_cur.executemany(
+                                    """
+                                    INSERT INTO discord_vips (discord_id, vip_level, vip_expiry_date) VALUES (?, ?, ?)
+                                    ON CONFLICT(discord_id) DO UPDATE SET
+                                        vip_level = excluded.vip_level,
+                                        vip_expiry_date = excluded.vip_expiry_date
+                                    WHERE excluded.vip_level > discord_vips.vip_level
+                                    """,
+                                    batch_vips,
+                                )
 
                 except Exception as e:
                     logging.error(f"Error reading from {db_path} during migration: {e}")
