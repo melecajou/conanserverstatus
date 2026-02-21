@@ -45,8 +45,21 @@ class GuildSyncCog(commands.Cog, name="GuildSync"):
         logging.info(f"Starting Guild Sync for {len(user_guild_map)} users...")
 
         # 2. Iterate through Discord Members
-        # We fetch all members to ensure we catch everyone (requires Intents.members)
-        async for member in discord_guild.fetch_members(limit=None):
+        # Optimization: iterate over known players and role holders instead of all members
+        members_to_check = set()
+
+        # Add active players from DB
+        for discord_id in user_guild_map:
+            member = discord_guild.get_member(discord_id)
+            if member:
+                members_to_check.add(member)
+
+        # Add members who currently hold a guild role
+        for role in discord_guild.roles:
+            if role.name.startswith(prefix):
+                members_to_check.update(role.members)
+
+        for member in members_to_check:
             if member.bot:
                 continue
 
