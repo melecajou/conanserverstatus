@@ -46,13 +46,20 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
-    def _save_ranking_state(self):
+    @staticmethod
+    def _save_ranking_state_static(state_data):
         state_file = getattr(
             config, "KILLFEED_STATE_FILE", "data/killfeed/ranking_state.json"
         )
         os.makedirs(os.path.dirname(state_file), exist_ok=True)
         with open(state_file, "w") as f:
-            json.dump(self.ranking_state, f, indent=4)
+            json.dump(state_data, f, indent=4)
+
+    async def _save_ranking_state(self):
+        # Pass a copy of the dictionary to ensure thread safety
+        await asyncio.to_thread(
+            self._save_ranking_state_static, self.ranking_state.copy()
+        )
 
     def _get_last_event_time(self, file_path):
         abs_path = os.path.abspath(file_path)
@@ -80,7 +87,8 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
             async with aiosqlite.connect(db_path) as con:
-                await con.execute("""
+                await con.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS scores (
                         server_name TEXT,
                         player_name TEXT,
@@ -89,7 +97,8 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                         score INTEGER DEFAULT 0,
                         PRIMARY KEY (server_name, player_name)
                     )
-                """)
+                """
+                )
                 await con.execute(
                     "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
                     (server_name, killer_name),
@@ -146,7 +155,9 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             db_uri = f"file:{os.path.abspath(db_path)}?mode=ro"
 
             async with aiosqlite.connect(db_uri, uri=True) as con:
-                spawns_db = getattr(config, "KILLFEED_SPAWNS_DB", "data/killfeed/spawns.db")
+                spawns_db = getattr(
+                    config, "KILLFEED_SPAWNS_DB", "data/killfeed/spawns.db"
+                )
                 has_spawns = False
                 if os.path.exists(spawns_db):
                     try:
@@ -215,11 +226,15 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                         continue
 
                     if is_pvp_kill:
-                        message = self.bot._("💀 **{killer}** killed **{victim}**!").format(
-                            killer=killer, victim=victim
-                        )
+                        message = self.bot._(
+                            "💀 **{killer}** killed **{victim}**!"
+                        ).format(killer=killer, victim=victim)
                     elif victim:
-                        npc_name = npc_name_from_db if npc_name_from_db else self.bot._("the environment")
+                        npc_name = (
+                            npc_name_from_db
+                            if npc_name_from_db
+                            else self.bot._("the environment")
+                        )
                         message = self.bot._(
                             "☠️ **{victim}** was killed by **{npc}**!"
                         ).format(victim=victim, npc=npc_name)
@@ -266,7 +281,9 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             return
 
         db_path = getattr(config, "KILLFEED_RANKING_DB", "data/killfeed/ranking.db")
-        async with aiosqlite.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True) as con:
+        async with aiosqlite.connect(
+            f"file:{os.path.abspath(db_path)}?mode=ro", uri=True
+        ) as con:
             async with con.execute(
                 "SELECT player_name, kills, deaths, score FROM scores WHERE server_name = ? ORDER BY score DESC, kills DESC LIMIT 10",
                 (server_name,),
@@ -310,7 +327,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
 
         new_message = await channel.send(embed=embed)
         self.ranking_state[server_name] = new_message.id
-        self._save_ranking_state()
+        await self._save_ranking_state()
 
     @tasks.loop(minutes=5)
     async def unified_ranking_task(self):
@@ -343,7 +360,9 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
         """
 
         db_path = getattr(config, "KILLFEED_RANKING_DB", "data/killfeed/ranking.db")
-        async with aiosqlite.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True) as con:
+        async with aiosqlite.connect(
+            f"file:{os.path.abspath(db_path)}?mode=ro", uri=True
+        ) as con:
             async with con.execute(query, servers) as cursor:
                 top_players = await cursor.fetchall()
 
@@ -383,7 +402,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
 
         new_message = await channel.send(embed=embed)
         self.ranking_state[state_id] = new_message.id
-        self._save_ranking_state()
+        await self._save_ranking_state()
 
     @kill_check_task.before_loop
     @ranking_update_task.before_loop
