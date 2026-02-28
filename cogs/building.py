@@ -2,6 +2,7 @@ from discord.ext import commands, tasks
 import discord
 import logging
 import sqlite3
+import aiosqlite
 import os
 import shutil
 import asyncio
@@ -45,14 +46,17 @@ def get_owner_details(owner_id, game_db_path, player_db_path):
     return result.get(owner_id, (None, 0, "unknown"))
 
 
-def _execute_building_report_query(sql_path, db_backup_path):
-    """Executes the building watcher SQL script synchronously."""
-    with open(sql_path, "r") as f:
-        sql_script = f.read()
-    with sqlite3.connect(f"file:{db_backup_path}?mode=ro", uri=True) as con:
-        cur = con.cursor()
-        cur.execute(sql_script)
-        return cur.fetchall()
+async def _execute_building_report_query(sql_path, db_backup_path):
+    """Executes the building watcher SQL script asynchronously."""
+
+    def read_sql():
+        with open(sql_path, "r") as f:
+            return f.read()
+
+    sql_script = await asyncio.to_thread(read_sql)
+    async with aiosqlite.connect(f"file:{db_backup_path}?mode=ro", uri=True) as con:
+        async with con.execute(sql_script) as cur:
+            return await cur.fetchall()
 
 
 def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
@@ -211,9 +215,7 @@ class BuildingCog(commands.Cog, name="Building"):
             logging.info(f"Starting building watcher for server: {server_conf['NAME']}")
             results = []
             try:
-                results = await asyncio.to_thread(
-                    _execute_building_report_query, sql_path, db_backup_path
-                )
+                results = await _execute_building_report_query(sql_path, db_backup_path)
                 logging.info(
                     f"Building watcher query successful for {server_conf['NAME']}. Found {len(results)} owners."
                 )
