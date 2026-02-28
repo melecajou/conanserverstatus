@@ -21,7 +21,7 @@ class TestStatusSecurity(unittest.IsolatedAsyncioTestCase):
         self.status_cog.rcon_locks["TestServer"].__aexit__ = AsyncMock()
 
     async def test_execute_safe_command_injection_attempt(self):
-        """Test that execute_safe_command raises ValueError if generated command contains banned characters."""
+        """Test that execute_safe_command raises ValueError if generated command contains invalid characters."""
 
         # Return (response, request_id)
         # We simulate ListPlayers response first.
@@ -40,7 +40,7 @@ class TestStatusSecurity(unittest.IsolatedAsyncioTestCase):
                 malicious_template
             )
 
-        self.assertIn("Security Alert: Banned characters detected", str(cm.exception))
+        self.assertIn("Security Alert: Invalid characters detected", str(cm.exception))
 
     async def test_execute_safe_command_newline_injection(self):
         """Test injection with newline characters."""
@@ -58,4 +58,4 @@ class TestStatusSecurity(unittest.IsolatedAsyncioTestCase):
                 malicious_template
             )
 
-        self.assertIn("Security Alert: Banned characters detected", str(cm.exception))
+        self.assertIn("Security Alert: Invalid characters detected", str(cm.exception))
