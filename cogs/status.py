@@ -22,8 +22,9 @@ from utils.database import (
 from utils.log_parser import parse_log_lines
 from utils.log_watcher import LogWatcher
 
-# Banned characters for RCON commands to prevent injection: Newlines, Semicolons, Pipes
-BANNED_RCON_CHARS_PATTERN = re.compile(r"[\n\r;|]")
+# Allowed characters for RCON commands to prevent injection.
+# We use a strict whitelist: Alphanumeric, spaces, underscores, hyphens, periods, commas, colons, and quotes.
+ALLOWED_RCON_CHARS_PATTERN = re.compile(r"^[a-zA-Z0-9 _\-\.,:'\"]+$")
 
 
 class StatusCog(commands.Cog, name="Status"):
@@ -80,11 +81,11 @@ class StatusCog(commands.Cog, name="Status"):
     def _validate_rcon_command(self, command: str):
         """
         Validates the RCON command string to prevent injection attacks.
-        Raises ValueError if banned characters are found.
+        Raises ValueError if the command contains characters outside the allowed whitelist.
         """
-        if BANNED_RCON_CHARS_PATTERN.search(command):
+        if not ALLOWED_RCON_CHARS_PATTERN.match(command):
             raise ValueError(
-                f"Security Alert: Banned characters detected in RCON command: {command!r}"
+                f"Security Alert: Invalid characters detected in RCON command: {command!r}"
             )
 
     async def _execute_raw_rcon(
