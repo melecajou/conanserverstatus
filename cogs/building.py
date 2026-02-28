@@ -45,6 +45,16 @@ def get_owner_details(owner_id, game_db_path, player_db_path):
     return result.get(owner_id, (None, 0, "unknown"))
 
 
+def _execute_building_report_query(sql_path, db_backup_path):
+    """Executes the building watcher SQL script synchronously."""
+    with open(sql_path, "r") as f:
+        sql_script = f.read()
+    with sqlite3.connect(f"file:{db_backup_path}?mode=ro", uri=True) as con:
+        cur = con.cursor()
+        cur.execute(sql_script)
+        return cur.fetchall()
+
+
 def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
     """
     Gets owner details (name, vip_level, type) for a batch of owner_ids.
@@ -59,35 +69,44 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
             cur = con.cursor()
 
             # 1. Identify Guilds
-            guild_owners = {} # guild_id -> name
+            guild_owners = {}  # guild_id -> name
             # Chunking 900
             for i in range(0, len(owner_ids), 900):
-                batch = owner_ids[i:i+900]
+                batch = owner_ids[i : i + 900]
                 placeholders = ",".join("?" * len(batch))
-                cur.execute(f"SELECT guildId, name FROM guilds WHERE guildId IN ({placeholders})", batch)
+                cur.execute(
+                    f"SELECT guildId, name FROM guilds WHERE guildId IN ({placeholders})",
+                    batch,
+                )
                 for gid, name in cur.fetchall():
                     guild_owners[gid] = name
 
             # 2. Identify Players (from owner_ids that are not guilds)
             potential_player_ids = [oid for oid in owner_ids if oid not in guild_owners]
-            player_owners = {} # char_id -> (name, player_id)
+            player_owners = {}  # char_id -> (name, player_id)
 
             if potential_player_ids:
                 for i in range(0, len(potential_player_ids), 900):
-                    batch = potential_player_ids[i:i+900]
+                    batch = potential_player_ids[i : i + 900]
                     placeholders = ",".join("?" * len(batch))
-                    cur.execute(f"SELECT id, char_name, playerId FROM characters WHERE id IN ({placeholders})", batch)
+                    cur.execute(
+                        f"SELECT id, char_name, playerId FROM characters WHERE id IN ({placeholders})",
+                        batch,
+                    )
                     for char_id, name, pid in cur.fetchall():
                         player_owners[char_id] = (name, pid)
 
             # 3. Get Members for Guilds
-            guild_members = {} # guild_id -> list of player_ids
+            guild_members = {}  # guild_id -> list of player_ids
             if guild_owners:
                 guild_ids = list(guild_owners.keys())
                 for i in range(0, len(guild_ids), 900):
-                    batch = guild_ids[i:i+900]
+                    batch = guild_ids[i : i + 900]
                     placeholders = ",".join("?" * len(batch))
-                    cur.execute(f"SELECT guild, playerId FROM characters WHERE guild IN ({placeholders})", batch)
+                    cur.execute(
+                        f"SELECT guild, playerId FROM characters WHERE guild IN ({placeholders})",
+                        batch,
+                    )
                     for gid, pid in cur.fetchall():
                         if gid not in guild_members:
                             guild_members[gid] = []
@@ -101,24 +120,27 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
                 all_player_ids.update(pids)
 
             # 5. Fetch Platform IDs
-            player_platform_map = {} # player_id -> platform_id
+            player_platform_map = {}  # player_id -> platform_id
             all_player_ids_list = list(all_player_ids)
             if all_player_ids_list:
                 for i in range(0, len(all_player_ids_list), 900):
-                    batch = all_player_ids_list[i:i+900]
+                    batch = all_player_ids_list[i : i + 900]
                     placeholders = ",".join("?" * len(batch))
-                    cur.execute(f"SELECT id, platformId FROM account WHERE id IN ({placeholders})", batch)
+                    cur.execute(
+                        f"SELECT id, platformId FROM account WHERE id IN ({placeholders})",
+                        batch,
+                    )
                     for pid, platform_id in cur.fetchall():
                         player_platform_map[pid] = platform_id
 
             # 6. Fetch VIP Levels
             all_platform_ids = list(set(player_platform_map.values()))
-            platform_vip_map = {} # platform_id -> vip_level
+            platform_vip_map = {}  # platform_id -> vip_level
 
             if all_platform_ids:
                 # Chunking calls to get_global_player_data just in case
                 for i in range(0, len(all_platform_ids), 900):
-                    batch = all_platform_ids[i:i+900]
+                    batch = all_platform_ids[i : i + 900]
                     data = get_global_player_data(batch)
                     for platform_id, info in data.items():
                         platform_vip_map[platform_id] = info.get("vip_level", 0)
@@ -189,12 +211,9 @@ class BuildingCog(commands.Cog, name="Building"):
             logging.info(f"Starting building watcher for server: {server_conf['NAME']}")
             results = []
             try:
-                with open(sql_path, "r") as f:
-                    sql_script = f.read()
-                with sqlite3.connect(f"file:{db_backup_path}?mode=ro", uri=True) as con:
-                    cur = con.cursor()
-                    cur.execute(sql_script)
-                    results = cur.fetchall()
+                results = await asyncio.to_thread(
+                    _execute_building_report_query, sql_path, db_backup_path
+                )
                 logging.info(
                     f"Building watcher query successful for {server_conf['NAME']}. Found {len(results)} owners."
                 )
