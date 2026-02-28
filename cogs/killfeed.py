@@ -81,41 +81,24 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             f.write(str(new_time))
         logging.debug(f"[Killfeed] Saved new last event time {new_time} to {abs_path}")
 
-    async def _update_player_score(self, server_name, killer_name, victim_name):
+    async def _update_player_score(self, con, server_name, killer_name, victim_name):
         try:
-            db_path = getattr(config, "KILLFEED_RANKING_DB", "data/killfeed/ranking.db")
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-
-            async with aiosqlite.connect(db_path) as con:
-                await con.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS scores (
-                        server_name TEXT,
-                        player_name TEXT,
-                        kills INTEGER DEFAULT 0,
-                        deaths INTEGER DEFAULT 0,
-                        score INTEGER DEFAULT 0,
-                        PRIMARY KEY (server_name, player_name)
-                    )
-                """
-                )
-                await con.execute(
-                    "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
-                    (server_name, killer_name),
-                )
-                await con.execute(
-                    "UPDATE scores SET kills = kills + 1, score = score + 1 WHERE server_name = ? AND player_name = ?",
-                    (server_name, killer_name),
-                )
-                await con.execute(
-                    "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
-                    (server_name, victim_name),
-                )
-                await con.execute(
-                    "UPDATE scores SET deaths = deaths + 1, score = score - 1 WHERE server_name = ? AND player_name = ?",
-                    (server_name, victim_name),
-                )
-                await con.commit()
+            await con.execute(
+                "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
+                (server_name, killer_name),
+            )
+            await con.execute(
+                "UPDATE scores SET kills = kills + 1, score = score + 1 WHERE server_name = ? AND player_name = ?",
+                (server_name, killer_name),
+            )
+            await con.execute(
+                "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
+                (server_name, victim_name),
+            )
+            await con.execute(
+                "UPDATE scores SET deaths = deaths + 1, score = score - 1 WHERE server_name = ? AND player_name = ?",
+                (server_name, victim_name),
+            )
         except sqlite3.Error as e:
             logging.error(f"ERROR [Killfeed - Ranking]: Failed to update score: {e}")
 
@@ -206,53 +189,76 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                 async with con.execute(query, (last_time,)) as cursor:
                     results = await cursor.fetchall()
 
-                for event_time, killer, victim, npc_id, npc_name_from_db in results:
-                    if event_time > new_max_time:
-                        new_max_time = event_time
-
-                    if victim:
-                        if server_name not in self.last_death_times:
-                            self.last_death_times[server_name] = {}
-                        last_death = self.last_death_times[server_name].get(victim, 0)
-                        if event_time - last_death < 10:
-                            continue
-                        self.last_death_times[server_name][victim] = event_time
-
-                    is_pvp_kill = bool(killer and victim and killer != victim)
-                    if is_pvp_kill:
-                        await self._update_player_score(server_name, killer, victim)
-
-                    if kf_config.get("PVP_ONLY") and not is_pvp_kill:
-                        continue
-
-                    if is_pvp_kill:
-                        message = self.bot._(
-                            "💀 **{killer}** killed **{victim}**!"
-                        ).format(killer=killer, victim=victim)
-                    elif victim:
-                        npc_name = (
-                            npc_name_from_db
-                            if npc_name_from_db
-                            else self.bot._("the environment")
+                if results:
+                    ranking_db_path = getattr(config, "KILLFEED_RANKING_DB", "data/killfeed/ranking.db")
+                    os.makedirs(os.path.dirname(ranking_db_path), exist_ok=True)
+                    async with aiosqlite.connect(ranking_db_path) as ranking_con:
+                        await ranking_con.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS scores (
+                                server_name TEXT,
+                                player_name TEXT,
+                                kills INTEGER DEFAULT 0,
+                                deaths INTEGER DEFAULT 0,
+                                score INTEGER DEFAULT 0,
+                                PRIMARY KEY (server_name, player_name)
+                            )
+                        """
                         )
-                        message = self.bot._(
-                            "☠️ **{victim}** was killed by **{npc}**!"
-                        ).format(victim=victim, npc=npc_name)
-                    else:
-                        continue
 
-                    embed = discord.Embed(
-                        description=message, color=discord.Color.dark_red()
-                    )
-                    embed.set_footer(
-                        text=self.bot._("📍 {server} | {date}").format(
-                            server=server_name,
-                            date=datetime.fromtimestamp(event_time).strftime(
-                                "%d/%m/%Y %H:%M:%S"
-                            ),
-                        )
-                    )
-                    await channel.send(embed=embed)
+                        ranking_needs_commit = False
+
+                        for event_time, killer, victim, npc_id, npc_name_from_db in results:
+                            if event_time > new_max_time:
+                                new_max_time = event_time
+
+                            if victim:
+                                if server_name not in self.last_death_times:
+                                    self.last_death_times[server_name] = {}
+                                last_death = self.last_death_times[server_name].get(victim, 0)
+                                if event_time - last_death < 10:
+                                    continue
+                                self.last_death_times[server_name][victim] = event_time
+
+                            is_pvp_kill = bool(killer and victim and killer != victim)
+                            if is_pvp_kill:
+                                await self._update_player_score(ranking_con, server_name, killer, victim)
+                                ranking_needs_commit = True
+
+                            if kf_config.get("PVP_ONLY") and not is_pvp_kill:
+                                continue
+
+                            if is_pvp_kill:
+                                message = self.bot._(
+                                    "💀 **{killer}** killed **{victim}**!"
+                                ).format(killer=killer, victim=victim)
+                            elif victim:
+                                npc_name = (
+                                    npc_name_from_db
+                                    if npc_name_from_db
+                                    else self.bot._("the environment")
+                                )
+                                message = self.bot._(
+                                    "☠️ **{victim}** was killed by **{npc}**!"
+                                ).format(victim=victim, npc=npc_name)
+                            else:
+                                continue
+
+                            embed = discord.Embed(
+                                description=message, color=discord.Color.dark_red()
+                            )
+                            embed.set_footer(
+                                text=self.bot._("📍 {server} | {date}").format(
+                                    server=server_name,
+                                    date=datetime.fromtimestamp(event_time).strftime(
+                                        "%d/%m/%Y %H:%M:%S"
+                                    ),
+                                )
+                            )
+                            await channel.send(embed=embed)
+
+                        if ranking_needs_commit:
+                            await ranking_con.commit()
 
             if new_max_time > last_time:
                 self._set_last_event_time(new_max_time, kf_config["LAST_EVENT_FILE"])
