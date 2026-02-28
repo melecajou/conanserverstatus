@@ -135,7 +135,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
             if not db_path:
                 continue
 
-            discord_id = find_discord_user_by_char_name(db_path, char_name)
+            discord_id = await asyncio.to_thread(find_discord_user_by_char_name, db_path, char_name)
             if discord_id:
                 found_discord_id = discord_id
                 break
