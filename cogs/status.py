@@ -114,7 +114,7 @@ class StatusCog(commands.Cog, name="Status"):
                     asyncio.TimeoutError,
                 ) as e:
                     logging.warning(
-                        f"RCON attempt {attempt + 1}/{max_retries + 1} failed for {server_name}: {e}"
+                        f"RCON attempt {attempt + 1}/{max_retries + 1} failed for {server_name}: {type(e).__name__}"
                     )
                     last_exception = e
                     # Force close to ensure fresh connection on next retry
@@ -126,7 +126,7 @@ class StatusCog(commands.Cog, name="Status"):
                         await asyncio.sleep(1)  # Wait before retry
                 except Exception as e:
                     # Unexpected error, close and re-raise
-                    logging.error(f"Unexpected RCON error for {server_name}: {e}")
+                    logging.error(f"Unexpected RCON error for {server_name}: {type(e).__name__}")
                     await client.close()
                     raise e
 
@@ -178,7 +178,7 @@ class StatusCog(commands.Cog, name="Status"):
                 )
             except Exception as e:
                 logging.warning(
-                    f"Safe execution failed at ListPlayers step for {char_name}: {e}"
+                    f"Safe execution failed at ListPlayers step for {char_name}: {type(e).__name__}"
                 )
                 if attempt < max_loop_retries - 1:
                     await asyncio.sleep(1)
@@ -220,7 +220,7 @@ class StatusCog(commands.Cog, name="Status"):
                 asyncio.TimeoutError,
             ) as e:
                 logging.warning(
-                    f"Safe execution attempt {attempt + 1} failed for {char_name} (idx {idx}): {e}. Retrying loop."
+                    f"Safe execution attempt {attempt + 1} failed for {char_name} (idx {idx}): {type(e).__name__}. Retrying loop."
                 )
                 if attempt < max_loop_retries - 1:
                     await asyncio.sleep(1)
@@ -257,7 +257,7 @@ class StatusCog(commands.Cog, name="Status"):
                 )
             except Exception as e:
                 logging.warning(
-                    f"Safe batch execution failed at ListPlayers step for {char_name}: {e}"
+                    f"Safe batch execution failed at ListPlayers step for {char_name}: {type(e).__name__}"
                 )
                 if attempt < max_loop_retries - 1:
                     await asyncio.sleep(1)
@@ -275,7 +275,7 @@ class StatusCog(commands.Cog, name="Status"):
                             idx = parts[0].strip()
                             break
             except Exception as e:
-                logging.warning(f"Error parsing player list for {char_name}: {e}")
+                logging.warning(f"Error parsing player list for {char_name}: {type(e).__name__}")
                 pass
 
             if not idx:
@@ -311,7 +311,7 @@ class StatusCog(commands.Cog, name="Status"):
                 asyncio.TimeoutError,
             ) as e:
                 logging.warning(
-                    f"Safe batch execution attempt {attempt + 1} failed at command {len(results)+1}/{len(command_templates)} for {char_name} (idx {idx}): {e}. Retrying full batch."
+                    f"Safe batch execution attempt {attempt + 1} failed at command {len(results)+1}/{len(command_templates)} for {char_name} (idx {idx}): {type(e).__name__}. Retrying full batch."
                 )
                 if attempt < max_loop_retries - 1:
                     await asyncio.sleep(1)
@@ -532,7 +532,7 @@ class StatusCog(commands.Cog, name="Status"):
             new_msg = await channel.send(embed=embed)
             self.status_messages[channel.id] = new_msg
         except Exception as e:
-            logging.error(f"Error updating status message in '{channel.name}': {e}")
+            logging.error(f"Error updating status message in '{channel.name}': {type(e).__name__}")
             if channel.id in self.status_messages:
                 del self.status_messages[channel.id]
 
@@ -588,7 +588,7 @@ class StatusCog(commands.Cog, name="Status"):
         try:
             await asyncio.to_thread(self._write_json_file, output_path, export_data)
         except Exception as e:
-            logging.error(f"Failed to export status.json: {e}")
+            logging.error(f"Failed to export status.json: {type(e).__name__}")
 
     @update_all_statuses_task.before_loop
     async def before_update_all_statuses_task(self):
@@ -656,12 +656,11 @@ class StatusCog(commands.Cog, name="Status"):
                 if line.strip().startswith(tuple("0123456789"))
             ]
         except (RCONConnectionError, IncorrectPasswordError, asyncio.TimeoutError) as e:
-            logging.warning(f"RCON connection failed for {server_name}: {e}")
+            logging.warning(f"RCON connection failed for {server_name}: {type(e).__name__}")
             return None
         except Exception as e:
             logging.error(
-                f"An unexpected error occurred while getting player lines for '{server_name}': {e}",
-                exc_info=True,
+                f"An unexpected error occurred while getting player lines for '{server_name}': {type(e).__name__}"
             )
             return None
 
