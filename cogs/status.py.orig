@@ -171,13 +171,6 @@ class StatusCog(commands.Cog, name="Status"):
             char_name: The character name to find.
             command_template: A function that takes the index (str) and returns the full RCON command string.
         """
-        key = (server_name, char_name)
-        now = time.time()
-        last_time = self._command_timestamps.get(key, 0.0)
-        if now - last_time < self.COMMAND_COOLDOWN:
-            raise ValueError(f"Rate limit exceeded: Please wait before executing another command for {char_name}.")
-        self._command_timestamps[key] = now
-
         max_loop_retries = 3
 
         for attempt in range(max_loop_retries):
@@ -258,13 +251,6 @@ class StatusCog(commands.Cog, name="Status"):
             char_name: The character name to find.
             command_templates: A list of functions that take the index (str) and return the full RCON command string.
         """
-        key = (server_name, char_name)
-        now = time.time()
-        last_time = self._command_timestamps.get(key, 0.0)
-        if now - last_time < self.COMMAND_COOLDOWN:
-            raise ValueError(f"Rate limit exceeded: Please wait before executing another batch for {char_name}.")
-        self._command_timestamps[key] = now
-
         max_loop_retries = 3
 
         for attempt in range(max_loop_retries):
