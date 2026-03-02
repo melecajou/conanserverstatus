@@ -46,7 +46,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
         """
         await interaction.response.defer(ephemeral=True)
 
-        registration_code = secrets.token_urlsafe(6)
+        registration_code = secrets.token_hex(6)
         pending_registrations[registration_code] = {
             "discord_id": interaction.user.id,
             "guild_id": interaction.guild_id,
