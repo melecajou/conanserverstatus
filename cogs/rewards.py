@@ -209,6 +209,8 @@ class RewardsCog(commands.Cog, name="Rewards"):
             db, server_name, online_players
         )
 
+        rewarded_players_data = []
+
         for player in online_players:
             platform_id = player["platform_id"]
             if platform_id not in batch_data:
@@ -257,16 +259,26 @@ class RewardsCog(commands.Cog, name="Rewards"):
                 if await self._issue_reward(
                     rcon_client, server_name, player, reward_config
                 ):
-                    async with db.cursor() as cur:
-                        await cur.execute(
-                            "UPDATE player_time SET last_reward_playtime = ? WHERE platform_id = ? AND server_name = ?",
-                            (online_minutes, platform_id, server_name),
-                        )
-                    await db.commit()
+                    rewarded_players_data.append(
+                        (online_minutes, platform_id, server_name)
+                    )
                     logging.info(
                         self._("Player %s on server '%s' has been rewarded.")
                         % (player["char_name"], server_name)
                     )
+
+        if rewarded_players_data:
+            try:
+                async with db.cursor() as cur:
+                    await cur.executemany(
+                        "UPDATE player_time SET last_reward_playtime = ? WHERE platform_id = ? AND server_name = ?",
+                        rewarded_players_data,
+                    )
+                await db.commit()
+            except Exception as e:
+                logging.error(
+                    f"An error occurred while updating last_reward_playtime for rewarded players on server '{server_name}': {e}"
+                )
 
     @commands.Cog.listener()
     async def on_conan_players_updated(
