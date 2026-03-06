@@ -17,32 +17,39 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
             cur = con.cursor()
 
             # Table: User Identities (Platform ID -> Discord ID)
-            cur.execute("""
+            cur.execute(
+                """
             CREATE TABLE IF NOT EXISTS user_identities (
                 platform_id TEXT PRIMARY KEY,
                 discord_id INTEGER NOT NULL
             )
-        """)
+        """
+            )
 
             # Table: Discord VIPs (Discord ID -> VIP Level & Expiry)
-            cur.execute("""
+            cur.execute(
+                """
             CREATE TABLE IF NOT EXISTS discord_vips (
                 discord_id INTEGER PRIMARY KEY,
                 vip_level INTEGER DEFAULT 0,
                 vip_expiry_date TEXT
             )
-        """)
+        """
+            )
 
             # Table: Player Wallets (Virtual Currency)
-            cur.execute("""
+            cur.execute(
+                """
             CREATE TABLE IF NOT EXISTS player_wallets (
                 discord_id INTEGER PRIMARY KEY,
                 balance INTEGER DEFAULT 0
             )
-        """)
+        """
+            )
 
             # Table: Market Listings (Items in custody)
-            cur.execute("""
+            cur.execute(
+                """
             CREATE TABLE IF NOT EXISTS market_listings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 seller_discord_id INTEGER NOT NULL,
@@ -52,10 +59,12 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
                 status TEXT DEFAULT 'active', -- active, sold, canceled, delivered
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
+        """
+            )
 
             # Table: Market Audit Log
-            cur.execute("""
+            cur.execute(
+                """
             CREATE TABLE IF NOT EXISTS market_audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -63,10 +72,12 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
                 action TEXT, -- DEPOSIT, SELL, BUY, CANCEL
                 details TEXT
             )
-        """)
+        """
+            )
 
             # Table: Withdraw Transactions (Two-Phase Commit)
-            cur.execute("""
+            cur.execute(
+                """
             CREATE TABLE IF NOT EXISTS withdraw_transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 discord_id INTEGER NOT NULL,
@@ -77,7 +88,8 @@ def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
+        """
+            )
             con.commit()
         logging.info(f"Global registry database '{db_path}' initialized successfully.")
     except Exception as e:
@@ -120,7 +132,9 @@ def migrate_to_global_db(server_dbs: List[str], global_db_path: str = GLOBAL_DB_
                         for platform_id, discord_id in local_cur:
                             if discord_id:
                                 try:
-                                    batch_identities.append((platform_id, int(discord_id)))
+                                    batch_identities.append(
+                                        (platform_id, int(discord_id))
+                                    )
                                 except ValueError:
                                     continue
 
@@ -154,7 +168,9 @@ def migrate_to_global_db(server_dbs: List[str], global_db_path: str = GLOBAL_DB_
                             ) in local_cur:
                                 try:
                                     discord_id = int(discord_id_raw)
-                                    batch_vips.append((discord_id, vip_level, vip_expiry))
+                                    batch_vips.append(
+                                        (discord_id, vip_level, vip_expiry)
+                                    )
                                 except ValueError:
                                     continue
 
@@ -325,17 +341,12 @@ def update_vip_expiry(
 
         with sqlite3.connect(global_db_path) as con:
             cur = con.cursor()
-            # Check if user exists first
-            cur.execute(
-                "SELECT 1 FROM discord_vips WHERE discord_id = ?", (discord_id,)
-            )
-            if not cur.fetchone():
-                return False
-
             cur.execute(
                 "UPDATE discord_vips SET vip_expiry_date = ? WHERE discord_id = ?",
                 (expiry_date, discord_id),
             )
+            if cur.rowcount == 0:
+                return False
             con.commit()
         return True
     except Exception as e:
@@ -350,7 +361,8 @@ def initialize_player_tracker_db(db_path: str):
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
         con = sqlite3.connect(db_path)
         cur = con.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS player_time (
                 platform_id TEXT NOT NULL,
                 server_name TEXT NOT NULL,
@@ -358,7 +370,8 @@ def initialize_player_tracker_db(db_path: str):
                 last_rewarded_hour INTEGER DEFAULT 0,
                 PRIMARY KEY (platform_id, server_name)
             )
-        """)
+        """
+        )
         cur.execute("PRAGMA table_info(player_time)")
         columns = [info[1] for info in cur.fetchall()]
         if "discord_id" not in columns:
@@ -373,7 +386,8 @@ def initialize_player_tracker_db(db_path: str):
             cur.execute(
                 "ALTER TABLE player_time ADD COLUMN last_reward_playtime INTEGER DEFAULT 0"
             )
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS player_homes (
                 platform_id TEXT NOT NULL,
                 server_name TEXT NOT NULL,
@@ -382,7 +396,8 @@ def initialize_player_tracker_db(db_path: str):
                 z REAL NOT NULL,
                 PRIMARY KEY (platform_id, server_name)
             )
-        """)
+        """
+        )
         con.commit()
         con.close()
         logging.info(
@@ -872,7 +887,8 @@ def execute_marketplace_purchase(
 
             # 4. Mark listing as sold
             cur.execute(
-                "UPDATE market_listings SET status = 'sold' WHERE id = ? AND status = 'active'", (listing_id,)
+                "UPDATE market_listings SET status = 'sold' WHERE id = ? AND status = 'active'",
+                (listing_id,),
             )
 
             if cur.rowcount == 0:
