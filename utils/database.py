@@ -463,23 +463,19 @@ def link_discord_to_character(
         with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
 
-            # --- ETAPA 1 CORRIGIDA ---
-            # Em vez de 'id', selecionamos 'playerId'
+            # Optimized with JOIN to avoid N+1 queries
             cur.execute(
-                "SELECT playerId FROM characters WHERE char_name = ?", (char_name,)
+                """
+                SELECT c.playerId, a.platformId
+                FROM characters c
+                LEFT JOIN account a ON c.playerId = a.id
+                WHERE c.char_name = ?
+                """,
+                (char_name,),
             )
             result = cur.fetchone()
             if result:
-                player_id_text = result[0]  # Este é o ID de texto da conta
-
-                # --- ETAPA 2 CORRIGIDA ---
-                # Usamos 'player_id_text' para procurar na coluna 'user' da tabela 'account'
-                cur.execute(
-                    "SELECT platformId FROM account WHERE id = ?", (player_id_text,)
-                )
-                result2 = cur.fetchone()
-                if result2:
-                    platform_id = result2[0]  # Este é o SteamID (ou ID de plataforma)
+                player_id_text, platform_id = result
 
     except Exception as e:
         logging.error(f"Could not read character data from {game_db_path}: {e}")
