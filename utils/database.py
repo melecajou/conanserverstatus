@@ -947,23 +947,18 @@ def get_item_in_backpack(
                         while offset != -1:
                             cursor_pos = offset + 4
                             if cursor_pos + 4 <= len(data):
-                                prop_count = struct.unpack(
-                                    "<I", data[cursor_pos : cursor_pos + 4]
-                                )[0]
+                                prop_count = struct.unpack_from("<I", data, cursor_pos)[
+                                    0
+                                ]
                                 cursor_pos += 4
                                 if prop_count < 100:
                                     if cursor_pos + (prop_count * 8) <= len(data):
-                                        for _ in range(prop_count):
-                                            prop_id = struct.unpack(
-                                                "<I", data[cursor_pos : cursor_pos + 4]
-                                            )[0]
-                                            cursor_pos += 4
-                                            prop_val = struct.unpack(
-                                                "<I", data[cursor_pos : cursor_pos + 4]
-                                            )[0]
-                                            cursor_pos += 4
-                                            if prop_id == 1:  # 1 is Quantity
-                                                quantity = prop_val
+                                        props = struct.unpack_from(
+                                            f"<{prop_count * 2}I", data, cursor_pos
+                                        )
+                                        for i in range(0, prop_count * 2, 2):
+                                            if props[i] == 1:  # 1 is Quantity
+                                                quantity = props[i + 1]
                                                 break
                                 offset = data.find(packed_id, offset + 1)
                     except:
