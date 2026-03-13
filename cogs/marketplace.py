@@ -508,9 +508,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
                 # D. Find New Item and Inject DNA (with retries)
                 new_item_found = None  # (slot, inv_type)
-                for attempt in range(4):  # Try up to 4 times
-                    await asyncio.sleep(6 if attempt == 0 else 4)
-
+                for attempt in range(18):  # Try up to 18 times (1s interval)
                     async with aiosqlite.connect(
                         f"file:{db_path}?mode=ro", uri=True
                     ) as con:
@@ -539,9 +537,11 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
                     if new_item_found:
                         break
+
                     print(
                         f"MARKET: Attempt {attempt+1} to find spawned item {template_id} failed. Retrying..."
                     )
+                    await asyncio.sleep(1)
 
                 if new_item_found:
                     new_slot, inv_type = new_item_found
