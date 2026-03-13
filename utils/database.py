@@ -226,10 +226,12 @@ def get_global_player_data(
     if not platform_ids:
         return data
 
+    unique_platform_ids = list(set(platform_ids))
+
     try:
         with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
-            placeholders = ", ".join("?" * len(platform_ids))
+            placeholders = ", ".join("?" * len(unique_platform_ids))
 
             query = f"""
                 SELECT ui.platform_id, ui.discord_id, dv.vip_level, dv.vip_expiry_date
@@ -237,7 +239,7 @@ def get_global_player_data(
                 LEFT JOIN discord_vips dv ON ui.discord_id = dv.discord_id
                 WHERE ui.platform_id IN ({placeholders})
             """
-            cur.execute(query, platform_ids)
+            cur.execute(query, unique_platform_ids)
             for pid, discord_id, vip_level, vip_expiry in cur.fetchall():
                 data[pid] = {
                     "discord_id": discord_id,
@@ -421,13 +423,16 @@ def get_batch_player_levels(
     levels = {name: 0 for name in char_names}
     if not db_path or not char_names:
         return levels
+
+    unique_char_names = list(set(char_names))
+
     try:
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
-            placeholders = ", ".join("?" * len(char_names))
+            placeholders = ", ".join("?" * len(unique_char_names))
             cur.execute(
                 f"SELECT char_name, level FROM characters WHERE char_name IN ({placeholders})",
-                char_names,
+                unique_char_names,
             )
             for name, level in cur.fetchall():
                 levels[name] = level
@@ -448,11 +453,14 @@ def get_batch_player_data(
     }
     if not platform_ids:
         return player_data
+
+    unique_platform_ids = list(set(platform_ids))
+
     try:
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
-            placeholders = ", ".join("?" * len(platform_ids))
-            query_params = platform_ids + [server_name]
+            placeholders = ", ".join("?" * len(unique_platform_ids))
+            query_params = unique_platform_ids + [server_name]
             cur.execute(
                 f"SELECT platform_id, online_minutes, discord_id FROM player_time WHERE platform_id IN ({placeholders}) AND server_name = ?",
                 query_params,
