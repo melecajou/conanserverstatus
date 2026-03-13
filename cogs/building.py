@@ -86,7 +86,8 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
                     guild_owners[gid] = name
 
             # 2. Identify Players (from owner_ids that are not guilds)
-            potential_player_ids = [oid for oid in owner_ids if oid not in guild_owners]
+            # Deduplicate before chunking to optimize query performance and reduce query size
+            potential_player_ids = list(set([oid for oid in owner_ids if oid not in guild_owners]))
             player_owners = {}  # char_id -> (name, player_id)
 
             if potential_player_ids:
