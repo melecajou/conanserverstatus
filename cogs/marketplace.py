@@ -508,40 +508,32 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
                 # D. Find New Item and Inject DNA (with retries)
                 new_item_found = None  # (slot, inv_type)
-                for attempt in range(18):  # Try up to 18 times (1s interval)
-                    async with aiosqlite.connect(
-                        f"file:{db_path}?mode=ro", uri=True
-                    ) as con:
+                async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    for attempt in range(18):  # Try up to 18 times (1s interval)
                         async with con.execute(
                             "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=? AND template_id=?",
                             (char_id, template_id),
                         ) as cur:
                             after_rows = await cur.fetchall()
 
-                    # Check for a completely new slot first
-                    for row in after_rows:
-                        key = (row[0], row[1])
-                        if key not in before_items:
-                            new_item_found = key
-                            break
-
-                    if new_item_found:
-                        break
-
-                    # If no new slot, check if an existing slot of the same template was updated
-                    if not new_item_found:
+                        # Check for a completely new slot first
                         for row in after_rows:
                             key = (row[0], row[1])
-                            new_item_found = key
+                            if key not in before_items:
+                                new_item_found = key
+                                break
+
+                        # If no new slot, check if an existing slot of the same template was updated
+                        if not new_item_found and after_rows:
+                            new_item_found = (after_rows[0][0], after_rows[0][1])
+
+                        if new_item_found:
                             break
 
-                    if new_item_found:
-                        break
-
-                    print(
-                        f"MARKET: Attempt {attempt+1} to find spawned item {template_id} failed. Retrying..."
-                    )
-                    await asyncio.sleep(1)
+                        print(
+                            f"MARKET: Attempt {attempt+1} to find spawned item {template_id} failed. Retrying..."
+                        )
+                        await asyncio.sleep(1)
 
                 if new_item_found:
                     new_slot, inv_type = new_item_found
