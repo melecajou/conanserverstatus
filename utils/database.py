@@ -1,11 +1,16 @@
 import sqlite3
 import logging
 import os
+import time
 from typing import Dict, List, Any, Optional
 
 # --- DATABASE SETUP ---
 DEFAULT_PLAYER_TRACKER_DB = "data/playertracker.db"
 GLOBAL_DB_PATH = "data/global_registry.db"
+
+# Cache for Discord user lookups (char_name -> discord_id)
+_USER_CACHE: Dict[tuple, Dict[str, Any]] = {}
+USER_CACHE_TTL = 300  # 5 minutes
 
 
 def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
@@ -680,6 +685,12 @@ def find_discord_user_by_char_name(
     """
     Searches for a character name in the game DB and returns the linked Discord ID if found.
     """
+    cache_key = (game_db_path, char_name, global_db_path)
+    if cache_key in _USER_CACHE:
+        cache_entry = _USER_CACHE[cache_key]
+        if time.time() - cache_entry["timestamp"] < USER_CACHE_TTL:
+            return cache_entry["discord_id"]
+
     if not os.path.exists(game_db_path):
         return None
 
@@ -709,7 +720,19 @@ def find_discord_user_by_char_name(
                     )
                     res = g_cur.fetchone()
                     if res:
-                        return res[0]
+                        discord_id = res[0]
+                        _USER_CACHE[cache_key] = {
+                            "discord_id": discord_id,
+                            "timestamp": time.time(),
+                        }
+                        return discord_id
+
+        # Negative caching for not found users
+        _USER_CACHE[cache_key] = {
+            "discord_id": None,
+            "timestamp": time.time(),
+        }
+
     except Exception as e:
         logging.error(f"Error searching for user by char name in {game_db_path}: {e}")
 
