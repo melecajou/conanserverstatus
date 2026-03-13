@@ -43,6 +43,8 @@ class StatusCog(commands.Cog, name="Status"):
         # Cache for player lists to reduce RCON load
         # {server_name: (timestamp, response_str)}
         self._player_list_cache: Dict[str, Tuple[float, str]] = {}
+        # Concurrency locks for player list fetching per server
+        self._player_list_locks: Dict[str, asyncio.Lock] = {}
         # Short TTL (0.5s) to handle rapid sequential commands while minimizing
         # the risk of index shifting if a player logs off during the batch.
         self.PLAYER_LIST_CACHE_TTL = 0.5  # seconds
@@ -130,7 +132,9 @@ class StatusCog(commands.Cog, name="Status"):
                         await asyncio.sleep(1)  # Wait before retry
                 except Exception as e:
                     # Unexpected error, close and re-raise
-                    logging.error(f"Unexpected RCON error for {server_name}: {type(e).__name__}")
+                    logging.error(
+                        f"Unexpected RCON error for {server_name}: {type(e).__name__}"
+                    )
                     await client.close()
                     raise e
 
@@ -151,12 +155,25 @@ class StatusCog(commands.Cog, name="Status"):
                 if time.time() - timestamp < self.PLAYER_LIST_CACHE_TTL:
                     return cached_resp, ""
 
-        resp = await self._execute_raw_rcon(server_name, "ListPlayers")
-        # resp is typically (response_str, request_id)
-        # We only cache the response string
-        if resp and len(resp) > 0:
-            self._player_list_cache[server_name] = (time.time(), resp[0])
-        return resp
+        # Get or create lock for this server
+        if server_name not in self._player_list_locks:
+            self._player_list_locks[server_name] = asyncio.Lock()
+
+        async with self._player_list_locks[server_name]:
+            # Double check inside the lock
+            if use_cache:
+                entry = self._player_list_cache.get(server_name)
+                if entry:
+                    timestamp, cached_resp = entry
+                    if time.time() - timestamp < self.PLAYER_LIST_CACHE_TTL:
+                        return cached_resp, ""
+
+            resp = await self._execute_raw_rcon(server_name, "ListPlayers")
+            # resp is typically (response_str, request_id)
+            # We only cache the response string
+            if resp and len(resp) > 0:
+                self._player_list_cache[server_name] = (time.time(), resp[0])
+            return resp
 
     async def execute_safe_command(
         self, server_name: str, char_name: str, command_template: Callable[[str], str]
@@ -175,7 +192,9 @@ class StatusCog(commands.Cog, name="Status"):
         now = time.time()
         last_time = self._command_timestamps.get(key, 0.0)
         if now - last_time < self.COMMAND_COOLDOWN:
-            raise ValueError(f"Rate limit exceeded: Please wait before executing another command for {char_name}.")
+            raise ValueError(
+                f"Rate limit exceeded: Please wait before executing another command for {char_name}."
+            )
         self._command_timestamps[key] = now
 
         max_loop_retries = 3
@@ -262,7 +281,9 @@ class StatusCog(commands.Cog, name="Status"):
         now = time.time()
         last_time = self._command_timestamps.get(key, 0.0)
         if now - last_time < self.COMMAND_COOLDOWN:
-            raise ValueError(f"Rate limit exceeded: Please wait before executing another batch for {char_name}.")
+            raise ValueError(
+                f"Rate limit exceeded: Please wait before executing another batch for {char_name}."
+            )
         self._command_timestamps[key] = now
 
         max_loop_retries = 3
@@ -293,7 +314,9 @@ class StatusCog(commands.Cog, name="Status"):
                             idx = parts[0].strip()
                             break
             except Exception as e:
-                logging.warning(f"Error parsing player list for {char_name}: {type(e).__name__}")
+                logging.warning(
+                    f"Error parsing player list for {char_name}: {type(e).__name__}"
+                )
                 pass
 
             if not idx:
@@ -550,7 +573,9 @@ class StatusCog(commands.Cog, name="Status"):
             new_msg = await channel.send(embed=embed)
             self.status_messages[channel.id] = new_msg
         except Exception as e:
-            logging.error(f"Error updating status message in '{channel.name}': {type(e).__name__}")
+            logging.error(
+                f"Error updating status message in '{channel.name}': {type(e).__name__}"
+            )
             if channel.id in self.status_messages:
                 del self.status_messages[channel.id]
 
@@ -674,7 +699,9 @@ class StatusCog(commands.Cog, name="Status"):
                 if line.strip().startswith(tuple("0123456789"))
             ]
         except (RCONConnectionError, IncorrectPasswordError, asyncio.TimeoutError) as e:
-            logging.warning(f"RCON connection failed for {server_name}: {type(e).__name__}")
+            logging.warning(
+                f"RCON connection failed for {server_name}: {type(e).__name__}"
+            )
             return None
         except Exception as e:
             logging.error(
