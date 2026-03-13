@@ -145,7 +145,8 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                 if os.path.exists(spawns_db):
                     try:
                         await con.execute(
-                            f"ATTACH DATABASE '{os.path.abspath(spawns_db)}' AS spawns_db;"
+                            "ATTACH DATABASE ? AS spawns_db;",
+                            (os.path.abspath(spawns_db),),
                         )
                         # Verifica se a tabela spawns existe no banco anexado
                         async with con.execute(
