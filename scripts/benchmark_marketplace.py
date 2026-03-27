@@ -34,33 +34,33 @@ async def simulate_finding_item(before_items, delay_before_insert):
     # NEW OPTIMIZED LOGIC
     # Wait for the item to appear or loop times out
     # Instead of static sleep, we can poll
-    for attempt in range(18):  # Try more frequently
-        async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+    async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+        for attempt in range(18):  # Try more frequently
             async with con.execute(
                 "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=? AND template_id=?",
                 (char_id, template_id),
             ) as cur:
                 after_rows = await cur.fetchall()
 
-        for row in after_rows:
-            key = (row[0], row[1])
-            if key not in before_items:
-                new_item_found = key
-                break
-
-        if new_item_found:
-            break
-
-        if not new_item_found:
             for row in after_rows:
                 key = (row[0], row[1])
-                new_item_found = key
+                if key not in before_items:
+                    new_item_found = key
+                    break
+
+            if new_item_found:
                 break
 
-        if new_item_found:
-            break
+            if not new_item_found:
+                for row in after_rows:
+                    key = (row[0], row[1])
+                    new_item_found = key
+                    break
 
-        await asyncio.sleep(1) # wait 1s
+            if new_item_found:
+                break
+
+            await asyncio.sleep(1) # wait 1s
 
     elapsed = time.time() - start_time
     print(f"Elapsed: {elapsed:.4f}s")
