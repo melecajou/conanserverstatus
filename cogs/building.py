@@ -6,6 +6,7 @@ import aiosqlite
 import os
 import shutil
 import asyncio
+import aiofiles
 
 import config
 from utils.database import get_global_player_data
@@ -21,11 +22,9 @@ def get_owner_details(owner_id, game_db_path, player_db_path):
 async def _execute_building_report_query(sql_path, db_backup_path):
     """Executes the building watcher SQL script asynchronously."""
 
-    def read_sql():
-        with open(sql_path, "r") as f:
-            return f.read()
+    async with aiofiles.open(sql_path, "r") as f:
+        sql_script = await f.read()
 
-    sql_script = await asyncio.to_thread(read_sql)
     async with aiosqlite.connect(f"file:{db_backup_path}?mode=ro", uri=True) as con:
         async with con.execute(sql_script) as cur:
             return await cur.fetchall()
@@ -59,7 +58,9 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
 
             # 2. Identify Players (from owner_ids that are not guilds)
             # Deduplicate before chunking to optimize query performance and reduce query size
-            potential_player_ids = list(set([oid for oid in owner_ids if oid not in guild_owners]))
+            potential_player_ids = list(
+                set([oid for oid in owner_ids if oid not in guild_owners])
+            )
             player_owners = {}  # char_id -> (name, player_id)
 
             if potential_player_ids:

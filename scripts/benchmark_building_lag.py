@@ -3,6 +3,8 @@ import sqlite3
 import os
 import sys
 import time
+import aiofiles
+import aiosqlite
 
 DB_PATH = "scripts/reproduce_building_game.db"
 SQL_PATH = "scripts/buildings.sql"
@@ -56,6 +58,14 @@ def sync_operation():
         results = cur.fetchall()
     return results
 
+async def async_aiofiles_operation():
+    async with aiofiles.open(SQL_PATH, "r") as f:
+        sql_script = await f.read()
+    async with aiosqlite.connect(f"file:{DB_PATH}?mode=ro", uri=True) as con:
+        async with con.execute(sql_script) as cur:
+            results = await cur.fetchall()
+    return results
+
 async def main():
     setup_db(count=1000000)
 
@@ -85,6 +95,19 @@ async def main():
     print(f"Threaded operation took {duration:.4f}s")
     max_lag_threaded = await monitor_task
     print(f"Threaded Max Loop Lag: {max_lag_threaded*1000:.2f}ms")
+
+    print("\n--- VERIFICATION: aiofiles ---")
+
+    monitor_task = asyncio.create_task(heartbeat(2.0))
+    await asyncio.sleep(0.1)
+
+    start = time.time()
+    await async_aiofiles_operation()
+    duration = time.time() - start
+
+    print(f"aiofiles operation took {duration:.4f}s")
+    max_lag_aiofiles = await monitor_task
+    print(f"aiofiles Max Loop Lag: {max_lag_aiofiles*1000:.2f}ms")
 
     # Cleanup
     if os.path.exists(DB_PATH):
