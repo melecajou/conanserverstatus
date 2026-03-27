@@ -116,12 +116,9 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
             platform_vip_map = {}  # platform_id -> vip_level
 
             if all_platform_ids:
-                # Chunking calls to get_global_player_data just in case
-                for i in range(0, len(all_platform_ids), 900):
-                    batch = all_platform_ids[i : i + 900]
-                    data = get_global_player_data(batch)
-                    for platform_id, info in data.items():
-                        platform_vip_map[platform_id] = info.get("vip_level", 0)
+                data = get_global_player_data(all_platform_ids)
+                for platform_id, info in data.items():
+                    platform_vip_map[platform_id] = info.get("vip_level", 0)
 
             # 7. Resolve Results
 
