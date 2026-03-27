@@ -10,6 +10,8 @@ GLOBAL_DB_PATH = "data/global_registry.db"
 
 # Cache for Discord user lookups (char_name -> discord_id)
 _USER_CACHE: Dict[tuple, Dict[str, Any]] = {}
+# Cache for global player data (platform_id -> data)
+_GLOBAL_PLAYER_CACHE: Dict[tuple, Dict[str, Any]] = {}
 USER_CACHE_TTL = 300  # 5 minutes
 
 
@@ -218,34 +220,70 @@ def get_global_player_data(
 ) -> Dict[str, Dict[str, Any]]:
     """
     Fetches registration and VIP data for a batch of platform IDs from the global database.
+    Uses a module-level cache to reduce database reads.
     """
-    data = {
-        pid: {"discord_id": None, "vip_level": 0, "vip_expiry": None}
-        for pid in platform_ids
-    }
-    if not platform_ids:
+    data = {}
+    missing_ids = []
+    now = time.time()
+
+    for pid in platform_ids:
+        cache_key = (pid, global_db_path)
+        if cache_key in _GLOBAL_PLAYER_CACHE:
+            entry = _GLOBAL_PLAYER_CACHE[cache_key]
+            if now - entry["timestamp"] < USER_CACHE_TTL:
+                data[pid] = entry["data"]
+                continue
+        missing_ids.append(pid)
+
+    if not missing_ids:
         return data
 
-    unique_platform_ids = list(set(platform_ids))
+    # Initialize missing data with defaults
+    for pid in missing_ids:
+        data[pid] = {"discord_id": None, "vip_level": 0, "vip_expiry": None}
+
+    unique_missing_ids = list(set(missing_ids))
 
     try:
         with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
             cur = con.cursor()
-            placeholders = ", ".join("?" * len(unique_platform_ids))
+            # SQLite limits host parameters to 999 (or 32766 in newer versions)
+            # We chunk the IDs to be safe (900 at a time)
+            for i in range(0, len(unique_missing_ids), 900):
+                chunk = unique_missing_ids[i : i + 900]
+                placeholders = ", ".join("?" * len(chunk))
 
-            query = f"""
-                SELECT ui.platform_id, ui.discord_id, dv.vip_level, dv.vip_expiry_date
-                FROM user_identities ui
-                LEFT JOIN discord_vips dv ON ui.discord_id = dv.discord_id
-                WHERE ui.platform_id IN ({placeholders})
-            """
-            cur.execute(query, unique_platform_ids)
-            for pid, discord_id, vip_level, vip_expiry in cur.fetchall():
-                data[pid] = {
-                    "discord_id": discord_id,
-                    "vip_level": vip_level if vip_level else 0,
-                    "vip_expiry": vip_expiry,
-                }
+                query = f"""
+                    SELECT ui.platform_id, ui.discord_id, dv.vip_level, dv.vip_expiry_date
+                    FROM user_identities ui
+                    LEFT JOIN discord_vips dv ON ui.discord_id = dv.discord_id
+                    WHERE ui.platform_id IN ({placeholders})
+                """
+                cur.execute(query, chunk)
+                for pid, discord_id, vip_level, vip_expiry in cur.fetchall():
+                    res = {
+                        "discord_id": discord_id,
+                        "vip_level": vip_level if vip_level else 0,
+                        "vip_expiry": vip_expiry,
+                    }
+                    data[pid] = res
+                    # Update cache
+                    _GLOBAL_PLAYER_CACHE[(pid, global_db_path)] = {
+                        "data": res,
+                        "timestamp": now,
+                    }
+
+        # Also cache the "not found" entries to avoid repeated DB lookups for non-existent players
+        for pid in unique_missing_ids:
+            cache_key = (pid, global_db_path)
+            if cache_key not in _GLOBAL_PLAYER_CACHE or _GLOBAL_PLAYER_CACHE[cache_key]["timestamp"] < now:
+                # If it wasn't updated in the loop above, it means it wasn't found in DB
+                if pid not in [p for p, g in _GLOBAL_PLAYER_CACHE if g == global_db_path and _GLOBAL_PLAYER_CACHE[(p, g)]["timestamp"] == now]:
+                     _GLOBAL_PLAYER_CACHE[cache_key] = {
+                        "data": data[pid],
+                        "timestamp": now,
+                    }
+
     except Exception as e:
         logging.error(f"Error fetching global player data: {e}")
     return data
@@ -263,6 +301,10 @@ def link_discord_to_platform(
                 (platform_id, discord_id),
             )
             con.commit()
+        # Invalidate cache
+        cache_key = (platform_id, global_db_path)
+        if cache_key in _GLOBAL_PLAYER_CACHE:
+            del _GLOBAL_PLAYER_CACHE[cache_key]
         return True
     except Exception as e:
         logging.error(f"Failed to link platform to discord in global db: {e}")
@@ -284,6 +326,13 @@ def set_global_vip(
                 (discord_id, vip_level, expiry),
             )
             con.commit()
+        # Invalidate cache (all platform_ids for this discord_id)
+        to_delete = [
+            k for k, v in _GLOBAL_PLAYER_CACHE.items()
+            if v["data"]["discord_id"] == discord_id and k[1] == global_db_path
+        ]
+        for k in to_delete:
+            del _GLOBAL_PLAYER_CACHE[k]
         return True
     except Exception as e:
         logging.error(f"Failed to set global VIP: {e}")
@@ -355,6 +404,13 @@ def update_vip_expiry(
             if cur.rowcount == 0:
                 return False
             con.commit()
+        # Invalidate cache
+        to_delete = [
+            k for k, v in _GLOBAL_PLAYER_CACHE.items()
+            if v["data"]["discord_id"] == discord_id and k[1] == global_db_path
+        ]
+        for k in to_delete:
+            del _GLOBAL_PLAYER_CACHE[k]
         return True
     except Exception as e:
         logging.error(f"Failed to update VIP expiry: {e}")
