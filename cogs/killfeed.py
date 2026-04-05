@@ -81,26 +81,58 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
             f.write(str(new_time))
         logging.debug(f"[Killfeed] Saved new last event time {new_time} to {abs_path}")
 
-    async def _update_player_score(self, con, server_name, killer_name, victim_name):
+    async def _update_player_scores_batch(self, con, server_name, pvp_kills):
+        if not pvp_kills:
+            return
+
+        # Aggregate scores in Python to minimize database operations
+        # player_stats: {player_name: {"kills": X, "deaths": Y, "score": Z}}
+        player_stats = {}
+
+        for killer, victim in pvp_kills:
+            # Update killer
+            if killer not in player_stats:
+                player_stats[killer] = {"kills": 0, "deaths": 0, "score": 0}
+            player_stats[killer]["kills"] += 1
+            player_stats[killer]["score"] += 1
+
+            # Update victim
+            if victim not in player_stats:
+                player_stats[victim] = {"kills": 0, "deaths": 0, "score": 0}
+            player_stats[victim]["deaths"] += 1
+            player_stats[victim]["score"] -= 1
+
         try:
-            await con.execute(
+            # Prepare data for executemany
+            insert_data = [(server_name, player) for player in player_stats.keys()]
+            update_data = [
+                (
+                    stats["kills"],
+                    stats["deaths"],
+                    stats["score"],
+                    server_name,
+                    player
+                )
+                for player, stats in player_stats.items()
+            ]
+
+            # Step 1: Ensure all players exist in the database
+            await con.executemany(
                 "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
-                (server_name, killer_name),
+                insert_data,
             )
-            await con.execute(
-                "UPDATE scores SET kills = kills + 1, score = score + 1 WHERE server_name = ? AND player_name = ?",
-                (server_name, killer_name),
-            )
-            await con.execute(
-                "INSERT OR IGNORE INTO scores (server_name, player_name) VALUES (?, ?)",
-                (server_name, victim_name),
-            )
-            await con.execute(
-                "UPDATE scores SET deaths = deaths + 1, score = score - 1 WHERE server_name = ? AND player_name = ?",
-                (server_name, victim_name),
+
+            # Step 2: Update scores in a single batch
+            await con.executemany(
+                """
+                UPDATE scores
+                SET kills = kills + ?, deaths = deaths + ?, score = score + ?
+                WHERE server_name = ? AND player_name = ?
+                """,
+                update_data,
             )
         except sqlite3.Error as e:
-            logging.error(f"ERROR [Killfeed - Ranking]: Failed to update score: {e}")
+            logging.error(f"ERROR [Killfeed - Ranking]: Failed to update scores batch: {e}")
 
     @tasks.loop(seconds=20)
     async def kill_check_task(self):
@@ -208,6 +240,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                         )
 
                         ranking_needs_commit = False
+                        pvp_kills_to_update = []
 
                         for event_time, killer, victim, npc_id, npc_name_from_db in results:
                             if event_time > new_max_time:
@@ -223,8 +256,7 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
 
                             is_pvp_kill = bool(killer and victim and killer != victim)
                             if is_pvp_kill:
-                                await self._update_player_score(ranking_con, server_name, killer, victim)
-                                ranking_needs_commit = True
+                                pvp_kills_to_update.append((killer, victim))
 
                             if kf_config.get("PVP_ONLY") and not is_pvp_kill:
                                 continue
@@ -257,6 +289,12 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
                                 )
                             )
                             await channel.send(embed=embed)
+
+                        if pvp_kills_to_update:
+                            await self._update_player_scores_batch(
+                                ranking_con, server_name, pvp_kills_to_update
+                            )
+                            ranking_needs_commit = True
 
                         if ranking_needs_commit:
                             await ranking_con.commit()
