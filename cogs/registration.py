@@ -159,12 +159,11 @@ class RegistrationCog(commands.Cog, name="Registration"):
             )
 
     @staticmethod
-    def _fetch_all_linked_discord_ids(servers=None):
+    async def _fetch_all_linked_discord_ids(servers=None):
         """
         Fetches all linked Discord IDs from all configured servers (or provided list).
-        This is a blocking I/O operation and should be run in a separate thread.
         """
-        import sqlite3
+        import aiosqlite
 
         if servers is None:
             servers = config.SERVERS
@@ -177,18 +176,17 @@ class RegistrationCog(commands.Cog, name="Registration"):
                 continue
 
             try:
-                with sqlite3.connect(player_db) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
+                async with aiosqlite.connect(player_db) as conn:
+                    async with conn.execute(
                         "SELECT DISTINCT discord_id FROM player_time WHERE discord_id IS NOT NULL"
-                    )
-                    rows = cursor.fetchall()
-                    for row in rows:
-                        if row[0]:
-                            try:
-                                linked_discord_ids.add(int(row[0]))
-                            except ValueError:
-                                pass
+                    ) as cursor:
+                        rows = await cursor.fetchall()
+                        for row in rows:
+                            if row[0]:
+                                try:
+                                    linked_discord_ids.add(int(row[0]))
+                                except ValueError:
+                                    pass
             except Exception as e:
                 logging.error(f"Error reading DB {player_db}: {e}")
 
@@ -223,8 +221,7 @@ class RegistrationCog(commands.Cog, name="Registration"):
         count = 0
 
         # Collect all unique Discord IDs from all configured servers
-        # Running in a thread to avoid blocking the event loop during DB I/O
-        linked_discord_ids = await asyncio.to_thread(self._fetch_all_linked_discord_ids)
+        linked_discord_ids = await self._fetch_all_linked_discord_ids()
 
         # Assign roles
         for discord_id in linked_discord_ids:
