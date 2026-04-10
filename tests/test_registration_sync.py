@@ -14,23 +14,30 @@ import config
 
 class TestRegistrationSync(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_linked_discord_ids(self):
-        # Mock sqlite3
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
-            mock_connect.return_value.__enter__.return_value = mock_conn
-            mock_conn.cursor.return_value = mock_cursor
+        # Mock aiosqlite
+        with patch("aiosqlite.connect") as mock_connect:
+            mock_conn = AsyncMock()
+            mock_cursor = AsyncMock()
+            mock_connect.return_value.__aenter__.return_value = mock_conn
+            # aiosqlite.Connection.execute is typically not an async method itself, but it returns an async context manager.
+            # Using MagicMock for the execute method directly to avoid Coroutine errors.
+            mock_execute = MagicMock()
+            mock_execute_context = MagicMock()
+            mock_execute_context.__aenter__ = AsyncMock(return_value=mock_cursor)
+            mock_execute_context.__aexit__ = AsyncMock(return_value=None)
+            mock_execute.return_value = mock_execute_context
+            mock_conn.execute = mock_execute
 
             # Setup mock data
             # Query: SELECT DISTINCT discord_id FROM player_time WHERE discord_id IS NOT NULL
-            mock_cursor.fetchall.return_value = [("12345",), ("67890",), (None,)]
+            mock_cursor.fetchall = AsyncMock(return_value=[("12345",), ("67890",), (None,)])
 
             # Mock os.path.exists to return True
             with patch("os.path.exists", return_value=True):
                 servers = [{"PLAYER_DB_PATH": "test.db"}]
 
                 # Call the static method directly
-                ids = await asyncio.to_thread(RegistrationCog._fetch_all_linked_discord_ids, servers)
+                ids = await RegistrationCog._fetch_all_linked_discord_ids(servers)
 
                 self.assertEqual(ids, {12345, 67890})
                 mock_connect.assert_called_with("test.db")

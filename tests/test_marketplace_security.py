@@ -33,6 +33,7 @@ class TestMarketplaceSecurity(IsolatedAsyncioTestCase):
         self.mock_bot.wait_until_ready = AsyncMock()
 
         self.mock_status_cog = MagicMock()
+        self.mock_status_cog.execute_safe_command = AsyncMock()
         self.mock_bot.get_cog.return_value = self.mock_status_cog
 
         # Patch config
@@ -142,12 +143,19 @@ class TestMarketplaceSecurity(IsolatedAsyncioTestCase):
             # Mock the DB query as well
             with patch("aiosqlite.connect") as mock_connect:
                 mock_context = mock_connect.return_value.__aenter__.return_value
-                mock_cursor = mock_context.execute.return_value.__aenter__.return_value
+                mock_execute = MagicMock()
+                mock_execute_context = MagicMock()
+                mock_cursor = AsyncMock()
+                mock_execute_context.__aenter__ = AsyncMock(return_value=mock_cursor)
+                mock_execute_context.__aexit__ = AsyncMock(return_value=None)
+                mock_execute.return_value = mock_execute_context
+                mock_context.execute = mock_execute
+
                 # First fetch for pre-check, second for verify
-                mock_cursor.fetchone.side_effect = [
+                mock_cursor.fetchone = AsyncMock(side_effect=[
                     (MARKET_CONFIG["CURRENCY_ITEM_ID"],),  # pre-check
                     (MARKET_CONFIG["CURRENCY_ITEM_ID"], b"dummy_blob"),  # verify
-                ]
+                ])
 
                 # Mock get_char_id_by_name
                 with patch(
