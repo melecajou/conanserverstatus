@@ -82,7 +82,9 @@ class TradesCog(commands.Cog, name="Trades"):
 
         # 2. Find Discord User
         try:
-            discord_id = find_discord_user_by_char_name(db_path, char_name)
+            discord_id = await asyncio.to_thread(
+                find_discord_user_by_char_name, db_path, char_name
+            )
             if not discord_id:
                 logging.info(f"Unregistered player {char_name} tried to buy {item_key}")
                 return
@@ -116,14 +118,16 @@ class TradesCog(commands.Cog, name="Trades"):
 
         # 5. Check Backpack
         try:
-            char_id = get_char_id_by_name(db_path, char_name)
+            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
             if not char_id:
                 await user.send(
                     self.bot._("❌ Error: Character not found in database.")
                 )
                 return
 
-            backpack_item = get_item_in_backpack(db_path, char_id, item["price_id"])
+            backpack_item = await asyncio.to_thread(
+                get_item_in_backpack, db_path, char_id, item["price_id"]
+            )
 
             if not backpack_item or backpack_item["quantity"] < item["price_amount"]:
                 await user.send(
