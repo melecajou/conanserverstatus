@@ -82,14 +82,14 @@ class TradesCog(commands.Cog, name="Trades"):
 
         # 2. Find Discord User
         try:
-            discord_id = await asyncio.to_thread(
-                find_discord_user_by_char_name, db_path, char_name
-            )
+            discord_id = await asyncio.to_thread(find_discord_user_by_char_name, db_path, char_name)
             if not discord_id:
                 logging.info(f"Unregistered player {char_name} tried to buy {item_key}")
                 return
 
-            user = await self.bot.fetch_user(int(discord_id))
+            user = self.bot.get_user(int(discord_id)) or await self.bot.fetch_user(
+                int(discord_id)
+            )
         except Exception as e:
             logging.warning(f"Could not find or contact user for {char_name}: {e}")
             return

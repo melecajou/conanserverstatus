@@ -77,6 +77,7 @@ class TestTradesCog(IsolatedAsyncioTestCase):
         self.mock_user = MagicMock()
         self.mock_user.send = AsyncMock()
         self.mock_bot.fetch_user = AsyncMock(return_value=self.mock_user)
+        self.mock_bot.get_user = MagicMock(return_value=None)
 
     async def asyncTearDown(self):
         self.trades_cog.cog_unload()
