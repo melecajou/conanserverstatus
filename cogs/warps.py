@@ -192,7 +192,7 @@ class WarpsCog(commands.Cog, name="Warps"):
                 )
 
             try:
-                user = await self.bot.fetch_user(discord_id)
+                user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                 if user:
                     await user.send(msg)
             except:
@@ -234,7 +234,7 @@ class WarpsCog(commands.Cog, name="Warps"):
                     f"Player {char_name} tried !sethome but is on cooldown ({rem}s remaining)."
                 )
                 try:
-                    user = await self.bot.fetch_user(discord_id)
+                    user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                     if user:
                         await user.send(
                             self.bot._(
@@ -259,7 +259,7 @@ class WarpsCog(commands.Cog, name="Warps"):
             ):
                 self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
                 try:
-                    user = await self.bot.fetch_user(discord_id)
+                    user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                     if user:
                         await user.send(
                             self.bot._(
@@ -310,7 +310,7 @@ class WarpsCog(commands.Cog, name="Warps"):
                     f"Player {char_name} tried !home but is on cooldown ({rem}s remaining)."
                 )
                 try:
-                    user = await self.bot.fetch_user(discord_id)
+                    user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                     if user:
                         await user.send(
                             self.bot._(
@@ -338,7 +338,7 @@ class WarpsCog(commands.Cog, name="Warps"):
                 logging.info(f"Teleported {char_name} to home")
                 self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
                 try:
-                    user = await self.bot.fetch_user(discord_id)
+                    user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                     if user:
                         await user.send(
                             self.bot._(
@@ -351,7 +351,7 @@ class WarpsCog(commands.Cog, name="Warps"):
                 logging.error(f"Home teleport error: {e}")
         else:
             try:
-                user = await self.bot.fetch_user(discord_id)
+                user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                 if user:
                     await user.send(
                         self.bot._(
@@ -403,7 +403,7 @@ class WarpsCog(commands.Cog, name="Warps"):
                     f"Player {char_name} tried !warp {destination} but is on cooldown ({rem}s remaining)."
                 )
                 try:
-                    user = await self.bot.fetch_user(discord_id)
+                    user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                     if user:
                         await user.send(
                             self.bot._(
@@ -423,7 +423,7 @@ class WarpsCog(commands.Cog, name="Warps"):
             logging.info(f"Teleported {char_name} to {destination}")
             self.cooldowns[cooldown_key] = now + timedelta(minutes=cooldown_minutes)
             try:
-                user = await self.bot.fetch_user(discord_id)
+                user = self.bot.get_user(discord_id) or await self.bot.fetch_user(discord_id)
                 if user:
                     await user.send(
                         self.bot._(
