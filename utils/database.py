@@ -12,6 +12,8 @@ GLOBAL_DB_PATH = "data/global_registry.db"
 _USER_CACHE: Dict[tuple, Dict[str, Any]] = {}
 # Cache for global player data (platform_id -> data)
 _GLOBAL_PLAYER_CACHE: Dict[tuple, Dict[str, Any]] = {}
+# Index for invalidating cache efficiently (discord_id -> set of platform_ids)
+_DISCORD_TO_PLATFORMS_CACHE: Dict[tuple, set] = {}
 USER_CACHE_TTL = 300  # 5 minutes
 
 
@@ -272,6 +274,11 @@ def get_global_player_data(
                         "data": res,
                         "timestamp": now,
                     }
+                    if discord_id is not None:
+                        idx_key = (discord_id, global_db_path)
+                        if idx_key not in _DISCORD_TO_PLATFORMS_CACHE:
+                            _DISCORD_TO_PLATFORMS_CACHE[idx_key] = set()
+                        _DISCORD_TO_PLATFORMS_CACHE[idx_key].add(pid)
 
         # Also cache the "not found" entries to avoid repeated DB lookups for non-existent players
         for pid in unique_missing_ids:
@@ -303,6 +310,15 @@ def link_discord_to_platform(
         # Invalidate cache
         cache_key = (platform_id, global_db_path)
         if cache_key in _GLOBAL_PLAYER_CACHE:
+            entry = _GLOBAL_PLAYER_CACHE[cache_key]
+            data = entry.get("data")
+            old_discord_id = data.get("discord_id") if data else None
+            if old_discord_id is not None:
+                idx_key = (old_discord_id, global_db_path)
+                if idx_key in _DISCORD_TO_PLATFORMS_CACHE:
+                    _DISCORD_TO_PLATFORMS_CACHE[idx_key].discard(platform_id)
+                    if not _DISCORD_TO_PLATFORMS_CACHE[idx_key]:
+                        del _DISCORD_TO_PLATFORMS_CACHE[idx_key]
             del _GLOBAL_PLAYER_CACHE[cache_key]
         return True
     except Exception as e:
@@ -326,12 +342,14 @@ def set_global_vip(
             )
             con.commit()
         # Invalidate cache (all platform_ids for this discord_id)
-        to_delete = [
-            k for k, v in _GLOBAL_PLAYER_CACHE.items()
-            if v["data"]["discord_id"] == discord_id and k[1] == global_db_path
-        ]
-        for k in to_delete:
-            del _GLOBAL_PLAYER_CACHE[k]
+        idx_key = (discord_id, global_db_path)
+        platform_ids = _DISCORD_TO_PLATFORMS_CACHE.get(idx_key, set())
+        for pid in list(platform_ids):
+            cache_key = (pid, global_db_path)
+            if cache_key in _GLOBAL_PLAYER_CACHE:
+                del _GLOBAL_PLAYER_CACHE[cache_key]
+        if idx_key in _DISCORD_TO_PLATFORMS_CACHE:
+            del _DISCORD_TO_PLATFORMS_CACHE[idx_key]
         return True
     except Exception as e:
         logging.error(f"Failed to set global VIP: {e}")
@@ -404,12 +422,14 @@ def update_vip_expiry(
                 return False
             con.commit()
         # Invalidate cache
-        to_delete = [
-            k for k, v in _GLOBAL_PLAYER_CACHE.items()
-            if v["data"]["discord_id"] == discord_id and k[1] == global_db_path
-        ]
-        for k in to_delete:
-            del _GLOBAL_PLAYER_CACHE[k]
+        idx_key = (discord_id, global_db_path)
+        platform_ids = _DISCORD_TO_PLATFORMS_CACHE.get(idx_key, set())
+        for pid in list(platform_ids):
+            cache_key = (pid, global_db_path)
+            if cache_key in _GLOBAL_PLAYER_CACHE:
+                del _GLOBAL_PLAYER_CACHE[cache_key]
+        if idx_key in _DISCORD_TO_PLATFORMS_CACHE:
+            del _DISCORD_TO_PLATFORMS_CACHE[idx_key]
         return True
     except Exception as e:
         logging.error(f"Failed to update VIP expiry: {e}")
