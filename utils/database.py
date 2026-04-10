@@ -278,11 +278,10 @@ def get_global_player_data(
             cache_key = (pid, global_db_path)
             if cache_key not in _GLOBAL_PLAYER_CACHE or _GLOBAL_PLAYER_CACHE[cache_key]["timestamp"] < now:
                 # If it wasn't updated in the loop above, it means it wasn't found in DB
-                if pid not in [p for p, g in _GLOBAL_PLAYER_CACHE if g == global_db_path and _GLOBAL_PLAYER_CACHE[(p, g)]["timestamp"] == now]:
-                     _GLOBAL_PLAYER_CACHE[cache_key] = {
-                        "data": data[pid],
-                        "timestamp": now,
-                    }
+                _GLOBAL_PLAYER_CACHE[cache_key] = {
+                    "data": data[pid],
+                    "timestamp": now,
+                }
 
     except Exception as e:
         logging.error(f"Error fetching global player data: {e}")
