@@ -26,7 +26,7 @@ from utils.log_watcher import LogWatcher
 # !deposit <slot>
 DEPOSIT_COMMAND_REGEX = re.compile(r"!deposit\s+(\d+)")
 # !sell <slot> <price>
-SELL_COMMAND_REGEX = re.compile(r"!sell\s+(\d+)\s+(\d+)")
+SELL_COMMAND_REGEX = re.compile(r"!sell\s+(\d+)\s+(-?\d+)")
 # !buy <listing_id>
 BUY_COMMAND_REGEX = re.compile(r"!buy\s+(\d+)")
 # !balance
@@ -34,7 +34,7 @@ BALANCE_COMMAND_REGEX = re.compile(r"!balance")
 # !market
 MARKET_COMMAND_REGEX = re.compile(r"!market")
 # !withdraw <amount>
-WITHDRAW_COMMAND_REGEX = re.compile(r"!withdraw\s+(\d+)")
+WITHDRAW_COMMAND_REGEX = re.compile(r"!withdraw\s+(-?\d+)")
 # !markethelp
 MARKET_HELP_COMMAND_REGEX = re.compile(r"!markethelp")
 CHAT_CHARACTER_REGEX = re.compile(r"ChatWindow: Character (.+?) \(uid")
@@ -218,9 +218,6 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         server_name = server_conf["NAME"]
         currency_id = config.MARKETPLACE["CURRENCY_ITEM_ID"]
 
-        if amount <= 0:
-            return
-
         # 1. Identity Check
         discord_id = await asyncio.to_thread(
             find_discord_user_by_char_name, db_path, char_name
@@ -229,6 +226,13 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
             return
         user = await self.bot.fetch_user(int(discord_id))
         if not user:
+            return
+
+        if amount <= 0:
+            try:
+                await user.send(self.bot._("❌ Error: Withdrawal amount must be greater than 0."))
+            except:
+                pass
             return
 
         if amount > MAX_TRANSACTION_VALUE:
@@ -638,23 +642,23 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 pass
             return
 
-        # 2. Inform user and wait for sync (Initial)
-        try:
-            await user.send(
-                self.bot._(
-                    "📦 **Sell Request:** Listing item in slot {slot} for {price} {currency}. Please wait {sync}s..."
-                ).format(
-                    slot=slot,
-                    price=price,
-                    currency=config.MARKETPLACE["CURRENCY_NAME"],
-                    sync=sync_time * 2,
-                )
-            )
-        except:
-            pass
-
         # LOCK from start of first check
         async with self._get_lock(server_name, char_name):
+            # 2. Inform user and wait for sync (Initial)
+            try:
+                await user.send(
+                    self.bot._(
+                        "📦 **Sell Request:** Listing item in slot {slot} for {price} {currency}. Please wait {sync}s..."
+                    ).format(
+                        slot=slot,
+                        price=price,
+                        currency=config.MARKETPLACE["CURRENCY_NAME"],
+                        sync=sync_time * 2,
+                    )
+                )
+            except:
+                pass
+
             try:
                 char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
                 if not char_id:
@@ -904,6 +908,14 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
                 # Extract Quantity (ID 1)
                 quantity = dna["int"].get(1, 1)
+
+                if quantity <= 0 or quantity > MAX_TRANSACTION_VALUE:
+                    await user.send(
+                        self.bot._(
+                            "❌ Error: Deposit quantity ({qty}) must be between 1 and {max}."
+                        ).format(qty=quantity, max=MAX_TRANSACTION_VALUE)
+                    )
+                    return
 
                 # --- PHASE 3: DELETE & CREDIT ---
                 try:
