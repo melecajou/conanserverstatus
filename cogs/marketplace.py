@@ -423,7 +423,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                             template_id_query = row[0]
 
                 if template_id_query:
-                    char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+                    char_id = await get_char_id_by_name(db_path, char_name)
                     async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
                         # Check Backpack (0) and Hotbar (2). Stacking doesn't happen with Equipped (1).
                         async with con.execute(
@@ -471,9 +471,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 # C. Spawn Item (RCON)
                 # Capture inventory state BEFORE spawn (with quantities)
                 async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-                    char_id = await asyncio.to_thread(
-                        get_char_id_by_name, db_path, char_name
-                    )
+                    char_id = await get_char_id_by_name(db_path, char_name)
                     # We store a dict: {(item_id, inv_type): data_blob_or_quantity}
                     async with con.execute(
                         "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=?",
@@ -660,7 +658,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 pass
 
             try:
-                char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+                char_id = await get_char_id_by_name(db_path, char_name)
                 if not char_id:
                     return
 
@@ -833,7 +831,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         # LOCK from start of first check
         async with self._get_lock(server_name, char_name):
             try:
-                char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+                char_id = await get_char_id_by_name(db_path, char_name)
                 if not char_id:
                     return
 

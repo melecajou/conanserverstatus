@@ -92,7 +92,7 @@ class TestMarketplaceSecureSell(IsolatedAsyncioTestCase):
         self.mock_find_user = self.find_discord_user_patcher.start()
         self.mock_find_user.return_value = "12345"
 
-        self.get_char_id_patcher = patch("cogs.marketplace.get_char_id_by_name")
+        self.get_char_id_patcher = patch("cogs.marketplace.get_char_id_by_name", new_callable=AsyncMock)
         self.mock_get_char_id = self.get_char_id_patcher.start()
         self.mock_get_char_id.return_value = 1
 
