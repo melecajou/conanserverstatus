@@ -2,6 +2,8 @@ import sqlite3
 import logging
 import os
 import time
+import asyncio
+import aiosqlite
 from typing import Dict, List, Any, Optional
 
 # --- DATABASE SETUP ---
@@ -822,16 +824,17 @@ def find_discord_user_by_char_name(
     return None
 
 
-def get_char_id_by_name(db_path: str, char_name: str) -> Optional[int]:
+async def get_char_id_by_name(db_path: str, char_name: str) -> Optional[int]:
     """Retrieves the internal character ID from the game database."""
     if not os.path.exists(db_path):
         return None
     try:
-        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as con:
-            cur = con.cursor()
-            cur.execute("SELECT id FROM characters WHERE char_name = ?", (char_name,))
-            row = cur.fetchone()
-            return row[0] if row else None
+        async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+            async with con.execute(
+                "SELECT id FROM characters WHERE char_name = ?", (char_name,)
+            ) as cur:
+                row = await cur.fetchone()
+                return row[0] if row else None
     except Exception as e:
         logging.error(f"Error getting char_id for {char_name}: {e}")
         return None

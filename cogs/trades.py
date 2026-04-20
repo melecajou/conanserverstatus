@@ -118,7 +118,7 @@ class TradesCog(commands.Cog, name="Trades"):
 
         # 5. Check Backpack
         try:
-            char_id = await asyncio.to_thread(get_char_id_by_name, db_path, char_name)
+            char_id = await get_char_id_by_name(db_path, char_name)
             if not char_id:
                 await user.send(
                     self.bot._("❌ Error: Character not found in database.")

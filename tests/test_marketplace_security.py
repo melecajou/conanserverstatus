@@ -159,7 +159,7 @@ class TestMarketplaceSecurity(IsolatedAsyncioTestCase):
 
                 # Mock get_char_id_by_name
                 with patch(
-                    "cogs.marketplace.get_char_id_by_name", return_value=1
+                    "cogs.marketplace.get_char_id_by_name", new_callable=AsyncMock, return_value=1
                 ):
                     # We also need to mock time.time() for the MARK_STAT_ID
                     with patch("time.time", return_value=12345):
