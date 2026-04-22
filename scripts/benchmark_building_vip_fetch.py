@@ -30,7 +30,7 @@ def setup_db(num_users=10000):
     con.close()
     return [f"PLATFORM_{i}" for i in range(num_users)]
 
-def bench_current(platform_ids):
+async def bench_current(platform_ids):
     _GLOBAL_PLAYER_CACHE.clear()
 
     start = time.time()
@@ -38,27 +38,27 @@ def bench_current(platform_ids):
     if platform_ids:
         for i in range(0, len(platform_ids), 900):
             batch = platform_ids[i : i + 900]
-            data = get_global_player_data(batch, global_db_path=DB_PATH)
+            data = await get_global_player_data(batch, global_db_path=DB_PATH)
             for platform_id, info in data.items():
                 platform_vip_map[platform_id] = info.get("vip_level", 0)
     end = time.time()
 
     return end - start, len(platform_vip_map)
 
-def bench_optimized(platform_ids):
+async def bench_optimized(platform_ids):
     _GLOBAL_PLAYER_CACHE.clear()
 
     start = time.time()
     platform_vip_map = {}
     if platform_ids:
-        data = get_global_player_data(platform_ids, global_db_path=DB_PATH)
+        data = await get_global_player_data(platform_ids, global_db_path=DB_PATH)
         for platform_id, info in data.items():
             platform_vip_map[platform_id] = info.get("vip_level", 0)
     end = time.time()
 
     return end - start, len(platform_vip_map)
 
-if __name__ == "__main__":
+async def main():
     print("Setting up test database...")
     platform_ids = setup_db(num_users=20000)
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     current_times = []
     for _ in range(num_runs):
-        t, count = bench_current(platform_ids)
+        t, count = await bench_current(platform_ids)
         current_times.append(t)
 
     avg_current = sum(current_times) / num_runs
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     opt_times = []
     for _ in range(num_runs):
-        t, count = bench_optimized(platform_ids)
+        t, count = await bench_optimized(platform_ids)
         opt_times.append(t)
 
     avg_opt = sum(opt_times) / num_runs
@@ -89,3 +89,7 @@ if __name__ == "__main__":
 
     if os.path.exists(DB_PATH):
         os.remove(DB_PATH)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

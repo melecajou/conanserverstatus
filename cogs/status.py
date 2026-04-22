@@ -852,9 +852,7 @@ class StatusCog(commands.Cog, name="Status"):
                 platform_ids,
                 server_name,
             )
-            global_data_map = await asyncio.to_thread(
-                get_global_player_data, platform_ids
-            )
+            global_data_map = await get_global_player_data(platform_ids)
 
             server_data["levels_map"] = levels_map
             server_data["player_data_map"] = player_data_map

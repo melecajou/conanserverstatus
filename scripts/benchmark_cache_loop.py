@@ -1,3 +1,4 @@
+import asyncio
 import time
 import sys
 import os
@@ -8,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils.database import get_global_player_data, _GLOBAL_PLAYER_CACHE, initialize_global_db, GLOBAL_DB_PATH
 
-def benchmark():
+async def benchmark():
     # Setup
     db_path = "data/test_global_registry.db"
     if os.path.exists(db_path):
@@ -32,7 +33,7 @@ def benchmark():
 
     # We want to measure only the function execution time
     start_time = time.time()
-    get_global_player_data(pids_to_query, global_db_path=db_path)
+    await get_global_player_data(pids_to_query, global_db_path=db_path)
     end_time = time.time()
 
     duration = end_time - start_time
@@ -43,4 +44,4 @@ def benchmark():
         os.remove(db_path)
 
 if __name__ == "__main__":
-    benchmark()
+    asyncio.run(benchmark())

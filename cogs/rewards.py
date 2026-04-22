@@ -158,7 +158,7 @@ class RewardsCog(commands.Cog, name="Rewards"):
         from utils.database import get_global_player_data
 
         try:
-            global_data = await asyncio.to_thread(get_global_player_data, platform_ids)
+            global_data = await get_global_player_data(platform_ids)
         except Exception as e:
             logging.error(f"Error batch fetching global player data: {e}")
             global_data = {}

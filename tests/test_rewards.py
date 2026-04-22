@@ -230,7 +230,7 @@ class TestRewardsCog(IsolatedAsyncioTestCase):
 
         # Patch utils.database.get_global_player_data
         with patch(
-            "utils.database.get_global_player_data", return_value=mock_global_data
+            "utils.database.get_global_player_data", new_callable=AsyncMock, return_value=mock_global_data
         ) as mock_get_global:
             # We call the REAL method here, not a mock of it
             # But we need to ensure we are calling the one bound to self.rewards_cog

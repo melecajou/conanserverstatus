@@ -174,7 +174,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         if not platform_id:
             return
 
-        player_data = get_global_player_data([platform_id])
+        player_data = await get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
 
         if discord_id:
@@ -216,7 +216,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         if not platform_id:
             return
 
-        player_data = get_global_player_data([platform_id])
+        player_data = await get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
 
         if not discord_id:
@@ -292,7 +292,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         if not idx or not platform_id:
             return
 
-        player_data = get_global_player_data([platform_id])
+        player_data = await get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
 
         if not discord_id:
@@ -385,7 +385,7 @@ class WarpsCog(commands.Cog, name="Warps"):
         if not idx or not platform_id:
             return
 
-        player_data = get_global_player_data([platform_id])
+        player_data = await get_global_player_data([platform_id])
         discord_id = player_data.get(platform_id, {}).get("discord_id")
 
         if not discord_id:

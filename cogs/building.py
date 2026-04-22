@@ -12,10 +12,10 @@ import config
 from utils.database import get_global_player_data
 
 
-def get_owner_details(owner_id, game_db_path, player_db_path):
+async def get_owner_details(owner_id, game_db_path, player_db_path):
     """Gets owner details (name, vip_level, type) from the game and player DBs."""
     # Wrapper for backward compatibility or single use cases, implemented via batch
-    result = get_batch_owner_details([owner_id], game_db_path, player_db_path)
+    result = await get_batch_owner_details([owner_id], game_db_path, player_db_path)
     return result.get(owner_id, (None, 0, "unknown"))
 
 
@@ -30,7 +30,7 @@ async def _execute_building_report_query(sql_path, db_backup_path):
             return await cur.fetchall()
 
 
-def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
+async def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
     """
     Gets owner details (name, vip_level, type) for a batch of owner_ids.
     Returns a dictionary: {owner_id: (name, vip_level, type)}
@@ -40,8 +40,8 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
         return results
 
     try:
-        with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
-            cur = con.cursor()
+        async with aiosqlite.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
+
 
             # 1. Identify Guilds
             guild_owners = {}  # guild_id -> name
@@ -49,12 +49,12 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
             for i in range(0, len(owner_ids), 900):
                 batch = owner_ids[i : i + 900]
                 placeholders = ",".join("?" * len(batch))
-                cur.execute(
+                async with con.execute(
                     f"SELECT guildId, name FROM guilds WHERE guildId IN ({placeholders})",
                     batch,
-                )
-                for gid, name in cur.fetchall():
-                    guild_owners[gid] = name
+                ) as cur:
+                    async for gid, name in cur:
+                        guild_owners[gid] = name
 
             # 2. Identify Players (from owner_ids that are not guilds)
             # Deduplicate before chunking to optimize query performance and reduce query size
@@ -67,12 +67,12 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
                 for i in range(0, len(potential_player_ids), 900):
                     batch = potential_player_ids[i : i + 900]
                     placeholders = ",".join("?" * len(batch))
-                    cur.execute(
+                    async with con.execute(
                         f"SELECT id, char_name, playerId FROM characters WHERE id IN ({placeholders})",
                         batch,
-                    )
-                    for char_id, name, pid in cur.fetchall():
-                        player_owners[char_id] = (name, pid)
+                    ) as cur:
+                        async for char_id, name, pid in cur:
+                            player_owners[char_id] = (name, pid)
 
             # 3. Get Members for Guilds
             guild_members = {}  # guild_id -> list of player_ids
@@ -81,14 +81,14 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
                 for i in range(0, len(guild_ids), 900):
                     batch = guild_ids[i : i + 900]
                     placeholders = ",".join("?" * len(batch))
-                    cur.execute(
+                    async with con.execute(
                         f"SELECT guild, playerId FROM characters WHERE guild IN ({placeholders})",
                         batch,
-                    )
-                    for gid, pid in cur.fetchall():
-                        if gid not in guild_members:
-                            guild_members[gid] = []
-                        guild_members[gid].append(pid)
+                    ) as cur:
+                        async for gid, pid in cur:
+                            if gid not in guild_members:
+                                guild_members[gid] = []
+                            guild_members[gid].append(pid)
 
             # 4. Collect all player IDs to fetch Platform IDs
             all_player_ids = set()
@@ -104,19 +104,19 @@ def get_batch_owner_details(owner_ids, game_db_path, player_db_path):
                 for i in range(0, len(all_player_ids_list), 900):
                     batch = all_player_ids_list[i : i + 900]
                     placeholders = ",".join("?" * len(batch))
-                    cur.execute(
+                    async with con.execute(
                         f"SELECT id, platformId FROM account WHERE id IN ({placeholders})",
                         batch,
-                    )
-                    for pid, platform_id in cur.fetchall():
-                        player_platform_map[pid] = platform_id
+                    ) as cur:
+                        async for pid, platform_id in cur:
+                            player_platform_map[pid] = platform_id
 
             # 6. Fetch VIP Levels
             all_platform_ids = list(set(player_platform_map.values()))
             platform_vip_map = {}  # platform_id -> vip_level
 
             if all_platform_ids:
-                data = get_global_player_data(all_platform_ids)
+                data = await get_global_player_data(all_platform_ids)
                 for platform_id, info in data.items():
                     platform_vip_map[platform_id] = info.get("vip_level", 0)
 
@@ -213,9 +213,7 @@ class BuildingCog(commands.Cog, name="Building"):
 
                 # BATCH OPTIMIZATION START
                 owner_ids = [r[0] for r in results]
-                owner_details_map = await asyncio.to_thread(
-                    get_batch_owner_details, owner_ids, game_db_path, player_db_path
-                )
+                owner_details_map = await get_batch_owner_details(owner_ids, game_db_path, player_db_path)
                 # BATCH OPTIMIZATION END
 
                 for i, (owner_id, pieces) in enumerate(results, 1):

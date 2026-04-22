@@ -55,7 +55,7 @@ class TestWarpsCog(IsolatedAsyncioTestCase):
             self.warps_cog = WarpsCog(self.mock_bot)
 
         # Mock DB functions
-        self.get_global_player_data_patcher = patch("cogs.warps.get_global_player_data")
+        self.get_global_player_data_patcher = patch("cogs.warps.get_global_player_data", new_callable=AsyncMock)
         self.mock_get_global_player_data = self.get_global_player_data_patcher.start()
         self.mock_get_global_player_data.return_value = {
             "steam_id": {"discord_id": 12345}

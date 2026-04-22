@@ -89,7 +89,7 @@ async def main():
     # Run the blocking operation
     with unittest.mock.patch('cogs.building.get_global_player_data', side_effect=mock_get_global_player_data):
         start = time.time()
-        get_batch_owner_details(owner_ids, DB_PATH, PLAYER_DB_PATH)
+        await get_batch_owner_details(owner_ids, DB_PATH, PLAYER_DB_PATH)
         duration = time.time() - start
 
     print(f"Sync operation took {duration:.4f}s")
@@ -107,7 +107,7 @@ async def main():
     with unittest.mock.patch('cogs.building.get_global_player_data', side_effect=mock_get_global_player_data):
         start = time.time()
         # This is what we will implement in the code
-        await asyncio.to_thread(get_batch_owner_details, owner_ids, DB_PATH, PLAYER_DB_PATH)
+        await get_batch_owner_details(owner_ids, DB_PATH, PLAYER_DB_PATH)
         duration = time.time() - start
 
     print(f"Threaded operation took {duration:.4f}s")

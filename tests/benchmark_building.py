@@ -66,7 +66,7 @@ def setup_db():
     con.close()
     return owners
 
-def mock_get_global_player_data(platform_ids, global_db_path=None):
+async def mock_get_global_player_data(platform_ids, global_db_path=None):
     # Simulate a fast lookup
     return {pid: {"vip_level": 1 if int(pid.split('_')[1]) % 10 == 0 else 0} for pid in platform_ids}
 
@@ -90,7 +90,7 @@ def run_benchmark():
         # Test 2: Batch
         print("Benchmarking Batch...")
         start_time = time.time()
-        get_batch_owner_details(owner_ids, DB_PATH, PLAYER_DB_PATH)
+        asyncio.run(get_batch_owner_details(owner_ids, DB_PATH, PLAYER_DB_PATH))
         end_time = time.time()
         print(f"Batch Time: {end_time - start_time:.4f} seconds")
 

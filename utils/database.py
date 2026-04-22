@@ -219,7 +219,7 @@ def migrate_to_global_db(server_dbs: List[str], global_db_path: str = GLOBAL_DB_
         logging.error(f"Failed to migrate to global database: {e}")
 
 
-def get_global_player_data(
+async def get_global_player_data(
     platform_ids: List[str], global_db_path: str = GLOBAL_DB_PATH
 ) -> Dict[str, Dict[str, Any]]:
     """
@@ -249,8 +249,7 @@ def get_global_player_data(
     unique_missing_ids = list(set(missing_ids))
 
     try:
-        with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
-            cur = con.cursor()
+        async with aiosqlite.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
             # SQLite limits host parameters to 999 (or 32766 in newer versions)
             # We chunk the IDs to be safe (900 at a time)
             for i in range(0, len(unique_missing_ids), 900):
@@ -263,24 +262,25 @@ def get_global_player_data(
                     LEFT JOIN discord_vips dv ON ui.discord_id = dv.discord_id
                     WHERE ui.platform_id IN ({placeholders})
                 """
-                cur.execute(query, chunk)
-                for pid, discord_id, vip_level, vip_expiry in cur.fetchall():
-                    res = {
-                        "discord_id": discord_id,
-                        "vip_level": vip_level if vip_level else 0,
-                        "vip_expiry": vip_expiry,
-                    }
-                    data[pid] = res
-                    # Update cache
-                    _GLOBAL_PLAYER_CACHE[(pid, global_db_path)] = {
-                        "data": res,
-                        "timestamp": now,
-                    }
-                    if discord_id is not None:
-                        idx_key = (discord_id, global_db_path)
-                        if idx_key not in _DISCORD_TO_PLATFORMS_CACHE:
-                            _DISCORD_TO_PLATFORMS_CACHE[idx_key] = set()
-                        _DISCORD_TO_PLATFORMS_CACHE[idx_key].add(pid)
+                async with con.execute(query, chunk) as cur:
+                    rows = await cur.fetchall()
+                    for pid, discord_id, vip_level, vip_expiry in rows:
+                        res = {
+                            "discord_id": discord_id,
+                            "vip_level": vip_level if vip_level else 0,
+                            "vip_expiry": vip_expiry,
+                        }
+                        data[pid] = res
+                        # Update cache
+                        _GLOBAL_PLAYER_CACHE[(pid, global_db_path)] = {
+                            "data": res,
+                            "timestamp": now,
+                        }
+                        if discord_id is not None:
+                            idx_key = (discord_id, global_db_path)
+                            if idx_key not in _DISCORD_TO_PLATFORMS_CACHE:
+                                _DISCORD_TO_PLATFORMS_CACHE[idx_key] = set()
+                            _DISCORD_TO_PLATFORMS_CACHE[idx_key].add(pid)
 
         # Also cache the "not found" entries to avoid repeated DB lookups for non-existent players
         for pid in unique_missing_ids:
