@@ -511,7 +511,27 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
                 # D. Find New Item and Inject DNA (with retries)
                 new_item_found = None  # (slot, inv_type)
                 async with aiosqlite.connect(f"file:{db_path}?mode=ro", uri=True) as con:
+                    # Get baseline data_version before polling
+                    async with con.execute("PRAGMA data_version") as cur:
+                        row = await cur.fetchone()
+                        last_data_version = row[0] if row else 0
+
                     for attempt in range(18):  # Try up to 18 times (1s interval)
+                        if attempt > 0:
+                            # Check if DB has changed before running full query
+                            async with con.execute("PRAGMA data_version") as cur:
+                                row = await cur.fetchone()
+                                current_version = row[0] if row else 0
+
+                            if current_version == last_data_version:
+                                print(
+                                    f"MARKET: Attempt {attempt+1} to find spawned item {template_id} failed (no DB changes). Retrying..."
+                                )
+                                await asyncio.sleep(1)
+                                continue
+
+                            last_data_version = current_version
+
                         async with con.execute(
                             "SELECT item_id, inv_type, template_id FROM item_inventory WHERE owner_id=? AND template_id=?",
                             (char_id, template_id),
