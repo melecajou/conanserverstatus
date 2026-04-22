@@ -200,21 +200,31 @@ class StatusCog(commands.Cog, name="Status"):
 
         max_loop_retries = 3
 
+        # 1. Get Player List (initial fetch)
+        try:
+            response, _ = await self.get_player_list(
+                server_name, use_cache=True
+            )
+        except Exception as e:
+            logging.warning(
+                f"Safe execution failed at initial ListPlayers step for {char_name}: {type(e).__name__}"
+            )
+            response = ""
+
         for attempt in range(max_loop_retries):
-            # 1. Get Player List (this internally retries connection errors)
-            # Try cache on first attempt
-            try:
-                response, _ = await self.get_player_list(
-                    server_name, use_cache=(attempt == 0)
-                )
-            except Exception as e:
-                logging.warning(
-                    f"Safe execution failed at ListPlayers step for {char_name}: {type(e).__name__}"
-                )
-                if attempt < max_loop_retries - 1:
-                    await asyncio.sleep(1)
-                    continue
-                raise e
+            if not response:
+                try:
+                    response, _ = await self.get_player_list(
+                        server_name, use_cache=False
+                    )
+                except Exception as e:
+                    logging.warning(
+                        f"Safe execution failed at ListPlayers retry step for {char_name}: {type(e).__name__}"
+                    )
+                    if attempt < max_loop_retries - 1:
+                        await asyncio.sleep(1)
+                        continue
+                    raise e
 
             # 2. Find Index
             idx = None
@@ -227,6 +237,10 @@ class StatusCog(commands.Cog, name="Status"):
                         break
 
             if not idx:
+                if attempt < max_loop_retries - 1:
+                    response = ""
+                    await asyncio.sleep(1)
+                    continue
                 raise ValueError(
                     f"Player {char_name} not found online on {server_name}."
                 )
@@ -254,6 +268,7 @@ class StatusCog(commands.Cog, name="Status"):
                     f"Safe execution attempt {attempt + 1} failed for {char_name} (idx {idx}): {type(e).__name__}. Retrying loop."
                 )
                 if attempt < max_loop_retries - 1:
+                    response = ""
                     await asyncio.sleep(1)
                     continue
                 raise e
@@ -289,20 +304,33 @@ class StatusCog(commands.Cog, name="Status"):
 
         max_loop_retries = 3
 
+        # 1. Get Player List (initial fetch)
+        try:
+            response, _ = await self.get_player_list(
+                server_name, use_cache=True
+            )
+        except Exception as e:
+            logging.warning(
+                f"Safe batch execution failed at initial ListPlayers step for {char_name}: {type(e).__name__}"
+            )
+            # If the initial fetch fails, we'll try again inside the loop
+            response = ""
+
         for attempt in range(max_loop_retries):
-            # 1. Get Player List
-            try:
-                response, _ = await self.get_player_list(
-                    server_name, use_cache=(attempt == 0)
-                )
-            except Exception as e:
-                logging.warning(
-                    f"Safe batch execution failed at ListPlayers step for {char_name}: {type(e).__name__}"
-                )
-                if attempt < max_loop_retries - 1:
-                    await asyncio.sleep(1)
-                    continue
-                raise e
+            # If response is empty, it means we need to fetch a fresh list (either initial failure or retry)
+            if not response:
+                try:
+                    response, _ = await self.get_player_list(
+                        server_name, use_cache=False
+                    )
+                except Exception as e:
+                    logging.warning(
+                        f"Safe batch execution failed at ListPlayers retry step for {char_name}: {type(e).__name__}"
+                    )
+                    if attempt < max_loop_retries - 1:
+                        await asyncio.sleep(1)
+                        continue
+                    raise e
 
             # 2. Find Index
             idx = None
@@ -323,6 +351,7 @@ class StatusCog(commands.Cog, name="Status"):
             if not idx:
                 # If we can't find the player, retry. Maybe list was partial or empty.
                 if attempt < max_loop_retries - 1:
+                    response = "" # Force fresh fetch on next loop
                     await asyncio.sleep(1)
                     continue
                 raise ValueError(
@@ -356,6 +385,7 @@ class StatusCog(commands.Cog, name="Status"):
                     f"Safe batch execution attempt {attempt + 1} failed at command {len(results)+1}/{len(command_templates)} for {char_name} (idx {idx}): {type(e).__name__}. Retrying full batch."
                 )
                 if attempt < max_loop_retries - 1:
+                    response = "" # Force fresh fetch on next loop
                     await asyncio.sleep(1)
                     continue
                 raise e
