@@ -1,3 +1,4 @@
+
 import asyncio
 import time
 import sys
@@ -68,14 +69,13 @@ from cogs.guild_sync import GuildSyncCog
 NUM_MEMBERS = 10000
 NUM_ACTIVE = 100
 NUM_INACTIVE_WITH_ROLE = 50
-NUM_ACTIVE_NEEDS_CHANGE = 50
 
 # Global counters
 FETCH_MEMBERS_CALLS = 0
 FETCH_MEMBERS_ITERATIONS = 0
 GET_MEMBER_CALLS = 0
 EDIT_CALLS = 0
-ADD_REMOVE_CALLS = 0
+API_CALLS = 0
 
 # Create Mock Member and Role classes locally for logic
 class MockRole:
@@ -90,17 +90,22 @@ class MockMember:
         self.roles = roles or []
         self.bot = bot
 
-    async def add_roles(self, *roles, reason=None):
-        global ADD_REMOVE_CALLS
-        ADD_REMOVE_CALLS += 1
-
-    async def remove_roles(self, *roles, reason=None):
-        global ADD_REMOVE_CALLS
-        ADD_REMOVE_CALLS += 1
-
     async def edit(self, *, roles=None, reason=None):
         global EDIT_CALLS
         EDIT_CALLS += 1
+        print(f"edit called for {self.display_name} with roles {roles}")
+
+    async def add_roles(self, *roles, reason=None):
+        global API_CALLS
+        API_CALLS += 1
+        print(f"add_roles called for {self.display_name} with {[r.name for r in roles]}")
+
+    async def remove_roles(self, *roles, reason=None):
+        global API_CALLS
+        API_CALLS += 1
+        print(f"remove_roles called for {self.display_name} with {[r.name for r in roles]}")
+
+
 
 class MockGuild:
     def __init__(self, members, roles):
@@ -136,29 +141,17 @@ async def main():
     members = []
     user_guild_map = {}
 
-    # 1. Active players needing an update (has a role they shouldn't, missing a role they should)
-    for i in range(NUM_ACTIVE_NEEDS_CHANGE):
-        expected_guild_idx = i % 10
-        wrong_guild_idx = (i + 1) % 10
-        expected_guild_name = f"Guild{expected_guild_idx}"
-
-        wrong_role = guild_roles[wrong_guild_idx]
-        m = MockMember(i, f"PlayerNeedsChange{i}", roles=[wrong_role])
-        wrong_role.members.append(m)
-        members.append(m)
-        user_guild_map[i] = [expected_guild_name]
-
-    # 2. Active players needing NO change
-    for i in range(NUM_ACTIVE_NEEDS_CHANGE, NUM_ACTIVE):
+    # 1. Active players
+    for i in range(NUM_ACTIVE):
         guild_idx = i % 10
         guild_name = f"Guild{guild_idx}"
         role = guild_roles[guild_idx]
-        m = MockMember(i, f"PlayerGood{i}", roles=[role])
+        m = MockMember(i, f"Player{i}", roles=[role])
         role.members.append(m)
         members.append(m)
         user_guild_map[i] = [guild_name]
 
-    # 3. Inactive players with role
+    # 2. Inactive players with role
     for i in range(NUM_ACTIVE, NUM_ACTIVE + NUM_INACTIVE_WITH_ROLE):
         guild_idx = i % 10
         role = guild_roles[guild_idx]
@@ -166,7 +159,7 @@ async def main():
         role.members.append(m)
         members.append(m)
 
-    # 4. Irrelevant members
+    # 3. Irrelevant members
     for i in range(NUM_ACTIVE + NUM_INACTIVE_WITH_ROLE, NUM_MEMBERS):
         m = MockMember(i, f"Random{i}", roles=[other_roles[0]])
         other_roles[0].members.append(m)
@@ -183,20 +176,29 @@ async def main():
     cog = GuildSyncCog(mock_bot)
 
     # Patch utils.database.get_all_guild_members
+    # It's called via asyncio.to_thread, so it must be a regular function
     utils.database.get_all_guild_members.return_value = user_guild_map
+    print(f"DEBUG: id in script: {id(utils.database.get_all_guild_members)}")
+
+    # Verify mock
+    print(f"DEBUG: get_all_guild_members return value size: {len(utils.database.get_all_guild_members())}")
 
     print("Running sync_guilds_task...")
     start_time = time.time()
 
+    # Since we mocked loop decorator to return the function, we can await it directly
+    # But it's wrapped in a mock now, and the coro is unbound
     await cog.sync_guilds_task.coro(cog)
 
     end_time = time.time()
     duration = end_time - start_time
 
     print(f"Benchmark completed in {duration:.4f}s")
+    print(f"fetch_members calls: {FETCH_MEMBERS_CALLS}")
+    print(f"fetch_members iterations: {FETCH_MEMBERS_ITERATIONS}")
     print(f"get_member calls: {GET_MEMBER_CALLS}")
-    print(f"edit() calls: {EDIT_CALLS}")
-    print(f"add/remove_roles calls: {ADD_REMOVE_CALLS}")
+    print(f"API calls: {API_CALLS}")
+    print(f"edit calls: {EDIT_CALLS}")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -53,8 +53,8 @@ class TestGuildSyncOptimization:
         member_active.display_name = "ActiveUser"
         member_active.bot = False
         member_active.roles = []
-        member_active.add_roles = AsyncMock()
-        member_active.remove_roles = AsyncMock()
+        member_active.edit = AsyncMock()
+
 
         # Inactive member: Has GuildB role, needs removal
         member_inactive = MagicMock(spec=discord.Member)
@@ -62,8 +62,8 @@ class TestGuildSyncOptimization:
         member_inactive.display_name = "InactiveUser"
         member_inactive.bot = False
         member_inactive.roles = [role_b]
-        member_inactive.add_roles = AsyncMock()
-        member_inactive.remove_roles = AsyncMock()
+
+        member_inactive.edit = AsyncMock()
 
         # Setup role.members
         role_b.members = [member_inactive]
@@ -117,11 +117,12 @@ class TestGuildSyncOptimization:
             # We assume discord.utils.get finds role_a by name
             # Since mock_guild.roles has role_a with correct name
 
-            assert member_active.add_roles.called
-            args, _ = member_active.add_roles.call_args
-            assert role_a in args
+        # 3. Verify member_active got role added via edit
+        assert member_active.edit.called
+        _, kwargs = member_active.edit.call_args
+        assert role_a in kwargs.get('roles', [])
 
-            # 4. Verify member_inactive got role removed
-            assert member_inactive.remove_roles.called
-            args, _ = member_inactive.remove_roles.call_args
-            assert role_b in args
+        # 4. Verify member_inactive got role removed via edit
+        assert member_inactive.edit.called
+        _, kwargs = member_inactive.edit.call_args
+        assert role_b not in kwargs.get('roles', [])
