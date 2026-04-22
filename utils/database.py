@@ -18,6 +18,9 @@ _GLOBAL_PLAYER_CACHE: Dict[tuple, Dict[str, Any]] = {}
 _DISCORD_TO_PLATFORMS_CACHE: Dict[tuple, set] = {}
 USER_CACHE_TTL = 300  # 5 minutes
 
+# Cache for struct.Struct objects used in fast byte unpacking
+_STRUCT_CACHE = {}
+
 
 def initialize_global_db(db_path: str = GLOBAL_DB_PATH):
     """Creates or updates the global registry database."""
@@ -1062,13 +1065,20 @@ def get_item_in_backpack(
                                 cursor_pos += 4
                                 if prop_count < 100:
                                     if cursor_pos + (prop_count * 8) <= len(data):
-                                        props = struct.unpack_from(
-                                            f"<{prop_count * 2}I", data, cursor_pos
-                                        )
-                                        for i in range(0, prop_count * 2, 2):
-                                            if props[i] == 1:  # 1 is Quantity
-                                                quantity = props[i + 1]
-                                                break
+                                        fmt = _STRUCT_CACHE.get(prop_count)
+                                        if fmt is None:
+                                            fmt = struct.Struct(f"<{prop_count * 2}I")
+                                            _STRUCT_CACHE[prop_count] = fmt
+
+                                        props = fmt.unpack_from(data, cursor_pos)
+
+                                        try:
+                                            # Slice to get just the property IDs (even indices).
+                                            # This creates a tuple copy but is very fast in C.
+                                            idx = props[::2].index(1)
+                                            quantity = props[idx * 2 + 1]
+                                        except ValueError:
+                                            pass
                                 offset = data.find(packed_id, offset + 1)
                     except:
                         pass
