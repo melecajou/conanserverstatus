@@ -1,3 +1,4 @@
+import aiosqlite
 import sys
 import os
 import time
@@ -44,7 +45,7 @@ def setup_db():
 
 # --- OPTIMIZED FUNCTIONS ---
 
-def opt_get_global_player_data(
+async def opt_get_global_player_data(
     platform_ids: List[str], global_db_path: str = DB_PATH
 ) -> Dict[str, Dict[str, Any]]:
     data = {
@@ -57,8 +58,7 @@ def opt_get_global_player_data(
     unique_platform_ids = list(set(platform_ids))
 
     try:
-        with sqlite3.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
-            cur = con.cursor()
+        async with aiosqlite.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
             placeholders = ", ".join("?" * len(unique_platform_ids))
 
             query = f"""
@@ -67,13 +67,13 @@ def opt_get_global_player_data(
                 LEFT JOIN discord_vips dv ON ui.discord_id = dv.discord_id
                 WHERE ui.platform_id IN ({placeholders})
             """
-            cur.execute(query, unique_platform_ids)
-            for pid, discord_id, vip_level, vip_expiry in cur.fetchall():
-                data[pid] = {
-                    "discord_id": discord_id,
-                    "vip_level": vip_level if vip_level else 0,
-                    "vip_expiry": vip_expiry,
-                }
+            async with con.execute(query, unique_platform_ids) as cur:
+                for pid, discord_id, vip_level, vip_expiry in await cur.fetchall():
+                    data[pid] = {
+                        "discord_id": discord_id,
+                        "vip_level": vip_level if vip_level else 0,
+                        "vip_expiry": vip_expiry,
+                    }
     except Exception as e:
         pass
     return data
@@ -130,7 +130,7 @@ def opt_get_batch_player_data(
         pass
     return player_data
 
-def run_benchmark():
+async def run_benchmark():
     # 100 unique items, repeated 100 times = 10000 items
     base_ids = [f"PLATFORM_{i}" for i in range(100)]
     platform_ids = base_ids * 100
@@ -139,7 +139,7 @@ def run_benchmark():
 
     start_time = time.perf_counter()
     for _ in range(50):
-        opt_get_global_player_data(platform_ids, DB_PATH)
+        await opt_get_global_player_data(platform_ids, DB_PATH)
     end_time = time.perf_counter()
     print(f"opt_get_global_player_data: {end_time - start_time:.4f} seconds")
 
@@ -157,7 +157,8 @@ def run_benchmark():
 
 if __name__ == "__main__":
     setup_db()
-    run_benchmark()
+    import asyncio
+    asyncio.run(run_benchmark())
     if os.path.exists(DB_PATH):
         os.remove(DB_PATH)
     if os.path.exists(PLAYER_DB):

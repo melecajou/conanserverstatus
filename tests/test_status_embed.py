@@ -58,7 +58,7 @@ class TestStatusEmbed(IsolatedAsyncioTestCase):
         player_data_mock = MagicMock(
             return_value={"Pid1": {"online_minutes": 120, "is_registered": True}}
         )
-        global_data_mock = MagicMock(return_value={"Pid1": {"discord_id": 12345}})
+        global_data_mock = AsyncMock(return_value={"Pid1": {"discord_id": 12345}})
 
         with patch("cogs.status.get_batch_player_levels", levels_mock), patch(
             "cogs.status.get_batch_player_data", player_data_mock
