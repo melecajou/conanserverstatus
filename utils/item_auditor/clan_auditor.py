@@ -3,6 +3,8 @@ import sys
 import struct
 import collections
 import csv
+import os
+import argparse
 
 
 def load_item_names(csv_path="ItemTable.csv"):
@@ -37,8 +39,9 @@ def format_class_name(class_path):
     return class_path.split(".")[-1].replace("BP_PL_", "").replace("_C", "")
 
 
-def get_clan_audit(clan_name_filter):
-    db_path = "game.db"
+def get_clan_audit(clan_name_filter, db_path=None):
+    if db_path is None:
+        db_path = os.getenv("GAME_DB_PATH", "game.db")
     item_names = load_item_names()
 
     try:
@@ -138,7 +141,12 @@ def get_clan_audit(clan_name_filter):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 clan_auditor.py <clan_name>")
-    else:
-        get_clan_audit(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Audit items owned by a clan.")
+    parser.add_argument("clan_name", help="Name of the clan to audit.")
+    parser.add_argument(
+        "--db",
+        help="Path to the game.db file.",
+        default=os.getenv("GAME_DB_PATH", "game.db"),
+    )
+    args = parser.parse_args()
+    get_clan_audit(args.clan_name, args.db)

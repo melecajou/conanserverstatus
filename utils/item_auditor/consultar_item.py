@@ -1,6 +1,8 @@
 import sqlite3
 import sys
 import struct
+import os
+import argparse
 
 
 def format_class_name(class_path):
@@ -9,9 +11,11 @@ def format_class_name(class_path):
     return class_path.split(".")[-1].replace("BP_PL_", "").replace("_C", "")
 
 
-def get_item_report(template_id):
+def get_item_report(template_id, db_path=None):
+    if db_path is None:
+        db_path = os.getenv("GAME_DB_PATH", "game.db")
     try:
-        conn = sqlite3.connect("game.db")
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         cursor = conn.cursor()
     except Exception as e:
         print(f"Erro ao abrir o banco de dados: {e}")
@@ -127,7 +131,12 @@ def get_item_report(template_id):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Uso: python3 consultar_item.py <item_id>")
-    else:
-        get_item_report(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Busca itens e gera um relatório de propriedade.")
+    parser.add_argument("item_id", help="ID do item a ser buscado.")
+    parser.add_argument(
+        "--db",
+        help="Caminho para o arquivo game.db.",
+        default=os.getenv("GAME_DB_PATH", "game.db"),
+    )
+    args = parser.parse_args()
+    get_item_report(args.item_id, args.db)
