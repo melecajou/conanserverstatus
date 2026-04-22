@@ -2,6 +2,11 @@ import re
 import logging
 from typing import Dict, List, Optional
 
+# Precompiled regular expressions for parsing log entries
+STATUS_REPORT_RE = re.compile(
+    r"LogServerStats: Status report\. Uptime=(\d+).*? Mem=\d+:\d+:(\d+):\d+.*? CPU=([\d\.]+).*? Players=(\d+).*? FPS=([\d\.:]+)"
+)
+VERSION_RE = re.compile(r"LogInit: Engine Version: (.*?)$", re.MULTILINE)
 
 def parse_log_lines(
     lines: List[str], current_stats: Optional[Dict[str, str]] = None
@@ -25,10 +30,7 @@ def parse_log_lines(
         log_content = "\n".join(lines)
 
         # Uptime, CPU, Players, FPS from LogServerStats
-        status_reports = re.findall(
-            r"LogServerStats: Status report\. Uptime=(\d+).*? Mem=\d+:\d+:(\d+):\d+.*? CPU=([\d\.]+).*? Players=(\d+).*? FPS=([\d\.:]+)",
-            log_content,
-        )
+        status_reports = STATUS_REPORT_RE.findall(log_content)
         if status_reports:
             last_report = status_reports[-1]
             uptime_seconds = int(last_report[0])
@@ -53,11 +55,10 @@ def parse_log_lines(
                 stats["fps"] = "0.0"
 
         # Game Version from LogInit
-        version_match = re.search(
-            r"LogInit: Engine Version: (.*?)$", log_content, re.MULTILINE
-        )
-        if version_match:
-            stats["version"] = version_match.group(1).strip()
+        if "version" not in stats:
+            version_match = VERSION_RE.search(log_content)
+            if version_match:
+                stats["version"] = version_match.group(1).strip()
 
     except Exception as e:
         logging.warning(f"Error parsing log lines: {e}")
