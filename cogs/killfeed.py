@@ -137,14 +137,22 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
     @tasks.loop(seconds=20)
     async def kill_check_task(self):
         """Periodically checks all servers for new death events."""
-        for server_conf in config.SERVERS:
-            kf_config = server_conf.get("KILLFEED_CONFIG")
-            if not kf_config or not kf_config.get("ENABLED"):
-                continue
+
+        async def safe_process(server_conf):
             try:
                 await self._process_server_kills(server_conf)
             except Exception as e:
                 logging.error(f"Error checking kills for {server_conf['NAME']}: {e}")
+
+        tasks = []
+        for server_conf in config.SERVERS:
+            kf_config = server_conf.get("KILLFEED_CONFIG")
+            if not kf_config or not kf_config.get("ENABLED"):
+                continue
+            tasks.append(safe_process(server_conf))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _process_server_kills(self, server_conf):
         server_name = server_conf["NAME"]
@@ -309,14 +317,22 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
     @tasks.loop(minutes=5)
     async def ranking_update_task(self):
         """Updates individual server ranking messages."""
-        for server_conf in config.SERVERS:
-            kf_config = server_conf.get("KILLFEED_CONFIG")
-            if not kf_config or not kf_config.get("ENABLED"):
-                continue
+
+        async def safe_process(server_conf):
             try:
                 await self._update_server_ranking(server_conf)
             except Exception as e:
                 logging.error(f"Error updating ranking for {server_conf['NAME']}: {e}")
+
+        tasks = []
+        for server_conf in config.SERVERS:
+            kf_config = server_conf.get("KILLFEED_CONFIG")
+            if not kf_config or not kf_config.get("ENABLED"):
+                continue
+            tasks.append(safe_process(server_conf))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _update_server_ranking(self, server_conf):
         server_name = server_conf["NAME"]
@@ -377,16 +393,24 @@ class KillfeedCog(commands.Cog, name="Killfeed"):
     @tasks.loop(minutes=5)
     async def unified_ranking_task(self):
         """Updates unified cluster rankings."""
-        unified_configs = getattr(config, "KILLFEED_UNIFIED_RANKINGS", [])
-        for u_config in unified_configs:
-            if not u_config.get("enabled", True):
-                continue
+
+        async def safe_process(u_config):
             try:
                 await self._update_unified_ranking(u_config)
             except Exception as e:
                 logging.error(
                     f"Error updating unified ranking {u_config.get('title')}: {e}"
                 )
+
+        unified_configs = getattr(config, "KILLFEED_UNIFIED_RANKINGS", [])
+        tasks = []
+        for u_config in unified_configs:
+            if not u_config.get("enabled", True):
+                continue
+            tasks.append(safe_process(u_config))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _update_unified_ranking(self, u_config):
         channel = self.bot.get_channel(u_config["channel_id"])
