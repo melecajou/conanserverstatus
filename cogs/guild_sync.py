@@ -99,31 +99,23 @@ class GuildSyncCog(commands.Cog, name="GuildSync"):
                     roles_to_add.append(role)
 
             # Apply Changes
-            if roles_to_remove:
-                try:
-                    await member.remove_roles(
-                        *roles_to_remove, reason="Left Guild (Game Sync)"
-                    )
-                    logging.info(
-                        f"Removed guild roles from {member.display_name}: {[r.name for r in roles_to_remove]}"
-                    )
-                    await asyncio.sleep(1)
-                except Exception as e:
-                    logging.error(
-                        f"Error removing roles from {member.display_name}: {e}"
-                    )
+            if roles_to_remove or roles_to_add:
+                new_roles = [r for r in member.roles if r not in roles_to_remove]
+                new_roles.extend(roles_to_add)
 
-            if roles_to_add:
                 try:
-                    await member.add_roles(
-                        *roles_to_add, reason="Joined Guild (Game Sync)"
-                    )
-                    logging.info(
-                        f"Added guild roles to {member.display_name}: {[r.name for r in roles_to_add]}"
-                    )
+                    await member.edit(roles=new_roles, reason="Guild Role Sync")
+                    if roles_to_remove:
+                        logging.info(
+                            f"Removed guild roles from {member.display_name}: {[r.name for r in roles_to_remove]}"
+                        )
+                    if roles_to_add:
+                        logging.info(
+                            f"Added guild roles to {member.display_name}: {[r.name for r in roles_to_add]}"
+                        )
                     await asyncio.sleep(1)
                 except Exception as e:
-                    logging.error(f"Error adding roles to {member.display_name}: {e}")
+                    logging.error(f"Error updating roles for {member.display_name}: {e}")
 
         # 3. Cleanup Empty Guild Roles
         # If a role starts with the prefix and has 0 members, delete it.
