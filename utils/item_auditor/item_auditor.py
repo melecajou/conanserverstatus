@@ -2,6 +2,8 @@ import sqlite3
 import sys
 import struct
 import csv
+import os
+import argparse
 
 
 def load_item_names(csv_path="ItemTable.csv"):
@@ -44,12 +46,13 @@ def format_class_name(class_path):
     return class_path.split(".")[-1].replace("BP_PL_", "").replace("_C", "")
 
 
-def get_item_report(template_id):
+def get_item_report(template_id, db_path=None):
     """
     Queries the database for a specific item ID and generates an aggregated
     report grouped by Clan or individual Player.
     """
-    db_path = "game.db"
+    if db_path is None:
+        db_path = os.getenv("GAME_DB_PATH", "game.db")
     item_names = load_item_names()
     item_name = item_names.get(int(template_id), "Unknown Name")
 
@@ -204,7 +207,12 @@ def get_item_report(template_id):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 item_auditor.py <template_id>")
-    else:
-        get_item_report(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Generate an aggregated ownership report for a specific item ID.")
+    parser.add_argument("template_id", help="Template ID of the item.")
+    parser.add_argument(
+        "--db",
+        help="Path to the game.db file.",
+        default=os.getenv("GAME_DB_PATH", "game.db"),
+    )
+    args = parser.parse_args()
+    get_item_report(args.template_id, args.db)

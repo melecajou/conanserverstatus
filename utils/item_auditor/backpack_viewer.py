@@ -3,6 +3,8 @@ import struct
 import collections
 import sys
 import csv
+import os
+import argparse
 
 
 def load_item_names(csv_path="ItemTable.csv"):
@@ -38,11 +40,12 @@ def load_item_names(csv_path="ItemTable.csv"):
     return names
 
 
-def get_backpack_report(target_player=None):
+def get_backpack_report(target_player=None, db_path=None):
     """
     Scans player inventories (Backpack, Hotbar, Equipment) and lists items.
     """
-    db_path = "/home/steam/conan_exiles/ConanSandbox/Saved/game.db"
+    if db_path is None:
+        db_path = os.getenv("GAME_DB_PATH", "/home/steam/conan_exiles/ConanSandbox/Saved/game.db")
     item_names = load_item_names()
     try:
         # Use read-only mode to prevent locking the database during server operation
@@ -176,9 +179,12 @@ def get_backpack_report(target_player=None):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] in ["-h", "--help"]:
-        print("Usage: python3 backpack_viewer.py [player_name_filter]")
-        sys.exit(0)
-
-    player_filter = sys.argv[1] if len(sys.argv) > 1 else None
-    get_backpack_report(player_filter)
+    parser = argparse.ArgumentParser(description="Scan player inventories and list items.")
+    parser.add_argument("player_name_filter", nargs="?", help="Filter by player name.")
+    parser.add_argument(
+        "--db",
+        help="Path to the game.db file.",
+        default=os.getenv("GAME_DB_PATH", "/home/steam/conan_exiles/ConanSandbox/Saved/game.db"),
+    )
+    args = parser.parse_args()
+    get_backpack_report(args.player_name_filter, args.db)
