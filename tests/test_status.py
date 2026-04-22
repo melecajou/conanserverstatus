@@ -163,7 +163,7 @@ class TestStatusCog(IsolatedAsyncioTestCase):
         server_statuses = [{"alias": "Test", "online": True, "fps": "60"}]
 
         # Mock _write_json_file on the instance to verify it's called
-        self.status_cog._write_json_file = MagicMock()
+        self.status_cog._write_json_file = AsyncMock()
 
         await self.status_cog._export_status_json(cluster_data, server_statuses)
 
@@ -173,7 +173,7 @@ class TestStatusCog(IsolatedAsyncioTestCase):
         self.assertIn("output/status.json", args[0].replace("\\", "/"))
         self.assertEqual(args[1]["servers"][0]["name"], "Test Server")
 
-    def test_write_json_file(self):
+    async def test_write_json_file(self):
         """Test the static _write_json_file method."""
         import json
         import os
@@ -184,7 +184,7 @@ class TestStatusCog(IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             test_path = os.path.join(tmpdirname, "test_output.json")
 
-            StatusCog._write_json_file(test_path, test_data)
+            await StatusCog._write_json_file(test_path, test_data)
 
             self.assertTrue(os.path.exists(test_path))
             with open(test_path, "r", encoding="utf-8") as f:
