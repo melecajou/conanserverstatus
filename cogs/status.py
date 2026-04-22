@@ -8,6 +8,7 @@ import json
 import os
 import time
 from datetime import datetime
+import aiofiles
 from typing import Dict, List, Optional, Any, Tuple, Callable
 
 from aiomcrcon import Client, RCONConnectionError, IncorrectPasswordError
@@ -580,10 +581,11 @@ class StatusCog(commands.Cog, name="Status"):
                 del self.status_messages[channel.id]
 
     @staticmethod
-    def _write_json_file(path: str, data: dict):
-        """Helper method to write JSON data to a file synchronously."""
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+    async def _write_json_file(path: str, data: dict):
+        """Helper method to write JSON data to a file asynchronously."""
+        async with aiofiles.open(path, "w", encoding="utf-8") as f:
+            json_data = json.dumps(data, indent=4, ensure_ascii=False)
+            await f.write(json_data)
 
     async def _export_status_json(self, cluster_data, server_statuses):
         """Exports the current cluster status to a JSON file for web usage."""
@@ -629,7 +631,7 @@ class StatusCog(commands.Cog, name="Status"):
         os.makedirs("output", exist_ok=True)
 
         try:
-            await asyncio.to_thread(self._write_json_file, output_path, export_data)
+            await self._write_json_file(output_path, export_data)
         except Exception as e:
             logging.error(f"Failed to export status.json: {type(e).__name__}")
 
