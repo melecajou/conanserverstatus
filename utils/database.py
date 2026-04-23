@@ -233,7 +233,9 @@ async def get_global_player_data(
     missing_ids = []
     now = time.time()
 
-    for pid in platform_ids:
+    unique_platform_ids = set(platform_ids)
+
+    for pid in unique_platform_ids:
         cache_key = (pid, global_db_path)
         if cache_key in _GLOBAL_PLAYER_CACHE:
             entry = _GLOBAL_PLAYER_CACHE[cache_key]
@@ -249,7 +251,7 @@ async def get_global_player_data(
     for pid in missing_ids:
         data[pid] = {"discord_id": None, "vip_level": 0, "vip_expiry": None}
 
-    unique_missing_ids = list(set(missing_ids))
+    unique_missing_ids = missing_ids
 
     try:
         async with aiosqlite.connect(f"file:{global_db_path}?mode=ro", uri=True) as con:
