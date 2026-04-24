@@ -46,7 +46,7 @@ class TestMarketplaceConcurrency(unittest.IsolatedAsyncioTestCase):
         self.get_char_id_patcher = patch("cogs.marketplace.get_char_id_by_name", new_callable=AsyncMock, return_value=123)
         self.get_char_id_patcher.start()
 
-        self.find_user_patcher = patch("cogs.marketplace.find_discord_user_by_char_name", return_value=456)
+        self.find_user_patcher = patch("cogs.marketplace.find_discord_user_by_char_name", new_callable=AsyncMock, return_value=456)
         self.find_user_patcher.start()
 
         self.get_balance_patcher = patch("cogs.marketplace.get_player_balance", return_value=1000)
