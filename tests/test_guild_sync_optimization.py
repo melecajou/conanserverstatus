@@ -113,16 +113,12 @@ class TestGuildSyncOptimization:
             # 2. Verify get_member called for active user
             mock_guild.get_member.assert_any_call(active_user_id)
 
-            # 3. Verify member_active got role added
-            # We assume discord.utils.get finds role_a by name
-            # Since mock_guild.roles has role_a with correct name
+            # 3. Verify member_active got role added via edit
+            assert member_active.edit.called
+            _, kwargs = member_active.edit.call_args
+            assert role_a in kwargs.get('roles', [])
 
-        # 3. Verify member_active got role added via edit
-        assert member_active.edit.called
-        _, kwargs = member_active.edit.call_args
-        assert role_a in kwargs.get('roles', [])
-
-        # 4. Verify member_inactive got role removed via edit
-        assert member_inactive.edit.called
-        _, kwargs = member_inactive.edit.call_args
-        assert role_b not in kwargs.get('roles', [])
+            # 4. Verify member_inactive got role removed via edit
+            assert member_inactive.edit.called
+            _, kwargs = member_inactive.edit.call_args
+            assert role_b not in kwargs.get('roles', [])
