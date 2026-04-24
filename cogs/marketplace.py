@@ -563,15 +563,16 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
 
                     # Use execute_safe_batch for efficient injection
                     try:
-                        templates = []
-                        for p_id, v in dna.get("int", {}).items():
-                            templates.append(
-                                lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}"
-                            )
-                        for p_id, v in dna.get("float", {}).items():
-                            templates.append(
+                        templates = [
+                            lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemIntStat {new_slot} {p_id} {v} {inv_type}"
+                            for p_id, v in dna.get("int", {}).items()
+                        ]
+                        templates.extend(
+                            [
                                 lambda idx, p_id=p_id, v=v: f"con {idx} SetInventoryItemFloatStat {new_slot} {p_id} {v} {inv_type}"
-                            )
+                                for p_id, v in dna.get("float", {}).items()
+                            ]
+                        )
 
                         if templates:
                             await status_cog.execute_safe_batch(
