@@ -101,8 +101,18 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         if not getattr(config, "MARKETPLACE", {}).get("ENABLED", False):
             return
 
+        async def safe_process(server_conf):
+            try:
+                await self._process_log_for_server(server_conf)
+            except Exception as e:
+                logging.error(f"Error processing logs for {server_conf.get('NAME')}: {e}")
+
+        tasks = []
         for server_conf in config.SERVERS:
-            await self._process_log_for_server(server_conf)
+            tasks.append(safe_process(server_conf))
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _process_log_for_server(self, server_conf):
         log_path = server_conf.get("LOG_PATH")
