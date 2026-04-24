@@ -48,7 +48,7 @@ class TestMarketplaceAtomicity(IsolatedAsyncioTestCase):
             self.market_cog = MarketplaceCog(self.mock_bot)
 
         # Mock DB functions
-        self.find_discord_user_patcher = patch("cogs.marketplace.find_discord_user_by_char_name")
+        self.find_discord_user_patcher = patch("cogs.marketplace.find_discord_user_by_char_name", new_callable=AsyncMock)
         self.mock_find_user = self.find_discord_user_patcher.start()
         self.mock_find_user.return_value = "12345"
 

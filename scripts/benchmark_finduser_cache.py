@@ -58,7 +58,7 @@ def cleanup_db():
     if os.path.exists(GLOBAL_DB_PATH):
         os.remove(GLOBAL_DB_PATH)
 
-def run_benchmark(iterations=100, repeat=10):
+async def run_benchmark(iterations=100, repeat=10):
     """Runs the benchmark and returns the total time taken."""
     print(f"Running benchmark: {iterations} iterations, repeated {repeat} times (total {iterations * repeat} lookups)...")
 
@@ -67,7 +67,7 @@ def run_benchmark(iterations=100, repeat=10):
     for _ in range(repeat):
         for i in range(iterations):
             target = f"TargetChar_{i}"
-            result = find_discord_user_by_char_name(GAME_DB_PATH, target, GLOBAL_DB_PATH)
+            result = await find_discord_user_by_char_name(GAME_DB_PATH, target, GLOBAL_DB_PATH)
 
     end_time = time.perf_counter()
     total_time = end_time - start_time
@@ -75,12 +75,13 @@ def run_benchmark(iterations=100, repeat=10):
     print(f"Average time per lookup: {(total_time / (iterations * repeat)) * 1000:.4f}ms")
     return total_time
 
-def main():
+async def main():
     setup_db()
     try:
-        run_benchmark()
+        await run_benchmark()
     finally:
         cleanup_db()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())

@@ -185,9 +185,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
     async def _handle_market_help(self, char_name, server_conf):
         """Sends marketplace command guide to the player."""
         db_path = server_conf["DB_PATH"]
-        discord_id = await asyncio.to_thread(
-            find_discord_user_by_char_name, db_path, char_name
-        )
+        discord_id = await find_discord_user_by_char_name(db_path, char_name)
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
@@ -219,9 +217,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         currency_id = config.MARKETPLACE["CURRENCY_ITEM_ID"]
 
         # 1. Identity Check
-        discord_id = await asyncio.to_thread(
-            find_discord_user_by_char_name, db_path, char_name
-        )
+        discord_id = await find_discord_user_by_char_name(db_path, char_name)
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
@@ -344,9 +340,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
     async def _handle_balance(self, char_name, server_conf):
         """Sends current virtual balance to player via DM."""
         db_path = server_conf["DB_PATH"]
-        discord_id = await asyncio.to_thread(
-            find_discord_user_by_char_name, db_path, char_name
-        )
+        discord_id = await find_discord_user_by_char_name(db_path, char_name)
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
@@ -361,9 +355,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
     async def _handle_market_list(self, char_name, server_conf):
         """Sends a list of active market listings to player via DM."""
         db_path = server_conf["DB_PATH"]
-        discord_id = await asyncio.to_thread(
-            find_discord_user_by_char_name, db_path, char_name
-        )
+        discord_id = await find_discord_user_by_char_name(db_path, char_name)
         if not discord_id:
             return
         user = await self.bot.fetch_user(int(discord_id))
@@ -399,9 +391,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         server_name = server_conf["NAME"]
 
         # 1. Identity Check
-        discord_id = await asyncio.to_thread(
-            find_discord_user_by_char_name, db_path, char_name
-        )
+        discord_id = await find_discord_user_by_char_name(db_path, char_name)
         if not discord_id:
             return
 
@@ -633,9 +623,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         MARK_STAT_ID = 99999
 
         # 1. Identity Check
-        discord_id = await asyncio.to_thread(
-            find_discord_user_by_char_name, db_path, char_name
-        )
+        discord_id = await find_discord_user_by_char_name(db_path, char_name)
         if not discord_id:
             return
 
@@ -828,9 +816,7 @@ class MarketplaceCog(commands.Cog, name="Marketplace"):
         MARK_STAT_ID = 99999
 
         # 1. Identity Check
-        discord_id = await asyncio.to_thread(
-            find_discord_user_by_char_name, db_path, char_name
-        )
+        discord_id = await find_discord_user_by_char_name(db_path, char_name)
         if not discord_id:
             logging.warning(f"Unregistered player {char_name} tried to deposit.")
             return

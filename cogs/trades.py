@@ -82,7 +82,7 @@ class TradesCog(commands.Cog, name="Trades"):
 
         # 2. Find Discord User
         try:
-            discord_id = await asyncio.to_thread(find_discord_user_by_char_name, db_path, char_name)
+            discord_id = await find_discord_user_by_char_name(db_path, char_name)
             if not discord_id:
                 logging.info(f"Unregistered player {char_name} tried to buy {item_key}")
                 return

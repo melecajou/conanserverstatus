@@ -60,9 +60,7 @@ class TestTradesCog(IsolatedAsyncioTestCase):
             self.trades_cog = TradesCog(self.mock_bot)
 
         # Mock DB functions
-        self.find_discord_user_patcher = patch(
-            "cogs.trades.find_discord_user_by_char_name"
-        )
+        self.find_discord_user_patcher = patch("cogs.trades.find_discord_user_by_char_name", new_callable=AsyncMock)
         self.mock_find_discord_user = self.find_discord_user_patcher.start()
         self.mock_find_discord_user.return_value = "12345"
 

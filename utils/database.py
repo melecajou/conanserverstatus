@@ -769,7 +769,7 @@ def get_inactive_structures(
     return results
 
 
-def find_discord_user_by_char_name(
+async def find_discord_user_by_char_name(
     game_db_path: str, char_name: str, global_db_path: str = GLOBAL_DB_PATH
 ) -> Optional[int]:
     """
@@ -785,8 +785,7 @@ def find_discord_user_by_char_name(
         return None
 
     try:
-        with sqlite3.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
-            cur = con.cursor()
+        async with aiosqlite.connect(f"file:{game_db_path}?mode=ro", uri=True) as con:
             query = """
                 SELECT a.platformId 
                 FROM characters c
@@ -794,28 +793,27 @@ def find_discord_user_by_char_name(
                 WHERE c.char_name LIKE ?
                 LIMIT 1
             """
-            cur.execute(query, (f"%{char_name}%",))
-            row = cur.fetchone()
+            async with con.execute(query, (f"%{char_name}%",)) as cur:
+                row = await cur.fetchone()
 
-            if row:
-                platform_id = row[0]
-                # Check global registry
-                with sqlite3.connect(
-                    f"file:{global_db_path}?mode=ro", uri=True
-                ) as g_con:
-                    g_cur = g_con.cursor()
-                    g_cur.execute(
-                        "SELECT discord_id FROM user_identities WHERE platform_id = ?",
-                        (platform_id,),
-                    )
-                    res = g_cur.fetchone()
-                    if res:
-                        discord_id = res[0]
-                        _USER_CACHE[cache_key] = {
-                            "discord_id": discord_id,
-                            "timestamp": time.time(),
-                        }
-                        return discord_id
+                if row:
+                    platform_id = row[0]
+                    # Check global registry
+                    async with aiosqlite.connect(
+                        f"file:{global_db_path}?mode=ro", uri=True
+                    ) as g_con:
+                        async with g_con.execute(
+                            "SELECT discord_id FROM user_identities WHERE platform_id = ?",
+                            (platform_id,),
+                        ) as g_cur:
+                            res = await g_cur.fetchone()
+                            if res:
+                                discord_id = res[0]
+                                _USER_CACHE[cache_key] = {
+                                    "discord_id": discord_id,
+                                    "timestamp": time.time(),
+                                }
+                                return discord_id
 
         # Negative caching for not found users
         _USER_CACHE[cache_key] = {

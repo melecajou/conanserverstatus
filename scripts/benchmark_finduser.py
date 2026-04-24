@@ -78,8 +78,8 @@ async def monitor_loop_blocking(duration_container):
     duration_container['max_block_time'] = max_block_time
 
 async def run_blocking_version():
-    """Runs the synchronous version."""
-    print("Running Blocking Version of finduser...")
+    """Runs the synchronous version (now baseline)."""
+    print("Running Blocking Version of finduser (using to_thread baseline)...")
 
     metrics = {'max_block_time': 0}
     monitor_task = asyncio.create_task(monitor_loop_blocking(metrics))
@@ -89,7 +89,11 @@ async def run_blocking_version():
     # Simulate finding multiple characters
     for i in range(100):
         target = f"TargetChar_{i * 10}" # Look up a few spaced out
-        result = find_discord_user_by_char_name(GAME_DB_PATH, target, GLOBAL_DB_PATH)
+        # We simulate the old baseline by wrapping the awaitable in a task that we block on
+        # But really, this function is now fully async. We will just measure the async version directly.
+        # However, to maintain the benchmark structure, let's just make both async.
+        # Actually, let's just measure the new native async version and compare with historic results.
+        result = await find_discord_user_by_char_name(GAME_DB_PATH, target, GLOBAL_DB_PATH)
         # Yield control briefly
         await asyncio.sleep(0)
 
@@ -105,8 +109,8 @@ async def run_blocking_version():
     return metrics['max_block_time']
 
 async def run_non_blocking_version():
-    """Runs the asynchronous version using to_thread."""
-    print("\nRunning Non-Blocking (Async) Version of finduser...")
+    """Runs the asynchronous version natively."""
+    print("\nRunning Non-Blocking (Native Async) Version of finduser...")
 
     metrics = {'max_block_time': 0}
     monitor_task = asyncio.create_task(monitor_loop_blocking(metrics))
@@ -115,7 +119,7 @@ async def run_non_blocking_version():
 
     for i in range(100):
         target = f"TargetChar_{i * 10}"
-        result = await asyncio.to_thread(find_discord_user_by_char_name, GAME_DB_PATH, target, GLOBAL_DB_PATH)
+        result = await find_discord_user_by_char_name(GAME_DB_PATH, target, GLOBAL_DB_PATH)
         await asyncio.sleep(0)
 
     end_time = time.perf_counter()
@@ -132,20 +136,14 @@ async def run_non_blocking_version():
 async def main():
     setup_db()
 
-    blocking_max = await run_blocking_version()
+    # Since find_discord_user_by_char_name is now async, we just run the native async version.
+    print("Testing Native Async find_discord_user_by_char_name...")
     non_blocking_max = await run_non_blocking_version()
 
     cleanup_db()
 
     print("\n--- Results ---")
-    print(f"Blocking Max Delay: {blocking_max:.6f}s")
-    print(f"Non-Blocking Max Delay: {non_blocking_max:.6f}s")
-
-    if blocking_max > 0:
-        improvement = (blocking_max - non_blocking_max) / blocking_max * 100
-        print(f"Responsiveness Improvement: {improvement:.2f}%")
-    else:
-        print("Could not measure blocking time (too fast?)")
+    print(f"Native Async Max Delay: {non_blocking_max:.6f}s")
 
 if __name__ == "__main__":
     asyncio.run(main())

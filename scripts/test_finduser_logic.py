@@ -12,7 +12,7 @@ from utils.database import find_discord_user_by_char_name, _USER_CACHE
 GAME_DB_PATH = "test_finduser_logic_game.db"
 GLOBAL_DB_PATH = "test_finduser_logic_global.db"
 
-class TestFindUserCaching(unittest.TestCase):
+class TestFindUserCaching(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         if os.path.exists(GAME_DB_PATH):
             os.remove(GAME_DB_PATH)
@@ -43,9 +43,9 @@ class TestFindUserCaching(unittest.TestCase):
             os.remove(GLOBAL_DB_PATH)
         _USER_CACHE.clear()
 
-    def test_cache_hit(self):
+    async def test_cache_hit(self):
         # First call should populate cache
-        res1 = find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
+        res1 = await find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
         self.assertEqual(res1, 12345)
 
         # Modify DB directly to see if it still returns cached value
@@ -55,12 +55,12 @@ class TestFindUserCaching(unittest.TestCase):
             con.commit()
 
         # Second call should return cached value (12345), not 99999
-        res2 = find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
+        res2 = await find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
         self.assertEqual(res2, 12345)
 
-    def test_cache_expiration(self):
+    async def test_cache_expiration(self):
         # First call should populate cache
-        res1 = find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
+        res1 = await find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
         self.assertEqual(res1, 12345)
 
         # Manually expire the cache entry
@@ -74,12 +74,12 @@ class TestFindUserCaching(unittest.TestCase):
             con.commit()
 
         # Second call should return new value (99999)
-        res2 = find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
+        res2 = await find_discord_user_by_char_name(GAME_DB_PATH, "TestChar", GLOBAL_DB_PATH)
         self.assertEqual(res2, 99999)
 
-    def test_partial_match(self):
+    async def test_partial_match(self):
         # find_discord_user_by_char_name uses LIKE %char_name%
-        res = find_discord_user_by_char_name(GAME_DB_PATH, "estCha", GLOBAL_DB_PATH)
+        res = await find_discord_user_by_char_name(GAME_DB_PATH, "estCha", GLOBAL_DB_PATH)
         self.assertEqual(res, 12345)
 
         cache_key = (GAME_DB_PATH, "estCha", GLOBAL_DB_PATH)
