@@ -1,13 +1,12 @@
-# Conan Server Status - Scripts de Diagnóstico e Auditoria
+# Conan Server Status - Scripts de Administração e Diagnóstico
 
-Esta pasta contém scripts utilitários desenvolvidos para ajudar administradores a diagnosticar problemas de conexão RCON, auditar o banco de dados do jogo (`game.db`) e gerenciar ativos "fantasmas" (objetos ou seguidores abandonados).
+Esta pasta contém utilitários administrativos desenvolvidos para auxiliar no diagnóstico de RCON, gerenciamento de banco de dados (`game.db`) e tarefas de manutenção do servidor Conan Exiles.
 
 ## ⚠️ Requisitos
 
-Antes de rodar qualquer script, certifique-se de estar no diretório raiz do projeto e com o ambiente virtual ativado:
+Antes de executar qualquer script, certifique-se de estar no diretório raiz do projeto e com o ambiente virtual ativado:
 
 ```bash
-cd /home/steam/bots/ConanServerStatus
 source venv/bin/activate
 ```
 
@@ -15,75 +14,53 @@ source venv/bin/activate
 
 ## 🛠️ Scripts de Diagnóstico RCON
 
-Estes scripts testam a conectividade com o servidor do jogo usando as credenciais do `config.py`.
+Estes scripts testam a conectividade RCON com os servidores configurados no `config.py`.
 
 ### 1. `test_rcon.py`
-Um teste simples de conexão. Conecta ao **primeiro servidor** listado no `config.py`, executa o comando `ListPlayers` e exibe a resposta crua.
+Conecta ao **primeiro servidor** configurado, envia o comando `ListPlayers` e exibe a resposta para validar a conexão.
 
-**Uso:**
 ```bash
 python3 scripts/test_rcon.py
 ```
 
 ### 2. `diagnose_rcon.py`
-Uma versão mais detalhada do teste de conexão, projetada para identificar falhas de autenticação ou erros de rede. Tenta isolar se o problema é senha, porta ou firewall.
+Teste detalhado de conexão RCON com diagnóstico de erros (porta, senha, falha de autenticação ou firewall).
 
-**Uso:**
 ```bash
 python3 scripts/diagnose_rcon.py
 ```
 
 ---
 
-## 🕵️‍♂️ Scripts de Auditoria de Banco de Dados
+## 🗃️ Utilitários de Banco de Dados (`game.db`)
 
-Estes scripts leem o arquivo `game.db` (SQLite) para encontrar informações que não estão disponíveis via RCON. Eles abrem o banco em **Modo Somente Leitura (`ro`)**, portanto são seguros para rodar com o servidor ligado.
+### 3. `transfer_player_assets.py`
+Transfere a propriedade de construções, bancadas, baús e lacaios (thralls/pets) de um jogador/clã de origem para outro de destino no `game.db`. Suporta simulação (`--dry-run`) e aplicação segura com backup automático (`--apply`).
 
-**Nota:** Por padrão, eles buscam o arquivo `game_backup_1.db`. Use o argumento `--db` para especificar outro caminho.
-
-### 3. `find_orphans.py`
-Localiza objetos (bancadas, baús) e seguidores (thralls, pets) pertencentes a um Clã ou Jogador específico que não são peças de construção. Útil para limpar restos de bases deletadas.
-
-**Uso:**
 ```bash
-# Listar tudo (Objetos + Seguidores)
-python3 scripts/find_orphans.py "Nome do Clã"
+# Simular a transferência sem modificar o banco
+python3 scripts/transfer_player_assets.py --source "NomeOrigem" --dest "NomeDestino" --dry-run
 
-# Listar apenas Seguidores
-python3 scripts/find_orphans.py "Nome do Clã" --thralls-only
-
-# Usar outro banco de dados
-python3 scripts/find_orphans.py "Nome do Jogador" --db "/caminho/para/game.db"
+# Aplicar a transferência com backup automático (.bak)
+python3 scripts/transfer_player_assets.py --source "NomeOrigem" --dest "NomeDestino" --apply
 ```
 
-### 4. `map_assets.py` (Relatório Completo)
-Gera um inventário completo e categorizado de tudo que um Clã ou Jogador possui no mapa. Diferencia claramente o que é "Objeto Placeable" do que é "Seguidor", decodificando nomes customizados.
+### 4. `recalculate_ranking.py`
+Recalcula e recalibra as pontuações e rankings de PvP na base do Killfeed (`ranking.db`).
 
-**Uso:**
 ```bash
-python3 scripts/map_assets.py "Nome do Clã ou Jogador"
+python3 scripts/recalculate_ranking.py
 ```
 
-### 5. `list_inactive_assets.py` (Varredor de Inatividade)
-O script mais poderoso para limpeza. Ele identifica Clãs ou Jogadores Solo que não logaram nos últimos X dias e lista **apenas** os ativos (bancadas, baús, thralls) que eles deixaram para trás, ignorando as estruturas de construção.
+### 5. `extract_structures.py`
+Extrai posições e contagem de peças de estruturas do `game.db` para exportação e visualização no mapa.
 
-**Uso:**
 ```bash
-# Listar inativos há mais de 15 dias (padrão)
-python3 scripts/list_inactive_assets.py
-
-# Listar inativos há mais de 30 dias
-python3 scripts/list_inactive_assets.py --days 30
+python3 scripts/extract_structures.py
 ```
 
-### 6. `list_thralls_advanced.py`
-Focado exclusivamente em encontrar e listar todos os seguidores (Thralls/Pets) do servidor ou de um alvo específico, usando uma técnica avançada de decodificação de IDs hexadecimais na tabela de propriedades.
+---
 
-**Uso:**
-```bash
-# Listar TODOS os seguidores do servidor
-python3 scripts/list_thralls_advanced.py
+## ⚡ Pasta `benchmarks/`
 
-# Filtrar por um clã específico
-python3 scripts/list_thralls_advanced.py "Nome do Clã"
-```
+A pasta [`scripts/benchmarks/`](file:///home/eduardoh@unisc.br/Pessoal/1_Projetos_Desenvolvimento/conanserverstatus/scripts/benchmarks/) contém scripts de perfilamento, testes de estresse e verificações de desempenho desenvolvidos durante as otimizações do bot.

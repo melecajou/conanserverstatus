@@ -71,9 +71,8 @@ The bot is organized into a modular, cog-based architecture for better maintaina
 - `cogs/`: This directory contains individual cogs, each encapsulating specific features.
 - `utils/`: Contains shared utility modules like database interactions and log parsing.
 - `data/`: Contains the SQLite databases. `global_registry.db` stores identities and VIPs, while `playertracker_*.db` store server-specific stats.
-- `logs/`: Contains reward log files.
-- `locale/`: Contains language translation files.
-- `scripts/`: Contains utility scripts for RCON diagnosis and testing.
+- `docs/`: Contains technical documentation and database structure analysis reports.
+- `scripts/`: Contains administrative utilities (`transfer_player_assets.py`, `diagnose_rcon.py`, etc.) and performance benchmarks in `scripts/benchmarks/`.
 - `sql/`: Contains SQL scripts used by features like the Building Watcher.
 - `.env`: A file for storing sensitive information like your bot token and RCON passwords. This file is not committed to version control.
 - `.env.example`: A template for the `.env` file.
