@@ -9,6 +9,8 @@ __pycache__/
 # Databases
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 
 # Logs
 logs/*.log
@@ -17,6 +19,8 @@ logs/*.log
 # Temporary files
 *.bak
 temp_db_copy.db
+edit_out*.txt
+out*.txt
 
 # Gemini Instructions
 GEMINI.md
